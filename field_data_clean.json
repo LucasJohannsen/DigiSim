@@ -31,7 +31,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Häufeln"
       }
     },
     {
@@ -55,7 +56,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Pflanzen"
       }
     },
     {
@@ -79,7 +81,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Separieren"
       }
     },
     {
@@ -103,7 +106,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Häufeln"
       }
     },
     {
@@ -127,7 +131,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Pflanzen"
       }
     },
     {
@@ -151,7 +156,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Separieren"
       }
     },
     {
@@ -175,7 +181,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Häufeln"
       }
     },
     {
@@ -199,7 +206,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Pflanzen"
       }
     },
     {
@@ -223,7 +231,8 @@
         "application_category": 27,
         "application_name": "voyager + cymbal + ranman+ ortiva",
         "application_amount": 17.5,
-        "application_unit": 2
+        "application_unit": 2,
+        "worktype_text": "Spritzen"
       }
     },
     {
@@ -247,7 +256,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Spritzen"
       }
     },
     {
@@ -271,7 +281,8 @@
         "application_category": 26,
         "application_name": "Revus + Danjiri + Terminus",
         "application_amount": 15.51,
-        "application_unit": 2
+        "application_unit": 2,
+        "worktype_text": "Spritzen"
       }
     },
     {
@@ -295,7 +306,8 @@
         "application_category": 26,
         "application_name": "Simpro + Terminus",
         "application_amount": 21.2,
-        "application_unit": 2
+        "application_unit": 2,
+        "worktype_text": "Spritzen"
       }
     },
     {
@@ -319,7 +331,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Spritzen"
       }
     },
     {
@@ -343,7 +356,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Spritzen"
       }
     },
     {
@@ -367,7 +381,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Spritzen"
       }
     },
     {
@@ -391,7 +406,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Spritzen"
       }
     },
     {
@@ -415,7 +431,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Roden"
       }
     },
     {
@@ -439,7 +456,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Roden"
       }
     },
     {
@@ -463,7 +481,8 @@
         "application_category": null,
         "application_name": null,
         "application_amount": 0.0,
-        "application_unit": null
+        "application_unit": null,
+        "worktype_text": "Roden"
       }
     },
     {
@@ -487,7 +506,8 @@
         "application_category": 27,
         "application_name": "Cymbal Flow + Zorvec",
         "application_amount": 4.75,
-        "application_unit": 2
+        "application_unit": 2,
+        "worktype_text": "Spritzen"
       }
     },
     {
@@ -511,7 +531,8 @@
         "application_category": 26,
         "application_name": "Karate Zeon + Terminus + RivalDuo",
         "application_amount": 21.72,
-        "application_unit": 2
+        "application_unit": 2,
+        "worktype_text": "Spritzen"
       }
     }
   ],
