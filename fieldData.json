@@ -1,0 +1,46 @@
+{
+  "protection": {
+    "application_category": [
+      "Pflanzenschutzmittel - Herbizid",
+      "Pflanzenschutzmittel - Fungizid",
+      "Pflanzenschutzmittel - Insektizid"
+    ],
+    "application_name": "Freitext",
+    "application_amount": "Freitext",
+    "application_unit": "Kilogramm (kg)"
+  },
+  "mineral fertilizer": {
+    "application_category": [
+      "Harnstoff-N-Mineraldünger",
+      "AHL-N-Mineraldünger",
+      "Andere N-Mineraldünger",
+      "Andere N-Mineraldünger"
+    ],
+    "application_name": "Freitext",
+    "N%": "Freitext",
+    "K2O%": "Freitext",
+    "P2O5%": "Freitext",
+    "application_amount": "Freitext",
+    "application_unit": "Tonne (t)"
+  },
+  "manure": {
+    "application_category": [
+      "Schweinegülle 0.36",
+      "Rindergülle 0.26",
+      "Görreste 0.26 aus Viehhaltung",
+      "Hirschgülle 0.6 aus Viehhaltung"
+    ],
+    "application_name": "Freitext",
+    "application_amount": "Freitext",
+    "application_unit": "Tonne (t)"
+  },
+  "seed": {
+    "application_category": [
+      "Saat - Speisekartoffel",
+      "Saat - Stärkekartoffel"
+    ],
+    "application_name": "Freitext",
+    "application_amount": "Freitext",
+    "application_unit": "Tonne (t)"
+  }
+}

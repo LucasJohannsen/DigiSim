@@ -16,7 +16,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 22,
+        "worktype": 28,
         "exa_id": 396895,
         "start_date": "2024-04-10T08:06:07Z",
         "end_date": "2024-04-10T15:40:38Z",
@@ -32,7 +32,7 @@
         "application_name": null,
         "application_amount": 0.0,
         "application_unit": null,
-        "worktype_text": "Häufeln"
+        "worktype_text": "Separieren"
       }
     },
     {
@@ -41,7 +41,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 20,
+        "worktype": 26,
         "exa_id": 398227,
         "start_date": "2024-04-11T09:34:06Z",
         "end_date": "2024-04-11T16:42:54Z",
@@ -57,7 +57,7 @@
         "application_name": null,
         "application_amount": 0.0,
         "application_unit": null,
-        "worktype_text": "Pflanzen"
+        "worktype_text": "Kartoffeln legen"
       }
     },
     {
@@ -66,7 +66,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 33,
+        "worktype": 38,
         "exa_id": 398466,
         "start_date": "2024-04-11T12:13:11Z",
         "end_date": "2024-04-11T12:30:49Z",
@@ -82,7 +82,7 @@
         "application_name": null,
         "application_amount": 0.0,
         "application_unit": null,
-        "worktype_text": "Separieren"
+        "worktype_text": "Beetformen"
       }
     },
     {
@@ -91,7 +91,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 22,
+        "worktype": 28,
         "exa_id": 398669,
         "start_date": "2024-04-11T14:10:11Z",
         "end_date": "2024-04-11T15:25:09Z",
@@ -107,7 +107,7 @@
         "application_name": null,
         "application_amount": 0.0,
         "application_unit": null,
-        "worktype_text": "Häufeln"
+        "worktype_text": "Separieren"
       }
     },
     {
@@ -116,7 +116,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 20,
+        "worktype": 26,
         "exa_id": 399535,
         "start_date": "2024-04-12T08:34:42Z",
         "end_date": "2024-04-12T11:17:55Z",
@@ -132,7 +132,7 @@
         "application_name": null,
         "application_amount": 0.0,
         "application_unit": null,
-        "worktype_text": "Pflanzen"
+        "worktype_text": "Kartoffeln legen"
       }
     },
     {
@@ -141,7 +141,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 33,
+        "worktype": 28,
         "exa_id": 400090,
         "start_date": "2024-04-12T13:57:22Z",
         "end_date": "2024-04-12T14:17:15Z",
@@ -166,7 +166,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 22,
+        "worktype": 38,
         "exa_id": 400296,
         "start_date": "2024-04-12T15:52:33Z",
         "end_date": "2024-04-12T16:43:42Z",
@@ -182,7 +182,7 @@
         "application_name": null,
         "application_amount": 0.0,
         "application_unit": null,
-        "worktype_text": "Häufeln"
+        "worktype_text": "Beetformen"
       }
     },
     {
@@ -191,7 +191,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 20,
+        "worktype": 26,
         "exa_id": 410948,
         "start_date": "2024-04-25T19:14:09Z",
         "end_date": "2024-04-26T08:08:16Z",
@@ -207,7 +207,7 @@
         "application_name": null,
         "application_amount": 0.0,
         "application_unit": null,
-        "worktype_text": "Pflanzen"
+        "worktype_text": "Kartoffeln legen"
       }
     },
     {
@@ -216,7 +216,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 7,
+        "worktype": 14,
         "exa_id": 460354,
         "start_date": "2024-06-20T14:32:59Z",
         "end_date": "2024-06-20T15:01:52Z",
@@ -241,7 +241,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 7,
+        "worktype": 14,
         "exa_id": 455149,
         "start_date": "2024-06-13T11:27:47Z",
         "end_date": "2024-06-13T11:56:17Z",
@@ -266,7 +266,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 7,
+        "worktype": 14,
         "exa_id": 472005,
         "start_date": "2024-07-03T14:36:13Z",
         "end_date": "2024-07-03T15:02:08Z",
@@ -291,7 +291,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 7,
+        "worktype": 14,
         "exa_id": 514490,
         "start_date": "2024-08-10T14:05:24Z",
         "end_date": "2024-08-10T14:33:27Z",
@@ -316,7 +316,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 7,
+        "worktype": 14,
         "exa_id": 478535,
         "start_date": "2024-07-08T14:32:55Z",
         "end_date": "2024-07-08T14:58:51Z",
@@ -341,7 +341,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 7,
+        "worktype": 14,
         "exa_id": 501867,
         "start_date": "2024-07-31T08:14:43Z",
         "end_date": "2024-07-31T08:42:23Z",
@@ -366,7 +366,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 7,
+        "worktype": 14,
         "exa_id": 525108,
         "start_date": "2024-08-19T15:47:17Z",
         "end_date": "2024-08-19T16:01:12Z",
@@ -391,7 +391,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 7,
+        "worktype": 14,
         "exa_id": 540928,
         "start_date": "2024-09-04T09:04:57Z",
         "end_date": "2024-09-04T09:37:13Z",
@@ -416,7 +416,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 21,
+        "worktype": 27,
         "exa_id": 571319,
         "start_date": "2024-10-09T10:13:49Z",
         "end_date": "2024-10-09T16:37:53Z",
@@ -441,7 +441,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 21,
+        "worktype": 27,
         "exa_id": 578221,
         "start_date": "2024-10-16T16:12:40Z",
         "end_date": "2024-10-17T08:31:19Z",
@@ -466,7 +466,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 21,
+        "worktype": 27,
         "exa_id": 588118,
         "start_date": "2024-10-26T06:06:35Z",
         "end_date": "2024-10-26T15:42:08Z",
@@ -491,7 +491,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 7,
+        "worktype": 14,
         "exa_id": 446208,
         "start_date": "2024-06-03T12:20:13Z",
         "end_date": "2024-06-03T12:45:11Z",
@@ -516,7 +516,7 @@
       "fields": {
         "batch": null,
         "field": 458,
-        "worktype": 7,
+        "worktype": 14,
         "exa_id": 487125,
         "start_date": "2024-07-18T08:49:47Z",
         "end_date": "2024-07-18T09:32:04Z",
