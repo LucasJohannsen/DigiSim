@@ -1,0 +1,41 @@
+{
+    // https://www.europlant.biz/sortiment/pdf/belana/
+    "variety": "Belana",
+    "planting_period_months": [4,5],
+    "harvest_period_month": [9,10],
+    "growth_duration": "90 days",
+    "operations": [
+        {
+            "operation": "grubbing",
+            "start_month": 2,
+            "end_month": 1,
+            "min_performance": 48,
+            "duration_per_ha": 2.5,
+            "working_width": 6.5
+        },
+        {
+            "operation": "planting",
+            "start_month": 4,
+            "end_month": 5,
+            "min_performance": 60,
+            "duration_per_ha": 3.0,
+            "working_width": 6.5
+        },
+        {
+            "operation": "fertilizing",
+            "start_month": 4,
+            "end_month": 5,
+            "min_performance": 50,
+            "duration_per_ha": 1.5,
+            "working_width": 6.5
+        },
+        {
+            "operation": "harvesting",
+            "start_month": 9,
+            "end_month": 10,
+            "min_performance": 70,
+            "duration_per_ha": 4.0,
+            "working_width": 0.8
+        }
+    ]
+}
