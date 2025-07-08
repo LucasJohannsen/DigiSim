@@ -1,41 +1,92 @@
 {
-    // https://www.europlant.biz/sortiment/pdf/belana/
+    "crop": "Potato",
     "variety": "Belana",
-    "planting_period_months": [4,5],
-    "harvest_period_month": [9,10],
+    "planting_period_months": [4, 5],
+    "harvest_period_months": [9, 10],
     "growth_duration": "90 days",
-    "operations": [
+    "phases": [
         {
-            "operation": "grubbing",
-            "start_month": 2,
-            "end_month": 1,
-            "min_performance": 48,
-            "duration_per_ha": 2.5,
-            "working_width": 6.5
+            "soil_preparation": {
+                "operations": [
+                    {
+                        "sequence": 1,
+                        "operation": "Grubbern",
+
+                        "min_days_to_target": -27,
+                        "max_days_to_target": -23,
+
+                        "duration_per_ha": 0.89,
+                        "working_width": 2.5,
+                        "fuel_consumption": 12.7,
+                        "worktype": 6
+                    },
+                    {
+                        "sequence": 2,
+                        "operation": "Kreiseln",
+
+                        "min_days_to_target": -22,
+                        "max_days_to_target": -15,
+
+                        "duration_per_ha": 0.96,
+                        "working_width": 3.0,
+                        "fuel_consumption": 8.8,
+                        "worktype": 7
+                    },
+                    {
+                        "sequence": 3,
+                        "operation": "Separieren",
+
+                        "min_days_to_target": -14,
+                        "max_days_to_target": -5,
+
+                        "duration_per_ha": 1.74,
+                        "working_width": 1.8,
+                        "fuel_consumption": 26.6,
+                        "worktype": 28
+                    } 
+
+
+                ]
+            }
         },
         {
-            "operation": "planting",
-            "start_month": 4,
-            "end_month": 5,
-            "min_performance": 60,
-            "duration_per_ha": 3.0,
-            "working_width": 6.5
+            "sowing_planting": {
+                
+            }
         },
         {
-            "operation": "fertilizing",
-            "start_month": 4,
-            "end_month": 5,
-            "min_performance": 50,
-            "duration_per_ha": 1.5,
-            "working_width": 6.5
+            "crop_management": {
+                "operations": [
+                    
+                ]
+            }
+        },
+        
+        {
+            "harvesting": {
+                "operations": [
+                    {
+                        "operation": "harvesting",
+                   
+                        "duration_per_ha": 4.0,
+                        "working_width": 0.8
+                    }
+                ]
+            }
         },
         {
-            "operation": "harvesting",
-            "start_month": 9,
-            "end_month": 10,
-            "min_performance": 70,
-            "duration_per_ha": 4.0,
-            "working_width": 0.8
+            "post_harvest_handling": {
+                "operations": [
+                    
+                ]
+            }
+        },
+        {
+            "stubble_management_cover_cropping": {
+                "operations": [
+                    
+                ]
+            }
         }
     ]
 }
