@@ -9,8 +9,8 @@ class SimContext:
     soil_type: str = 'sand'  # Default soil type for the simulation
     harvest_date: datetime.date = datetime.date(2025, 9, 15)  # Default harvest date
     start_date: datetime.date = datetime.date(2024, 10, 1)  # Default start date for the simulation
-    crop_type: str = 'potato'  # Default crop type for the simulation
-    varity: str = 'Belana'  # Default crop variety
+    crop_type: str = 'Potato'  # Default crop type for the simulation
+    variety: str = 'Belana'  # Default crop variety
 
     def collect(self, defaults=None):
 
@@ -21,7 +21,7 @@ class SimContext:
                 "start_date": self.start_date,
                 "harvest_date": self.harvest_date,
                 "crop_type": self.crop_type,
-                "varity": self.varity
+                "variety": self.variety
             }
 
         def get_input(prompt, param_type=str, choices=None, validator=None, default=None):
@@ -72,10 +72,10 @@ class SimContext:
             str,
             default=defaults["crop_type"]
         )
-        self.varity = get_input(
-            f"Enter crop variety [{defaults['varity']}]: ",
+        self.variety = get_input(
+            f"Enter crop variety [{defaults['variety']}]: ",
             str,
-            default=defaults["varity"]
+            default=defaults["variety"]
         )
 
         return self

@@ -56,7 +56,3 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print('\nExiting DigiSim CLI due to keyboard interrupt.')
         sys.exit(0)
-    # except Exception as e:
-    #     print(f'An error occurred: {e}')
-    #     sys.exit(1)
-        
