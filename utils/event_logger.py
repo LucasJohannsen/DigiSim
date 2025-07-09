@@ -27,8 +27,17 @@ class EventLogger:
     def save(self, filepath):
 
         data = {
-            "field": 0,
-            "harvest_cycle": 0,
+            "field": {
+                "exa_id": 0,
+                "name": "",
+                "area": 0,
+            },
+            "harvest_cycle": 
+            {
+                "id": 0,
+                "start_date": "",
+                "end_date": "",
+            },
             "operations": []
         }
 
