@@ -1,0 +1,92 @@
+{
+    "crop": "Potato",
+    "variety": "Belana",
+    "planting_period_months": [4, 5],
+    "harvest_period_months": [9, 10],
+    "growth_duration": "90 days",
+    "phases": [
+        {
+            "soil_preparation": {
+                "operations": [
+                    {
+                        "sequence": 1,
+                        "operation": "Grubbern",
+
+                        "min_days_to_target": -27,
+                        "max_days_to_target": -23,
+
+                        "duration_per_ha": 0.89,
+                        "working_width": 2.5,
+                        "fuel_consumption": 12.7,
+                        "worktype": 6
+                    },
+                    {
+                        "sequence": 2,
+                        "operation": "Kreiseln",
+
+                        "min_days_to_target": -22,
+                        "max_days_to_target": -15,
+
+                        "duration_per_ha": 0.96,
+                        "working_width": 3.0,
+                        "fuel_consumption": 8.8,
+                        "worktype": 7
+                    },
+                    {
+                        "sequence": 3,
+                        "operation": "Separieren",
+
+                        "min_days_to_target": -14,
+                        "max_days_to_target": -5,
+
+                        "duration_per_ha": 1.74,
+                        "working_width": 1.8,
+                        "fuel_consumption": 26.6,
+                        "worktype": 28
+                    } 
+
+
+                ]
+            }
+        },
+        {
+            "sowing_planting": {
+                
+            }
+        },
+        {
+            "crop_management": {
+                "operations": [
+                    
+                ]
+            }
+        },
+        
+        {
+            "harvesting": {
+                "operations": [
+                    {
+                        "operation": "harvesting",
+                   
+                        "duration_per_ha": 4.0,
+                        "working_width": 0.8
+                    }
+                ]
+            }
+        },
+        {
+            "post_harvest_handling": {
+                "operations": [
+                    
+                ]
+            }
+        },
+        {
+            "stubble_management_cover_cropping": {
+                "operations": [
+                    
+                ]
+            }
+        }
+    ]
+}

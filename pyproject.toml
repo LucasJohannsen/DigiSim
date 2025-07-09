@@ -1,0 +1,22 @@
+[project]
+name = "digisim"
+version = "0.1.0"
+description = "A digital simulation project using SimPy"
+authors = [
+    
+]
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "simpy>=4.0.1"
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-cov"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
