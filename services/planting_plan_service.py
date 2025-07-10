@@ -21,25 +21,16 @@ class PlantingPlanService:
         self.planting_plan = None
         
 
-    def update_planned_dates(self, operations: FieldOperation, target_date: datetime):
+    def update_planned_dates(self, phase_name: str, target_date: datetime):
         """
         Update the planned dates for a specific operation in the planting plan.
         """
-        
-        # check if forward or backward planning is needed
-        # get min and max target dates. if all negative, then backward planning is needed
-        
-
-        # read all operations in list so taht it can be ordered
-        operations = sim_helper.get_operations_by_phase(self.planting_plan, "soil_preparation")
-        if not operations:      
-            print("No operations found for soil preparation phase. Exiting.")
-            return  
-        
-        sorted_operations = sorted(operations, key=lambda op: op.sequence, reverse=True)
+ 
+        # get the list of operations for the specified phase
+        operations = sim_helper.get_operations_by_phase(self.planting_plan, phase_name)
 
         operation_date = target_date
-
+    
         for operation in operations:
             min_offset = operation.min_days_to_target
             max_offset = operation.max_days_to_target
@@ -66,9 +57,16 @@ class PlantingPlanService:
 
 
         # soil preparation operations
-        soil_preparation_operations = sim_helper.get_operations_by_phase(self.planting_plan, "soil_preparation")
+        self.update_planned_dates("soil_preparation", planting_date)
+        
+        # sowing/planting operations
+        self.update_planned_dates("sowing_planting", planting_date)
 
-        self.update_planned_dates(soil_preparation_operations, planting_date)
+        # crop management operations
+        self.update_planned_dates("crop_management", planting_date)
+
+        # harvesting operations
+        self.update_planned_dates("harvesting", planting_date)
 
 
     def prepare_planting_plan(self):
@@ -103,9 +101,10 @@ class PlantingPlanService:
             for operation in phase.operations:
                 if operation.planned_date and operation.planned_date.date() <= timestamp and operation.actual_date is None:
                     # Process the operation
-                    print(f"    Processing operation: {operation.operation} on {operation.planned_date}")
+                    
                     # Update the actual date of the operation
                     operation.actual_date = timestamp
+                    print(f"    {operation.operation}: {operation.actual_date.strftime("%Y-%m-%dT%H:%M:%SZ")}")
 
                     event = FieldOperationEvent()
                     event.start_date = operation.actual_date.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -118,7 +117,7 @@ class PlantingPlanService:
                     event.worktype_text = operation.operation
                     event.duration = operation.duration_per_ha * self.context.field_size
                     event.durationWorked = event.duration * 0.95
-                    event.distance = self.context.field_size/ operation.working_width 
+                    event.distance = self.context.field_size/ operation.working_width if operation.working_width > 0 else 0
                     event.distanceWorked = event.distance * 0.95
 
                     events.append(event)
