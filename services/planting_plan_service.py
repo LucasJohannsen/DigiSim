@@ -28,6 +28,8 @@ class PlantingPlanService:
  
         # get the list of operations for the specified phase
         operations = sim_helper.get_operations_by_phase(self.planting_plan, phase_name)
+        # Sort operations by their sequence property
+        operations = sorted(operations, key=lambda op: op.sequence)
 
         operation_date = target_date
     
