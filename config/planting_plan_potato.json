@@ -9,10 +9,11 @@
         9,
         10
     ],
-    "growth_duration": "90 days",
+    "growth_duration": 90,
     "phases": [
         {
             "soil_preparation": {
+                "target_date_name": "Planting",
                 "operations": [
                     {
                         "sequence": 1,
@@ -49,6 +50,7 @@
         },
         {
             "sowing_planting": {
+                "target_date_name": "Planting",
                 "operations": [
                     {
                         "sequence": 1,
@@ -86,6 +88,7 @@
         },
         {
             "crop_management": {
+                "target_date_name": "Planting",
                 "operations": [
                     {
                         "sequence": 1,
@@ -124,12 +127,13 @@
         },
         {
             "harvesting": {
+                "target_date_name": "Harvesting",
                 "operations": [
                     {
                         "sequence": 1,
                         "operation": "Herbizid",
-                        "min_days_to_target": 85,
-                        "max_days_to_target": 95,
+                        "min_days_to_target": -5,
+                        "max_days_to_target": -3,
                         "duration_per_ha": 0.2,
                         "working_width": 18,
                         "fuel_consumption": 1.03,
@@ -138,8 +142,8 @@
                     {
                         "sequence": 2,
                         "operation": "Roden",
-                        "min_days_to_target": 96,
-                        "max_days_to_target": 100,
+                        "min_days_to_target": 0,
+                        "max_days_to_target": 5,
                         "duration_per_ha": 16.25,
                         "working_width": 0.8,
                         "fuel_consumption": 42.09,
@@ -148,8 +152,8 @@
                     {
                         "sequence": 3,
                         "operation": "Lagerung",
-                        "min_days_to_target": 101,
-                        "max_days_to_target": 101,
+                        "min_days_to_target": 0,
+                        "max_days_to_target": 1,
                         "duration_per_ha": 0.1,
                         "working_width": 0,
                         "fuel_consumption": 0,

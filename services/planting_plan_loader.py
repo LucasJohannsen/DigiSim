@@ -1,5 +1,5 @@
 import json
-from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldPhases, FieldOperation
+from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldPhases, FieldOperation, TargetDates
 
 
 class PlantingPlanLoader:
@@ -62,18 +62,23 @@ class PlantingPlanLoader:
         phases = []
         for phase in self.planting_plan.get('phases'):
             phase_name = list(phase.keys())[0]  # Get the phase name (e.g., 'soil_preparation')
-
             
             operations = [FieldOperation(**op) for op in phase.get(phase_name, {}).get('operations', [])]
             # phase is a dict like {'soil_preparation': {...}}
+
+            # Convert the target date name to an enum value
+            target_date_name = phase.get(phase_name, {}).get('target_date_name', 'NONE').upper()
+            target_date_name = TargetDates[target_date_name] if target_date_name in TargetDates.__members__ else TargetDates.NONE
             
+
             
-            phases.append(FieldPhases(phase_name=phase_name, operations=operations))
+            phases.append(FieldPhases(phase_name=phase_name, operations=operations, target_date_name= target_date_name))
         
         return PlantingPlan(
             crop_type=self.crop_type,
             variety=self.variety,
             planting_period_months=tuple(self.planting_plan['planting_period_months']),
             harvest_period_months=tuple(self.planting_plan['harvest_period_months']),
+            grow_duration=self.planting_plan.get('growth_duration', 90),  # Default to 90 days if not specified
             phases=phases
         )        

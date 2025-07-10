@@ -3,7 +3,7 @@ import simpy
 from services.planting_plan_loader import PlantingPlanLoader
 from typing import cast
 
-from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldPhases, FieldOperation, FieldOperationEvent
+from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldPhases, FieldOperation, FieldOperationEvent, TargetDates
 
 from datetime import datetime, timedelta
 from utils import sim_helper
@@ -41,7 +41,7 @@ class PlantingPlanService:
 
 
 
-    def plan_dates(self):
+    def plan_dates(self, target_date_type: TargetDates = TargetDates.NONE):
         """
         Plan the dates for each operation in the planting plan.
         """
@@ -49,24 +49,31 @@ class PlantingPlanService:
             print("No planting plan loaded. Exiting.")
             return
 
-        # determine the target dates based on the planting plan
-        planting_date = sim_helper.get_random_planting_date(self.planting_plan, self.start_date.year + 1)
-        harvest_date = sim_helper.get_random_harvest_date(self.planting_plan, self.start_date.year + 1)
+        # bestimmt das Ziel-Datum für jede Phase im Pflanzplan
+        for phase in self.planting_plan.phases:
+            # get the target date for the phase
+            target_date_name = phase.target_date_name
+            if target_date_name == target_date_type and target_date_type == TargetDates.PLANTING:
+                # use the planting date for planting phases
 
-        print(f"Planting date: {planting_date}, Harvest date: {harvest_date}")
+                planting_date = sim_helper.get_random_date(
+                    self.planting_plan.planting_period_months[0],
+                    self.planting_plan.planting_period_months[1],
+                    self.start_date.year+1
+                )
+                self.update_planned_dates(phase.phase_name, planting_date)
+            elif target_date_name == target_date_type and target_date_name == TargetDates.HARVESTING:
+                # use the harvest date for harvesting phases
 
+                                # Calculate the harvest date based on the planting plan
+                operations = sim_helper.get_operations_by_phase(self.planting_plan, "sowing_planting")
 
-        # soil preparation operations
-        self.update_planned_dates("soil_preparation", planting_date)
-        
-        # sowing/planting operations
-        self.update_planned_dates("sowing_planting", planting_date)
+                last_planned_date = max(op.planned_date for op in operations if op.planned_date) # geplante Aussaat- oder Pflanztermine
+                grow_duration_days = self.planting_plan.grow_duration
 
-        # crop management operations
-        self.update_planned_dates("crop_management", planting_date)
+                harvest_date = last_planned_date + timedelta(days=grow_duration_days)
 
-        # harvesting operations
-        self.update_planned_dates("harvesting", planting_date)
+                self.update_planned_dates(phase.phase_name, harvest_date)
 
 
     def prepare_planting_plan(self):
@@ -82,8 +89,32 @@ class PlantingPlanService:
             return
         
         # plan the dates for each operation in the planting plan
-        self.plan_dates()
+        self.plan_dates(TargetDates.PLANTING)
 
+        # plan the dates for harvesting operations
+        self.plan_dates(TargetDates.HARVESTING)
+
+
+    def get_harvest_date(self) -> datetime:
+        """
+        Get the harvest date from the planting plan.
+        """
+        if not self.planting_plan or not self.planting_plan.harvest_period_months:
+            print("No harvest date available in the planting plan.")
+            return None
+
+        # Calculate the harvest date based on the planting plan
+        operations = sim_helper.get_operations_by_phase(self.planting_plan, "harvesting")
+
+        # die letzte Operation in der Phase "harvesting" ist die Ernte
+        if not operations:
+            print("No harvesting operations found in the planting plan.")
+            return None
+        
+        last_planned_date = max(op.planned_date for op in operations if op.planned_date)
+        harvest_date = last_planned_date
+        
+        return harvest_date
 
     def handle_next_operation(self, timestamp: datetime):
 

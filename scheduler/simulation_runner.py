@@ -23,7 +23,7 @@ class SimulationRunner:
         print(f'{"Time":<5} | {"Event"}\n{"-"*25}')
         while True:
             current_date = self.params.start_date + datetime.timedelta(days=self.env.now)
-            print(f' {current_date} | ') if current_date.day == 1 else None
+            print(f' {current_date.strftime("%Y-%m")} | ') if current_date.day == 1 else None
             yield self.env.timeout(1)
 
     def planting_plan_observer(self):
@@ -64,8 +64,10 @@ class SimulationRunner:
         self.env.process(self.planting_plan_observer())
 
 
+        self.params.harvest_date = self.planting_plan_service.get_harvest_date()
+
         # Run the simulation from start to harvest date
-        iterations = (self.params.harvest_date - self.params.start_date).days + 2
+        iterations = (self.params.harvest_date.date() - self.params.start_date).days + 2
         self.env.run(until=iterations)
 
         print('Simulation completed.')

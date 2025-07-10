@@ -19,28 +19,6 @@ def get_random_date(start_month, end_month, year):
     # Return the random date
     return start_date + timedelta(days=random_days) + timedelta(hours=random.randint(0, 23), minutes=random.randint(0, 59), seconds=random.randint(0, 59))
 
-def get_random_planting_date(planting_plan: PlantingPlan, year: int) -> datetime:
-    """
-    Get a random planting date based on the planting period defined in the planting plan.
-    
-    :param planting_plan: The PlantingPlan object containing the planting period.
-    :return: A random datetime object representing the planting date.
-    """
-    start_month, end_month = planting_plan.planting_period_months
-    
-    return get_random_date(start_month, end_month, year)
-
-def get_random_harvest_date(planting_plan: PlantingPlan, year: int) -> datetime:
-    """
-    Get a random harvest date based on the harvest period defined in the planting plan.
-    
-    :param planting_plan: The PlantingPlan object containing the harvest period.
-    :return: A random datetime object representing the harvest date.
-    """
-    start_month, end_month = planting_plan.harvest_period_months
-    
-    return get_random_date(start_month, end_month, year)
-
 def get_random_date_in_range(min_days_offset, max_days_offset, target_date) -> datetime:
     
     """
