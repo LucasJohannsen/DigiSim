@@ -70,7 +70,11 @@ class PlantingPlanService:
                                 # Calculate the harvest date based on the planting plan
                 operations = sim_helper.get_operations_by_phase(self.planting_plan, "sowing_planting")
 
-                last_planned_date = max(op.planned_date for op in operations if op.planned_date) # geplante Aussaat- oder Pflanztermine
+                planned_dates = [op.planned_date for op in operations if op.planned_date]
+                if not planned_dates:
+                    print("No planned dates found for operations in phase 'sowing_planting'. Exiting.")
+                    return
+                last_planned_date = max(planned_dates) # geplante Aussaat- oder Pflanztermine
                 grow_duration_days = self.planting_plan.grow_duration
 
                 harvest_date = last_planned_date + timedelta(days=grow_duration_days)
