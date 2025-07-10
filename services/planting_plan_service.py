@@ -53,7 +53,7 @@ class PlantingPlanService:
         for phase in self.planting_plan.phases:
             # get the target date for the phase
             target_date_name = phase.target_date_name
-            if target_date_name == target_date_type and target_date_type == TargetDates.PLANTING:
+            if target_date_type == TargetDates.PLANTING:
                 # use the planting date for planting phases
 
                 planting_date = sim_helper.get_random_date(
