@@ -7,7 +7,6 @@ class SimContext:
     """
     field_size: float = 10.0  # Default field size for the simulation
     soil_type: str = 'sand'  # Default soil type for the simulation
-    harvest_date: datetime.date = datetime.date(2025, 9, 15)  # Default harvest date
     start_date: datetime.date = datetime.date(2024, 10, 1)  # Default start date for the simulation
     crop_type: str = 'Potato'  # Default crop type for the simulation
     variety: str = 'Belana'  # Default crop variety
@@ -58,15 +57,7 @@ class SimContext:
             lambda s: datetime.datetime.strptime(s, "%Y-%m-%d").date(),
             default=defaults["start_date"] if isinstance(defaults["start_date"], datetime.date) else datetime.datetime.strptime(defaults["start_date"], "%Y-%m-%d").date()
         )
-        def harvest_validator(harvest_date):
-            return harvest_date > self.start_date
-
-        self.harvest_date = get_input(
-            f"Enter harvest date (YYYY-MM-DD) [{defaults['harvest_date']}]: ",
-            lambda s: datetime.datetime.strptime(s, "%Y-%m-%d").date(),
-            validator=harvest_validator,
-            default=defaults["harvest_date"] if isinstance(defaults["harvest_date"], datetime.date) else datetime.datetime.strptime(defaults["harvest_date"], "%Y-%m-%d").date()
-        )
+        
         self.crop_type = get_input(
             f"Enter crop type [{defaults['crop_type']}]: ",
             str,

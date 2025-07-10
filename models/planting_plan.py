@@ -37,6 +37,14 @@ class FieldOperationStatus(Enum):
     COMPLETED = "Completed"
     FAILED = "Failed"
 
+class TargetDates(Enum):
+    """
+    Enum representing the target dates for field operations.
+    """
+    NONE = "None"
+    PLANTING = "Planting"
+    HARVESTING = "Harvesting"
+    FERTILIZATION = "Fertilization"
 
 @dataclass
 class FieldOperation:
@@ -66,6 +74,7 @@ class FieldPhases:
     operations: list[FieldOperation]  # List of operations to be performed in this phase
     status: FieldOperationStatus = FieldOperationStatus.NOT_STARTED  # Status of the phase operations
     target_date_offset: int = 0  # Offset in days from the target date for this phase
+    target_date_name: TargetDates = TargetDates.NONE  # Target date for the phase operations
 
 
 @dataclass
@@ -77,5 +86,6 @@ class PlantingPlan:
     variety: str
     planting_period_months: Tuple[int, int]  # Start and end month of the planting period
     harvest_period_months: Tuple[int, int]  # Start and end month of the harvest period
+    grow_duration: int  # Duration of the crop growth in days
     phases: list[FieldPhases]  # List of phases in the planting plan
 

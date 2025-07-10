@@ -1,20 +1,25 @@
 {
     "crop": "Potato",
     "variety": "Belana",
-    "planting_period_months": [4, 5],
-    "harvest_period_months": [9, 10],
-    "growth_duration": "90 days",
+    "planting_period_months": [
+        4,
+        5
+    ],
+    "harvest_period_months": [
+        9,
+        10
+    ],
+    "growth_duration": 90,
     "phases": [
         {
             "soil_preparation": {
+                "target_date_name": "Planting",
                 "operations": [
                     {
                         "sequence": 1,
                         "operation": "Grubbern",
-
                         "min_days_to_target": -27,
                         "max_days_to_target": -23,
-
                         "duration_per_ha": 0.89,
                         "working_width": 2.5,
                         "fuel_consumption": 12.7,
@@ -23,10 +28,8 @@
                     {
                         "sequence": 2,
                         "operation": "Kreiseln",
-
                         "min_days_to_target": -22,
                         "max_days_to_target": -15,
-
                         "duration_per_ha": 0.96,
                         "working_width": 3.0,
                         "fuel_consumption": 8.8,
@@ -35,57 +38,139 @@
                     {
                         "sequence": 3,
                         "operation": "Separieren",
-
                         "min_days_to_target": -14,
                         "max_days_to_target": -5,
-
                         "duration_per_ha": 1.74,
                         "working_width": 1.8,
                         "fuel_consumption": 26.6,
                         "worktype": 28
-                    } 
-
-
-                ]
-            }
-        },
-        {
-            "sowing_planting": {
-                
-            }
-        },
-        {
-            "crop_management": {
-                "operations": [
-                    
-                ]
-            }
-        },
-        
-        {
-            "harvesting": {
-                "operations": [
-                    {
-                        "operation": "harvesting",
-                   
-                        "duration_per_ha": 4.0,
-                        "working_width": 0.8
                     }
                 ]
             }
         },
         {
-            "post_harvest_handling": {
+            "sowing_planting": {
+                "target_date_name": "Planting",
                 "operations": [
-                    
+                    {
+                        "sequence": 1,
+                        "operation": "Kali",
+                        "min_days_to_target": -5,
+                        "max_days_to_target": -1,
+                        "duration_per_ha": 0.23,
+                        "working_width": 18,
+                        "fuel_consumption": 12.7,
+                        "worktype": 23
+                    },
+
+                    {
+                        "sequence": 2,
+                        "operation": "Pflanzguttransport",
+                        "min_days_to_target": -1,
+                        "max_days_to_target": 0,
+                        "duration_per_ha": 0.1,
+                        "working_width": 0,
+                        "fuel_consumption": 0,
+                        "worktype": 18
+                    },
+                    {
+                        "sequence": 3,
+                        "operation": "Pflanzen",
+                        "min_days_to_target": 0,
+                        "max_days_to_target": 0,
+                        "duration_per_ha": 1.07,
+                        "working_width": 3.6,
+                        "fuel_consumption": 10.85,
+                        "worktype": 26
+                    }
                 ]
             }
         },
         {
-            "stubble_management_cover_cropping": {
+            "crop_management": {
+                "target_date_name": "Planting",
                 "operations": [
-                    
+                    {
+                        "sequence": 1,
+                        "operation": "N Düngung",
+                        "min_days_to_target": 3,
+                        "max_days_to_target": 5,
+                        "duration_per_ha": 0.5,
+                        "working_width": 18,
+                        "fuel_consumption": 15.0,
+                        "worktype": 24
+                    },
+                    {
+                        "sequence": 2,
+                        "operation": "P Düngung",
+                        "min_days_to_target": 13,
+                        "max_days_to_target": 13,
+                        "duration_per_ha": 0.4,
+                        "working_width": 15,
+                        "fuel_consumption": 10.0,
+                        "worktype": 25
+                    },
+                    {
+                        "sequence": 3,
+                        "operation": "Häufeln",
+                        "min_days_to_target": 14,
+                        "max_days_to_target": 21,
+                        "duration_per_ha": 0.2,
+                        "working_width": 7.2,
+                        "fuel_consumption": 3.19,
+                        "worktype": 29
+
+
+                    }
                 ]
+            }
+        },
+        {
+            "harvesting": {
+                "target_date_name": "Harvesting",
+                "operations": [
+                    {
+                        "sequence": 1,
+                        "operation": "Herbizid",
+                        "min_days_to_target": -5,
+                        "max_days_to_target": -3,
+                        "duration_per_ha": 0.2,
+                        "working_width": 18,
+                        "fuel_consumption": 1.03,
+                        "worktype": 14
+                    },
+                    {
+                        "sequence": 2,
+                        "operation": "Roden",
+                        "min_days_to_target": 0,
+                        "max_days_to_target": 5,
+                        "duration_per_ha": 16.25,
+                        "working_width": 0.8,
+                        "fuel_consumption": 42.09,
+                        "worktype": 27
+                    },
+                    {
+                        "sequence": 3,
+                        "operation": "Lagerung",
+                        "min_days_to_target": 0,
+                        "max_days_to_target": 1,
+                        "duration_per_ha": 0.1,
+                        "working_width": 0,
+                        "fuel_consumption": 0,
+                        "worktype": 18
+                    }
+                   
+                ]
+            }
+        },
+        {
+            "post_harvest_handling": {
+                "operations": []
+            }
+        },
+        {
+            "stubble_management_cover_cropping": {
+                "operations": []
             }
         }
     ]
