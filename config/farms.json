@@ -39,8 +39,8 @@
                     "name": "Sarsden Park",
                     "distance_to_barn": 2.0,
                     "area": 15.3
-                }
-                ,{
+                },
+                {
                     "id": 6,
                     "name": "Washpool",
                     "distance_to_barn": 3.0,
