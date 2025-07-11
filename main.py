@@ -4,6 +4,7 @@ import sys
 
 import models.sim_context as sc
 import scheduler.simulation_runner as sr
+from services.farms_service import FarmLoaderService    
 
 class DigiSimCli(cmd.Cmd):
 
@@ -35,6 +36,40 @@ class DigiSimCli(cmd.Cmd):
 
         # Collect simulation parameters from the user
         self.context.collect()
+
+    def do_pick_field(self, arg):
+        'Select a field from a farm.\n'
+
+        print('Select a farm from the list')
+        farm_loader = FarmLoaderService()
+        farms = farm_loader.get_farms()
+        # Print farm table header
+        print(f"{'Farm ID':<10} {'Name':<20}")
+        print('-' * 30)
+        for farm in farms:
+            print(f"{farm.id:<10} {farm.name:<20}")
+
+        farm_id = input('\nEnter the Farm ID to select: ')
+        selected_farm = next((f for f in farms if f.id == int(farm_id)), None)
+        if not selected_farm:
+            print("Invalid Farm ID selected.")
+            return
+
+        # List fields in the selected farm
+        print('\nFields in the selected farm:')
+        print(f"{'Field ID':<10} {'Name':<20} {'Distance to Barn (km)':<22} {'Area (ha)':<10}")
+        print('-' * 70)
+        for field in selected_farm.fields:
+            print(f"{field.id:<10} {field.name:<20} {field.distance_to_barn:<22} {field.area:<10}")
+
+        field_id = input('\nEnter the Field ID to select: ')
+        selected_field = next((f for f in selected_farm.fields if f.id == int(field_id)), None)
+        if not selected_field:
+            print("Invalid Field ID selected.")
+            return
+
+        # update the context with the selected farm and field
+        self.context.field_size = selected_field.area
 
 
     def do_show_config(self, arg = None):
