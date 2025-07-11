@@ -1,7 +1,4 @@
 from models.farms import Farm, Field
-from typing import cast
-
-
 class FarmLoaderService:
     """
     Service to load farm data from a JSON file.
