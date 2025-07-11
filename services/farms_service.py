@@ -31,12 +31,13 @@ class FarmLoaderService:
         """
         Get a list of Farm objects.
         """
-        #validate first
-
-        self.validate_farm_data(self._load_farms())
-        # then load farms
+        # Load farms data once
         farms_data = self._load_farms()
-        # validate each farm
+
+        # Validate the loaded data
+        self.validate_farm_data(farms_data)
+
+        # Return the validated farms data
         return farms_data
     
 
