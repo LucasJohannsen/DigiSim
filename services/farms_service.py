@@ -44,7 +44,6 @@ class FarmLoaderService:
         """
         Load farms from the JSON file and return a Farms object.
         """
-        import json
         with open(self.farms_file, 'r') as file:
             data = json.load(file)
 
