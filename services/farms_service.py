@@ -1,4 +1,6 @@
 from models.farms import Farm, Field
+import json
+
 class FarmLoaderService:
     """
     Service to load farm data from a JSON file.
