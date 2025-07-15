@@ -70,6 +70,8 @@ class DigiSimCli(cmd.Cmd):
 
         # update the context with the selected farm and field
         self.context.field_size = selected_field.area
+        self.context.field_id = selected_field.id
+        self.context.field_name = selected_field.name
 
 
     def do_show_config(self, arg = None):

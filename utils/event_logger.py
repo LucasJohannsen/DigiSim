@@ -2,6 +2,7 @@ import json
 import datetime
 
 from models.planting_plan import FieldOperationEvent
+from models.sim_context import SimContext
 
 class EventLogger:
     def __init__(self):
@@ -24,13 +25,13 @@ class EventLogger:
         # anfügen
         self.events.append(event)
 
-    def save(self, filepath):
+    def save(self, filepath, context:SimContext=None):
 
         data = {
             "field": {
-                "exa_id": 0,
-                "name": "",
-                "area": 0,
+                "exa_id": context.field_id,
+                "name": context.field_name,
+                "area": context.field_size,
             },
             "harvest_cycle": 
             {
