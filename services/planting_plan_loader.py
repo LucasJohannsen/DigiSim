@@ -21,7 +21,7 @@ class PlantingPlanLoader:
             :return: PlantingPlan object or None if loading fails.
             """
             try:
-                with open(file_path, 'r') as file:
+                with open(file_path, 'r', encoding="utf-8") as file:
                     planting_plan_data = json.load(file)
                 return planting_plan_data
             except FileNotFoundError:

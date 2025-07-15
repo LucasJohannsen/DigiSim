@@ -70,8 +70,8 @@ class EventLogger:
             data["operations"].append(op)
 
 
-        with open(filepath, "w") as f:
-            json.dump(data, f, indent=2)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
 class LogEvent:
     def __init__(self, details=None, event_type=None):
