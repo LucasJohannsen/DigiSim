@@ -9,6 +9,7 @@ from datetime import datetime, timedelta
 from utils import sim_helper
 
 import models.sim_context as sim_context
+import random
 
 
 class PlantingPlanService:
@@ -144,18 +145,24 @@ class PlantingPlanService:
                     print(f"    {operation.operation}: {operation.actual_date.strftime("%Y-%m-%dT%H:%M:%SZ")}")
 
                     event = FieldOperationEvent()
-                    event.start_date = operation.actual_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    event.end_date = (operation.actual_date + timedelta(hours=operation.duration_per_ha*self.context.field_size)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                    # add a random time between 6:00 and 18:00 to the actual date and cast as datetime
+                    operation.actual_datetime = datetime.combine(
+                        operation.actual_date,
+                        (datetime.min + timedelta(seconds=random.randint(0,7*60*60) + 6*60*60)).time() # irgendwas zwischen 6:00 und 13:00 Uhr
+                    )
+                    event.start_date = operation.actual_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    event.end_date = (operation.actual_datetime + timedelta(hours=operation.duration_per_ha * self.context.field_size)).strftime("%Y-%m-%dT%H:%M:%SZ")
                     event.area = self.context.field_size
-                    event.distance = operation.working_width * self.context.field_size
-                    event.distanceWorked = operation.working_width * self.context.field_size * 0.95
+                    event.distance = round(operation.working_width * self.context.field_size,2)
+                    event.distanceWorked = round(operation.working_width * self.context.field_size * 0.95, 2)
                     event.fuel =  self.context.field_size * operation.fuel_consumption
                     event.worktype = operation.worktype
                     event.worktype_text = operation.operation
-                    event.duration = operation.duration_per_ha * self.context.field_size
-                    event.durationWorked = event.duration * 0.95
-                    event.distance = self.context.field_size/ operation.working_width if operation.working_width > 0 else 0
-                    event.distanceWorked = event.distance * 0.95
+                    event.duration = round(operation.duration_per_ha * self.context.field_size,2)
+                    event.durationWorked = round(event.duration * 0.95,2)
+                    event.distance = round(self.context.field_size/ operation.working_width if operation.working_width > 0 else 0,2)
+                    event.distanceWorked = round(event.distance * 0.95,2)
 
                     events.append(event)
         
