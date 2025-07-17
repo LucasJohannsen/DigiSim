@@ -183,7 +183,7 @@
             "protections": [
                 {
                     "day": 0,
-                    "type": "Herbicid",
+                    "type": 26,
                     "name": "Bandur Artist",
                     "amount": "2.5+2"
                 },

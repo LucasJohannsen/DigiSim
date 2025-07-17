@@ -48,16 +48,9 @@ class PlantingPlanService:
         """
         Get the last planned date of a specific phase in the planting plan.
         """
-        if not self.planting_plan or not self.planting_plan.phases:
-            print("No planting plan phases available.")
-            return None
-
         # Find the phase by name
         phase = next((p for p in self.planting_plan.phases if p.phase_name == phase_name), None)
-        if not phase:
-            print(f"No phase found with name: {phase_name}")
-            return None
-
+        
         # Get the last planned date from the operations in the phase
         last_date = max((op.planned_date for op in phase.operations if op.planned_date), default=None)
         first_date = min((op.planned_date for op in phase.operations if op.planned_date), default=None)

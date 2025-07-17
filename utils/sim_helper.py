@@ -48,7 +48,7 @@ def get_operations_by_phase(planting_plan: PlantingPlan, phase_name: str) -> lis
     return []
 
 def get_protection_categories():
-    # read the file in config/protection_categories.json
+    # read the file in config/categories.json
     
     with open('config/category.json', 'r') as file:
         data = json.load(file)
