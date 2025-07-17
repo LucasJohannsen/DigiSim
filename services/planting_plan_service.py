@@ -1,14 +1,17 @@
-import json
-import simpy
-from services.planting_plan_loader import PlantingPlanLoader
-from typing import cast
-
-from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldPhases, FieldOperation, FieldOperationEvent, TargetDates
-
+import random
 from datetime import datetime, timedelta
-from utils import sim_helper
+from typing import Tuple
 
+from services.planting_plan_loader import PlantingPlanLoader
+from models.planting_plan import (
+    FieldOperationStatus,
+    FieldPhases,
+    FieldOperation,
+    FieldOperationEvent,
+    TargetDates,
+)
 import models.sim_context as sim_context
+from utils import sim_helper
 
 
 class PlantingPlanService:
@@ -17,7 +20,6 @@ class PlantingPlanService:
         self.context = context
         
         self.start_date = start_date
-
         self.planting_plan = None
         
 
@@ -41,6 +43,19 @@ class PlantingPlanService:
             operation.planned_date = sim_helper.get_random_date_in_range(min_offset, max_offset, operation_date)
             print(f"Operation '{operation.operation}' planned for date: {operation.planned_date}")
 
+
+    def get_min_max_dates_of_phase(self, phase_name: str) -> Tuple[datetime, datetime]:
+        """
+        Get the last planned date of a specific phase in the planting plan.
+        """
+        # Find the phase by name
+        phase = next((p for p in self.planting_plan.phases if p.phase_name == phase_name), None)
+        
+        # Get the last planned date from the operations in the phase
+        last_date = max((op.planned_date for op in phase.operations if op.planned_date), default=None)
+        first_date = min((op.planned_date for op in phase.operations if op.planned_date), default=None)
+        
+        return first_date, last_date
 
 
     def plan_dates(self, target_date_type: TargetDates = TargetDates.NONE):
@@ -82,6 +97,75 @@ class PlantingPlanService:
                 self.update_planned_dates(phase.phase_name, harvest_date)
 
 
+    def plan_protections(self):
+        """
+        Plan the protection operations for the planting plan.
+        """
+        if not self.planting_plan or not self.planting_plan.protection_plans:
+            print("No protection plans available in the planting plan.")
+            return
+
+
+        # read categories from config
+        protection_categories = sim_helper.get_protection_categories()
+
+        # Iterate through each protection plan and apply protections
+
+        # pick random protection plan
+        protection_plan = random.choice(self.planting_plan.protection_plans)
+        print(f"Selected protection plan: {protection_plan.name}")
+
+        # get the last planned date from the planting phase
+        _, planting_date = self.get_min_max_dates_of_phase("sowing_planting")
+        harvest_date, _ = self.get_min_max_dates_of_phase("harvesting")
+
+        # Schadensereignis
+        target_date_diff = protection_plan.days_to_target
+        protection_target_date = planting_date + timedelta(days=target_date_diff)
+
+        print(f"Planned protection date: {protection_target_date.strftime('%Y-%m-%d')}")
+
+        # erstelle die Schutzoperationen
+        for protection in protection_plan.protections:
+            protection_operation_date = protection_target_date + timedelta(days=protection.day)
+
+            if protection_operation_date >= harvest_date:
+                print(f"Protection operation date {protection_operation_date.strftime('%Y-%m-%d')} is after harvest date. Skipping.")
+                continue
+
+            # Calculate the sum if protection.amount contains '+'
+            # Sonderfall Spritzmischung -> Mengenangaben wie "1.5+0.5" müssen zu 2.0 addiert werden         
+            application_amount = sum(float(x) for x in protection.amount.split('+'))
+
+            #get the category from the protection categories
+            category_item = next((c for c in protection_categories if c['id'] == protection.type), None)
+            application_type_text = category_item['category'] if category_item else "unknown"
+ 
+            spritz_operation = FieldOperation(
+                operation="Spritzen",
+                worktype=0,
+                duration_per_ha=0.2,  
+                working_width=18,
+                fuel_consumption=1,  
+                planned_date=protection_operation_date,
+                application_type=application_type_text,
+                application_category=protection.type,
+                application_name=f"{protection.name} ({protection.amount})",
+                application_amount=application_amount,
+                application_unit=2
+            )
+
+            print(f"Planned protection operation: {spritz_operation.operation} on {spritz_operation.planned_date.strftime('%Y-%m-%d')}")
+            # add the operation to the planting plan, phase crop_management
+            phase = next((p for p in self.planting_plan.phases if p.phase_name == "crop_management"), None)
+            if not phase:
+                print("No phase 'crop_management' found in the planting plan. Creating a new phase.")
+                phase = FieldPhases(phase_name="crop_management", operations=[], status=FieldOperationStatus.NOT_STARTED)
+                self.planting_plan.phases.append(phase)
+            
+            phase.operations.append(spritz_operation)
+
+
     def prepare_planting_plan(self):
 
         # get the planting plan from the loader
@@ -99,6 +183,9 @@ class PlantingPlanService:
 
         # plan the dates for harvesting operations
         self.plan_dates(TargetDates.HARVESTING)
+
+        # protections
+        self.plan_protections()
 
 
     def get_harvest_date(self) -> datetime:
@@ -144,18 +231,28 @@ class PlantingPlanService:
                     print(f"    {operation.operation}: {operation.actual_date.strftime("%Y-%m-%dT%H:%M:%SZ")}")
 
                     event = FieldOperationEvent()
-                    event.start_date = operation.actual_date.strftime("%Y-%m-%dT%H:%M:%SZ")
-                    event.end_date = (operation.actual_date + timedelta(hours=operation.duration_per_ha*self.context.field_size)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+                    # add a random time between 6:00 and 18:00 to the actual date and cast as datetime
+                    operation.actual_datetime = datetime.combine(
+                        operation.actual_date,
+                        (datetime.min + timedelta(seconds=random.randint(0,7*60*60) + 6*60*60)).time() # irgendwas zwischen 6:00 und 13:00 Uhr
+                    )
+                    event.start_date = operation.actual_datetime.strftime("%Y-%m-%dT%H:%M:%SZ")
+                    event.end_date = (operation.actual_datetime + timedelta(hours=operation.duration_per_ha * self.context.field_size)).strftime("%Y-%m-%dT%H:%M:%SZ")
                     event.area = self.context.field_size
-                    event.distance = operation.working_width * self.context.field_size
-                    event.distanceWorked = operation.working_width * self.context.field_size * 0.95
-                    event.fuel =  self.context.field_size * operation.fuel_consumption
+                    event.fuel =  round(self.context.field_size * operation.fuel_consumption,2)
                     event.worktype = operation.worktype
                     event.worktype_text = operation.operation
-                    event.duration = operation.duration_per_ha * self.context.field_size
-                    event.durationWorked = event.duration * 0.95
-                    event.distance = self.context.field_size/ operation.working_width if operation.working_width > 0 else 0
-                    event.distanceWorked = event.distance * 0.95
+                    event.duration = round(operation.duration_per_ha * self.context.field_size*60*60,2) # Umrechnung in Sekunden
+                    event.durationWorked = round(event.duration * 0.95,2)
+                    event.distance = round(self.context.field_size * 10/ operation.working_width,2) if operation.working_width > 0 else 0
+                    event.distanceWorked = round(event.distance * 0.95,2)
+                    event.application_type = operation.application_type
+                    event.application_name = operation.application_name
+                    event.application_category = operation.application_category
+                    event.application_amount = round(operation.application_amount * self.context.field_size, 2)
+                    event.application_unit = operation.application_unit
+                   
 
                     events.append(event)
         

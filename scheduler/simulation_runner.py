@@ -72,4 +72,4 @@ class SimulationRunner:
 
         print('Simulation completed.')
         # Save all events to JSON at the end
-        self.event_logger.save("simulation_events.json")
+        self.event_logger.save("simulation_events.json", context = self.params)

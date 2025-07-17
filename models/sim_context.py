@@ -10,6 +10,8 @@ class SimContext:
     start_date: datetime.date = datetime.date(2024, 10, 1)  # Default start date for the simulation
     crop_type: str = 'Potato'  # Default crop type for the simulation
     variety: str = 'Belana'  # Default crop variety
+    field_id: int = 1
+    field_name: str = ''
 
     def collect(self, defaults=None):
 
@@ -18,9 +20,10 @@ class SimContext:
                 "field_size": self.field_size,
                 "soil_type": self.soil_type,
                 "start_date": self.start_date,
-                "harvest_date": self.harvest_date,
                 "crop_type": self.crop_type,
-                "variety": self.variety
+                "variety": self.variety,
+                "field_id": self.field_id,
+                "field_name": self.field_name
             }
 
         def get_input(prompt, param_type=str, choices=None, validator=None, default=None):
@@ -40,6 +43,16 @@ class SimContext:
                 except Exception as e:
                     print(f"Error: {e}")
 
+        self.field_id = get_input(
+            f"Enter field ID [{defaults['field_id']}]: ",
+            int,
+            default=defaults["field_id"]
+        )
+        self.field_name = get_input(
+            f"Enter field name [{defaults['field_name']}]: ",
+            str,
+            default=defaults["field_name"]
+        )
         self.field_size = get_input(
             f"Enter field size [{defaults['field_size']}]: ",
             float,
@@ -57,7 +70,6 @@ class SimContext:
             lambda s: datetime.datetime.strptime(s, "%Y-%m-%d").date(),
             default=defaults["start_date"] if isinstance(defaults["start_date"], datetime.date) else datetime.datetime.strptime(defaults["start_date"], "%Y-%m-%d").date()
         )
-        
         self.crop_type = get_input(
             f"Enter crop type [{defaults['crop_type']}]: ",
             str,
@@ -68,5 +80,6 @@ class SimContext:
             str,
             default=defaults["variety"]
         )
+        
 
         return self

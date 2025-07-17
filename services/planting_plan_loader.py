@@ -1,5 +1,5 @@
 import json
-from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldPhases, FieldOperation, TargetDates
+from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldPhases, FieldOperation, TargetDates, ProtectionPlan, Protection
 
 
 class PlantingPlanLoader:
@@ -21,7 +21,7 @@ class PlantingPlanLoader:
             :return: PlantingPlan object or None if loading fails.
             """
             try:
-                with open(file_path, 'r') as file:
+                with open(file_path, 'r', encoding="utf-8") as file:
                     planting_plan_data = json.load(file)
                 return planting_plan_data
             except FileNotFoundError:
@@ -70,15 +70,27 @@ class PlantingPlanLoader:
             target_date_name = phase.get(phase_name, {}).get('target_date_name', 'NONE').upper()
             target_date_name = TargetDates[target_date_name] if target_date_name in TargetDates.__members__ else TargetDates.NONE
             
-
-            
             phases.append(FieldPhases(phase_name=phase_name, operations=operations, target_date_name= target_date_name))
         
+        # protection plans
+        protection_plans = []
+        for protection_plan in self.planting_plan.get('protection_plans', []):
+            protections = [Protection(**p) for p in protection_plan.get('protections', [])]
+            protection_plans.append(ProtectionPlan(
+                name=protection_plan.get('name'),
+                description=protection_plan.get('description'),
+                days_to_target=protection_plan.get('days_to_target', 0),
+                protections=protections
+            ))
+
+
+
         return PlantingPlan(
             crop_type=self.crop_type,
             variety=self.variety,
             planting_period_months=tuple(self.planting_plan['planting_period_months']),
             harvest_period_months=tuple(self.planting_plan['harvest_period_months']),
             grow_duration=self.planting_plan.get('growth_duration', 90),  # Default to 90 days if not specified
-            phases=phases
+            phases=phases,
+            protection_plans=protection_plans
         )        
