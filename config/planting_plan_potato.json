@@ -134,7 +134,12 @@
                         "duration_per_ha": 0.2,
                         "working_width": 18,
                         "fuel_consumption": 1.03,
-                        "worktype": 14
+                        "worktype": 14,
+                        "application_type": "protection",
+                        "application_name": "Quickdown",
+                        "application_category": 26,
+                        "application_amount": 0.8,
+                        "application_unit": 2
                     },
                     {
                         "sequence": 2,
