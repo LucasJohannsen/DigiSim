@@ -1,5 +1,6 @@
 import random
 from datetime import datetime, timedelta
+import json
 
 from models.planting_plan import PlantingPlan, FieldPhases, FieldOperation
 
@@ -45,3 +46,12 @@ def get_operations_by_phase(planting_plan: PlantingPlan, phase_name: str) -> lis
         if phase.phase_name == phase_name:
             return phase.operations
     return []
+
+def get_protection_categories():
+    # read the file in config/protection_categories.json
+    
+    with open('config/category.json', 'r') as file:
+        data = json.load(file)
+        # If data is a list of categories, just return it
+        return data
+    

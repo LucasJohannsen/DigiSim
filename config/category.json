@@ -1,0 +1,72 @@
+[
+    {
+        "id": 0,
+        "category": "None",
+        "name": "None"
+    },
+    {
+        "id": 22,
+        "category": "organic fertilizer",
+        "name": "Schweinegülle 0.36"
+    },
+    {
+        "id": 23,
+        "category": "organic fertilizer",
+        "name": "Rindergülle 0.26"
+    },
+    {
+        "id": 24,
+        "category": "organic fertilizer",
+        "name": "Gärreste 0.26 aus Viehhaltung"
+    },
+    {
+        "id": 25,
+        "category": "organic fertilizer",
+        "name": "Gärreste 0.6 aus Viehhaltung"
+    },
+    {
+        "id": 26,
+        "category": "protection",
+        "name": "Herbizid"
+    },
+    {
+        "id": 27,
+        "category": "protection",
+        "name": "Fungizid"
+    },
+    {
+        "id": 28,
+        "category": "protection",
+        "name": "Insektizid"
+    },
+    {
+        "id": 29,
+        "category": "seed",
+        "name": "Speisekartoffel"
+    },
+    {
+        "id": 30,
+        "category": "seed",
+        "name": "Stärkekartoffel"
+    },
+    {
+        "id": 31,
+        "category": "mineral fertilizer",
+        "name": "Harnstoff-N-Mineraldünger"
+    },
+    {
+        "id": 32,
+        "category": "mineral fertilizer",
+        "name": "AHL-N-Mineraldünger"
+    },
+    {
+        "id": 33,
+        "category": "mineral fertilizer",
+        "name": "Andere-N-Mineraldünger"
+    },
+    {
+        "id": 34,
+        "category": "mineral fertilizer",
+        "name": "anderer Mineraldünger"
+    }
+]

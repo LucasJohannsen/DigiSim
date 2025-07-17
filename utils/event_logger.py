@@ -12,12 +12,7 @@ class EventLogger:
 
         # add hardcoded values
         event.machine = "Fendt 719 Vario"
-        event.application_amount = 0
-        event.application_unit = ""
-        event.application_type = ""
-        event.application_category = ""
-        event.application_name = ""
-
+        
         event.exa_id = 0
         event.field = 0
         event.batch = None
@@ -47,25 +42,25 @@ class EventLogger:
                 "model": "pipeline.operation",
                 "pk": 0,
                 "fields": {
-                    "batch": getattr(event, "batch", None),
-                    "field": getattr(event, "field", None),
-                    "worktype": getattr(event, "worktype", None),
-                    "exa_id": getattr(event, "exa_id", None),
-                    "start_date": getattr(event, "start_date", None),
-                    "end_date": getattr(event, "end_date", None),
-                    "machine": getattr(event, "machine", None),
-                    "area": getattr(event, "area", None),
-                    "distance": getattr(event, "distance", None),
-                    "distanceWorked": getattr(event, "distanceWorked", None),
-                    "duration": getattr(event, "duration", None),
-                    "durationWorked": getattr(event, "durationWorked", None),
-                    "fuel": getattr(event, "fuel", None),
-                    "application_type": getattr(event, "application_type", None),
-                    "application_category": getattr(event, "application_category", None),
-                    "application_name": getattr(event, "application_name", None),
-                    "application_amount": getattr(event, "application_amount", None),
-                    "application_unit": getattr(event, "application_unit", None),
-                    "worktype_text": getattr(event, "worktype_text", None)
+                    "batch": event.batch,
+                    "field": context.field_id if context else 0,
+                    "worktype": event.worktype,
+                    "exa_id": event.exa_id,
+                    "start_date": event.start_date,
+                    "end_date": event.end_date,
+                    "machine": event.machine,
+                    "area": event.area,
+                    "distance": event.distance,
+                    "distanceWorked": event.distanceWorked,
+                    "duration": event.duration,
+                    "durationWorked": event.durationWorked,
+                    "fuel": event.fuel,
+                    "application_type": event.application_type,
+                    "application_category": event.application_category,
+                    "application_name": event.application_name,
+                    "application_amount": event.application_amount,
+                    "application_unit": event.application_unit,
+                    "worktype_text": event.worktype_text
                 }
             }
             data["operations"].append(op)

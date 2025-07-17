@@ -64,9 +64,15 @@ class FieldOperation:
     fuel_consumption: float = None  # Fuel consumption per hectare in liters
     worktype: int = None  # Work type ID for the operation
 
-
     planned_date: datetime = None
     actual_date: datetime = None  # Actual date when the operation was performed
+
+    application_type: str = None  
+    category: str = None  
+    application_name: str = None
+    application_category: str = None  
+    application_amount: float = 0
+    application_unit: str = None
 
 @dataclass
 class FieldPhases:
@@ -76,6 +82,30 @@ class FieldPhases:
     target_date_offset: int = 0  # Offset in days from the target date for this phase
     target_date_name: TargetDates = TargetDates.NONE  # Target date for the phase operations
 
+@dataclass
+class ApplicationCategory:
+    id: int
+    category: str
+    name: str
+    
+
+@dataclass
+class Protection:
+    
+    day: int = 0
+    type: int = 0
+    name: str = None
+    amount: str = None
+
+@dataclass
+class ProtectionPlan:
+    """
+    Represents a protection plan for a specific crop variety.
+    """
+    name: str
+    description: str
+    days_to_target: int  # Number of days to the target date for the protection plan
+    protections: list[Protection]  # List of protections to be applied in the plan
 
 @dataclass
 class PlantingPlan:
@@ -88,4 +118,5 @@ class PlantingPlan:
     harvest_period_months: Tuple[int, int]  # Start and end month of the harvest period
     grow_duration: int  # Duration of the crop growth in days
     phases: list[FieldPhases]  # List of phases in the planting plan
+    protection_plans: list[ProtectionPlan] = None  # List of protection plans for the crop variety
 

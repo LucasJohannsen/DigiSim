@@ -62,7 +62,6 @@
                         "fuel_consumption": 12.7,
                         "worktype": 23
                     },
-
                     {
                         "sequence": 2,
                         "operation": "Pflanzguttransport",
@@ -98,7 +97,7 @@
                         "duration_per_ha": 0.5,
                         "working_width": 18,
                         "fuel_consumption": 15.0,
-                        "worktype": 24
+                        "worktype": 23
                     },
                     {
                         "sequence": 2,
@@ -108,7 +107,7 @@
                         "duration_per_ha": 0.4,
                         "working_width": 15,
                         "fuel_consumption": 10.0,
-                        "worktype": 25
+                        "worktype": 23
                     },
                     {
                         "sequence": 3,
@@ -119,8 +118,6 @@
                         "working_width": 7.2,
                         "fuel_consumption": 3.19,
                         "worktype": 29
-
-
                     }
                 ]
             }
@@ -152,14 +149,13 @@
                     {
                         "sequence": 3,
                         "operation": "Lagerung",
-                        "min_days_to_target": 0,
-                        "max_days_to_target": 1,
+                        "min_days_to_target": 5,
+                        "max_days_to_target": 5,
                         "duration_per_ha": 0.1,
                         "working_width": 0,
                         "fuel_consumption": 0,
                         "worktype": 18
                     }
-                   
                 ]
             }
         },
@@ -172,6 +168,537 @@
             "stubble_management_cover_cropping": {
                 "operations": []
             }
+        }
+    ],
+    "protection_plans": [
+        {
+            "name": "Protection Plan Belana 1",
+            "description": "Erster Plan für Belana",
+            "days_to_target": 17,
+            "protections": [
+                {
+                    "day": 0,
+                    "type": "Herbicid",
+                    "name": "Bandur Artist",
+                    "amount": "2.5+2"
+                },
+                {
+                    "day": 21,
+                    "type": 27,
+                    "name": "Zorvec",
+                    "amount": "0.25"
+                },
+                {
+                    "day": 28,
+                    "type": 27,
+                    "name": "Zorvec",
+                    "amount": "0.25"
+                },
+                {
+                    "day": 35,
+                    "type": 27,
+                    "name": "Infinito",
+                    "amount": "1.6"
+                },
+                {
+                    "day": 41,
+                    "type": 27,
+                    "name": "Revus Top",
+                    "amount": "0.6"
+                },
+                {
+                    "day": 46,
+                    "type": 28,
+                    "name": "Mospilan",
+                    "amount": "0.125"
+                },
+                {
+                    "day": 46,
+                    "type": 27,
+                    "name": "Zorvec",
+                    "amount": "0.25"
+                },
+                {
+                    "day": 54,
+                    "type": 27,
+                    "name": "Ranman",
+                    "amount": "0.5"
+                },
+                {
+                    "day": 61,
+                    "type": 27,
+                    "name": "Carial Flex+Shirlan",
+                    "amount": "0.6+0.4"
+                },
+                {
+                    "day": 68,
+                    "type": 27,
+                    "name": "Carial Flex+Ranman",
+                    "amount": "0.6+0.5"
+                },
+                {
+                    "day": 74,
+                    "type": 27,
+                    "name": "Reboot",
+                    "amount": "0.45"
+                },
+                {
+                    "day": 81,
+                    "type": 27,
+                    "name": "Curzate + Shirlan",
+                    "amount": "0.2+0.4"
+                },
+                {
+                    "day": 87,
+                    "type": 27,
+                    "name": "Shirlan",
+                    "amount": "0.4"
+                },
+                {
+                    "day": 95,
+                    "type": 27,
+                    "name": "Ranman Top",
+                    "amount": "0.5"
+                },
+                {
+                    "day": 108,
+                    "type": 27,
+                    "name": "Terminus",
+                    "amount": "0.4"
+                },
+                {
+                    "day": 108,
+                    "type": 26,
+                    "name": "Quickdown",
+                    "amount": "0.8"
+                },
+                {
+                    "day": 147,
+                    "type": 26,
+                    "name": "Shark",
+                    "amount": "1"
+                }
+            ]
+        },
+        {
+            "name": "Protection Plan Belana 2",
+            "description": "Zweiter Plan für Belana",
+            "protections": [
+                {
+                    "day": 0,
+                    "type": 26,
+                    "name": "Boxer",
+                    "amount": "3.5"
+                },
+                {
+                    "day": 20,
+                    "type": 27,
+                    "name": "Sporax+Curzate",
+                    "amount": "1.4+0.2"
+                },
+                {
+                    "day": 27,
+                    "type": 27,
+                    "name": "Enervin SC",
+                    "amount": "1.2"
+                },
+                {
+                    "day": 34,
+                    "type": 27,
+                    "name": "Infinito",
+                    "amount": "1.6"
+                },
+                {
+                    "day": 41,
+                    "type": 27,
+                    "name": "Carial Flex",
+                    "amount": "0.6"
+                },
+                {
+                    "day": 50,
+                    "type": 27,
+                    "name": "Carial Flex",
+                    "amount": "0.6"
+                },
+                {
+                    "day": 57,
+                    "type": 28,
+                    "name": "Zorvec + Mospilan",
+                    "amount": "0.25"
+                },
+                {
+                    "day": 65,
+                    "type": 27,
+                    "name": "Revus Top",
+                    "amount": "0.6"
+                },
+                {
+                    "day": 71,
+                    "type": 27,
+                    "name": "Vojager+Revus Top",
+                    "amount": "1.0+0.6"
+                },
+                {
+                    "day": 78,
+                    "type": 27,
+                    "name": "Curzate Shirlan",
+                    "amount": "0.2+0.4"
+                },
+                {
+                    "day": 81,
+                    "type": 27,
+                    "name": "Curzate Ranman",
+                    "amount": "0.2+0.5"
+                },
+                {
+                    "day": 90,
+                    "type": 27,
+                    "name": "Reboot Shirlan",
+                    "amount": "0.45+0.4"
+                },
+                {
+                    "day": 99,
+                    "type": 27,
+                    "name": "Curzate",
+                    "amount": "0.2"
+                },
+                {
+                    "day": 107,
+                    "type": 27,
+                    "name": "Nando500",
+                    "amount": "0.5"
+                },
+                {
+                    "day": 119,
+                    "type": 26,
+                    "name": "Quickdown",
+                    "amount": "0.8"
+                },
+                {
+                    "day": 133,
+                    "type": 26,
+                    "name": "Shark",
+                    "amount": "1"
+                }
+            ]
+        },
+        {
+            "name": "Protection Plan Belana 3",
+            "description": "Dritter Plan für Belana",
+            "protections": [
+                {
+                    "day": 0,
+                    "type": 26,
+                    "name": "Bandur Artist",
+                    "amount": "2.5+2"
+                },
+                {
+                    "day": 18,
+                    "type": 27,
+                    "name": "Enervin SC",
+                    "amount": "1.2"
+                },
+                {
+                    "day": 24,
+                    "type": 27,
+                    "name": "Infinito",
+                    "amount": "1.6"
+                },
+                {
+                    "day": 31,
+                    "type": 27,
+                    "name": "Carrial Flex",
+                    "amount": "0.6"
+                },
+                {
+                    "day": 40,
+                    "type": 27,
+                    "name": "Carial Flex",
+                    "amount": "0.6"
+                },
+                {
+                    "day": 40,
+                    "type": 28,
+                    "name": "Mospilan",
+                    "amount": "0.125"
+                },
+                {
+                    "day": 48,
+                    "type": 27,
+                    "name": "Curzate+Ranman",
+                    "amount": "0.2+0.5"
+                },
+                {
+                    "day": 54,
+                    "type": 27,
+                    "name": "Zorvec+Propulse",
+                    "amount": "0.25+0.5"
+                },
+                {
+                    "day": 61,
+                    "type": 27,
+                    "name": "Reboot+Ranman",
+                    "amount": "0.45+0.5"
+                },
+                {
+                    "day": 68,
+                    "type": 27,
+                    "name": "Zorvec+Propulse",
+                    "amount": "0.25+0.5"
+                },
+                {
+                    "day": 76,
+                    "type": 27,
+                    "name": "Ranman Top",
+                    "amount": "0.5"
+                },
+                {
+                    "day": 84,
+                    "type": 27,
+                    "name": "Shirlan",
+                    "amount": "0.4"
+                },
+                {
+                    "day": 92,
+                    "type": 27,
+                    "name": "Shirlan",
+                    "amount": "0.4"
+                },
+                {
+                    "day": 99,
+                    "type": 27,
+                    "name": "Ranman",
+                    "amount": "0.5"
+                },
+                {
+                    "day": 99,
+                    "type": 26,
+                    "name": "Quickdown",
+                    "amount": "0.8"
+                },
+                {
+                    "day": 113,
+                    "type": 26,
+                    "name": "Shark",
+                    "amount": "1"
+                }
+            ]
+        },
+        {
+            "name": "Protection Plan Belana 4",
+            "description": "Vierter Plan für Belana",
+            "protections": [
+                {
+                    "day": 0,
+                    "type": 27,
+                    "name": "Infinito",
+                    "amount": "1.6"
+                },
+                {
+                    "day": 8,
+                    "type": 27,
+                    "name": "Carial Flex",
+                    "amount": "0.6"
+                },
+                {
+                    "day": 14,
+                    "type": 27,
+                    "name": "Zorvec",
+                    "amount": "0.25"
+                },
+                {
+                    "day": 21,
+                    "type": 27,
+                    "name": "Vojager+Ranman",
+                    "amount": "1.0+0.5"
+                },
+                {
+                    "day": 28,
+                    "type": 27,
+                    "name": "Zorvec+Narita",
+                    "amount": "0.25+0.5"
+                },
+                {
+                    "day": 36,
+                    "type": 27,
+                    "name": "Carial Flex+Ranman",
+                    "amount": "0.6+0.5"
+                },
+                {
+                    "day": 36,
+                    "type": 28,
+                    "name": "Mospilan",
+                    "amount": "0.125"
+                },
+                {
+                    "day": 41,
+                    "type": 27,
+                    "name": "Curzate Shirlan",
+                    "amount": "0.2+0.4"
+                },
+                {
+                    "day": 48,
+                    "type": 27,
+                    "name": "Reboot+Shirlan",
+                    "amount": "0.45+0.4"
+                },
+                {
+                    "day": 56,
+                    "type": 27,
+                    "name": "Carial Flex",
+                    "amount": "0.6"
+                },
+                {
+                    "day": 64,
+                    "type": 27,
+                    "name": "Curzate+Ranman",
+                    "amount": "0.2+0.5"
+                },
+                {
+                    "day": 72,
+                    "type": 27,
+                    "name": "Shirlan",
+                    "amount": "0.4"
+                },
+                {
+                    "day": 79,
+                    "type": 27,
+                    "name": "Ranman",
+                    "amount": "0.5"
+                },
+                {
+                    "day": 87,
+                    "type": 27,
+                    "name": "Shaktis",
+                    "amount": "0.5"
+                },
+                {
+                    "day": 87,
+                    "type": 26,
+                    "name": "Quickdown",
+                    "amount": "0.8"
+                },
+                {
+                    "day": 98,
+                    "type": 26,
+                    "name": "Shark",
+                    "amount": "1"
+                }
+            ]
+        },
+        {
+            "name": "Protection Plan Belana 5",
+            "description": "Fünfter Plan für Belana",
+            "protections": [
+                {
+                    "day": 0,
+                    "type": 26,
+                    "name": "Bandur Artist",
+                    "amount": "2.5+2"
+                },
+                {
+                    "day": 17,
+                    "type": 27,
+                    "name": "Vojager",
+                    "amount": "1"
+                },
+                {
+                    "day": 25,
+                    "type": 27,
+                    "name": "Sporax+Curzate",
+                    "amount": "1.4+0.2"
+                },
+                {
+                    "day": 31,
+                    "type": 27,
+                    "name": "Infinito",
+                    "amount": "1.6"
+                },
+                {
+                    "day": 39,
+                    "type": 27,
+                    "name": "Zorvec",
+                    "amount": "0.25"
+                },
+                {
+                    "day": 45,
+                    "type": 27,
+                    "name": "Revus Top",
+                    "amount": "0.6"
+                },
+                {
+                    "day": 51,
+                    "type": 27,
+                    "name": "Zorvec",
+                    "amount": "0.25"
+                },
+                {
+                    "day": 51,
+                    "type": 28,
+                    "name": "Mospilan",
+                    "amount": "0.125"
+                },
+                {
+                    "day": 58,
+                    "type": 27,
+                    "name": "Revus Top",
+                    "amount": "0.6"
+                },
+                {
+                    "day": 65,
+                    "type": 27,
+                    "name": "Reboot",
+                    "amount": "0.45"
+                },
+                {
+                    "day": 68,
+                    "type": 27,
+                    "name": "Curzate+Shirlan",
+                    "amount": "0.2+0.4"
+                },
+                {
+                    "day": 75,
+                    "type": 27,
+                    "name": "Ranman +Narita",
+                    "amount": "0.5+0.5"
+                },
+                {
+                    "day": 83,
+                    "type": 27,
+                    "name": "Curzate",
+                    "amount": "0.2"
+                },
+                {
+                    "day": 90,
+                    "type": 27,
+                    "name": "Ranman",
+                    "amount": "0.5"
+                },
+                {
+                    "day": 96,
+                    "type": 27,
+                    "name": "Shirlan",
+                    "amount": "0.4"
+                },
+                {
+                    "day": 106,
+                    "type": 27,
+                    "name": "Nando",
+                    "amount": "0.4"
+                },
+                {
+                    "day": 106,
+                    "type": 26,
+                    "name": "Quickdown",
+                    "amount": "0.8"
+                },
+                {
+                    "day": 116,
+                    "type": 26,
+                    "name": "Shark",
+                    "amount": "1"
+                }
+            ]
         }
     ]
 }
