@@ -55,3 +55,17 @@ def get_protection_categories():
         # If data is a list of categories, just return it
         return data
     
+def sanitize_filename(filename: str) -> str:
+    """
+    Sanitize a filename by removing invalid characters and truncating to 50 characters.
+    
+    :param filename: The original filename to sanitize.
+    :return: A sanitized version of the filename.
+    """
+    # Remove invalid characters and truncate to 50 characters
+    MAX_FILENAME_LENGTH = 50
+    ALLOWED_FILENAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-. "
+    
+    sanitized = ''.join(c for c in filename if c.isalnum() or c in ALLOWED_FILENAME_CHARS).rstrip()
+    sanitized = sanitized.replace(' ', '_')
+    return sanitized[:MAX_FILENAME_LENGTH]

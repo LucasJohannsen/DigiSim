@@ -4,7 +4,8 @@ import sys
 
 import models.sim_context as sc
 import scheduler.simulation_runner as sr
-from services.farms_service import FarmLoaderService    
+from services.sim_context_service import get_simulation_context, get_batch_simulation_context
+import services.sim_context_service as scs
 
 class DigiSimCli(cmd.Cmd):
 
@@ -35,37 +36,14 @@ class DigiSimCli(cmd.Cmd):
         print('Planning a new simulation...')
 
         # Collect simulation parameters from the user
-        self.context.collect()
+        self.context = scs.collect(self.context)
 
     def do_pick_field(self, arg):
         'Select a field from a farm.\n'
 
-        print('Select a farm from the list')
-        farm_loader = FarmLoaderService()
-        farms = farm_loader.get_farms()
-        # Print farm table header
-        print(f"{'Farm ID':<10} {'Name':<20}")
-        print('-' * 30)
-        for farm in farms:
-            print(f"{farm.id:<10} {farm.name:<20}")
-
-        farm_id = input('\nEnter the Farm ID to select: ')
-        selected_farm = next((f for f in farms if f.id == int(farm_id)), None)
-        if not selected_farm:
-            print("Invalid Farm ID selected.")
-            return
-
-        # List fields in the selected farm
-        print('\nFields in the selected farm:')
-        print(f"{'Field ID':<10} {'Name':<20} {'Distance to Barn (km)':<22} {'Area (ha)':<10}")
-        print('-' * 70)
-        for field in selected_farm.fields:
-            print(f"{field.id:<10} {field.name:<20} {field.distance_to_barn:<22} {field.area:<10}")
-
-        field_id = input('\nEnter the Field ID to select: ')
-        selected_field = next((f for f in selected_farm.fields if f.id == int(field_id)), None)
+        selected_field = get_simulation_context()
         if not selected_field:
-            print("Invalid Field ID selected.")
+            print("No valid field selected. Please try again.")
             return
 
         # update the context with the selected farm and field
@@ -80,6 +58,25 @@ class DigiSimCli(cmd.Cmd):
 
         for key, value in self.context.__dict__.items():
             print(f'  \033[91m{key}:\033[0m {value}')
+    
+    def do_run_batch(self, arg = None):
+        'Run a batch of simulations.'
+        print('Running batch simulations...')
+
+        # Collect batch simulation contexts
+        batch_contexts = get_batch_simulation_context()
+        if not batch_contexts:
+            print("No valid batch contexts available. Please try again.")
+            return
+        # Run each context in the batch
+        for context in batch_contexts:
+            print(f'Running simulation for field: {context.field_name} (ID: {context.field_id})')
+            runner = sr.SimulationRunner(context)
+            runner.run()
+
+        print('Batch simulations completed.')
+
+       
 
     def do_exit(self, arg = None):
         'Exit the DigiSim CLI.\n'

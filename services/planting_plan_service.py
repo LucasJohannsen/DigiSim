@@ -218,6 +218,9 @@ class PlantingPlanService:
         if not self.planting_plan or not self.planting_plan.phases:
             print("No planting plan phases available.")
             return
+        
+        # get the variation factor for fuel consumption
+        fuel_variation_factor = random.uniform(1 - self.context.fuel_variation, 1 + self.context.fuel_variation)
 
         # Iterate through each phase and its operations
         events = []
@@ -253,6 +256,9 @@ class PlantingPlanService:
                     event.application_amount = round(operation.application_amount * self.context.field_size, 2)
                     event.application_unit = operation.application_unit
                    
+
+                    # variations for e.g. fuel consumption (in the range of 0.9 to 1.1 if set to 0.1 --> 10% variation in both directions)
+                    event.fuel = round(event.fuel * fuel_variation_factor, 2)
 
                     events.append(event)
         

@@ -8,48 +8,57 @@
                     "id": 999919,
                     "name": "Campfield",
                     "distance_to_barn": 4,
-                    "area": 12.46
+                    "area": 12.46,
+                    "soil_type": "sand"
                 },
                 {
                     "id": 999918,
                     "name": "Deadman",
                     "distance_to_barn": 4.0,
-                    "area": 7.6
+                    "area": 7.6,
+                    "soil_type": "sand"
                 },
                 {
                     "id": 999917,
                     "name": "Lower Washpool",
                     "distance_to_barn": 2.0,
-                    "area": 5.07
+                    "area": 5.07,
+                    "soil_type": "sand"
                 },
                 {
                     "id": 999916,
                     "name": "Barn Field",
                     "distance_to_barn": 0.0,
-                    "area": 2.5
+                    "area": 2.5,
+                    "soil_type": "sand"
                 },
                 {
                     "id": 999915,
                     "name": "Quarry",
                     "distance_to_barn": 1.7,
-                    "area": 9.64
+                    "area": 9.64,
+                    "soil_type": "sand"
                 },
                 {
                     "id":999914,
                     "name": "Sarsden Park",
                     "distance_to_barn": 2.0,
-                    "area": 15.3
+                    "area": 15.3,
+                    "soil_type": "sand"
                 },
                 {
                     "id": 999913,
                     "name": "Washpool",
                     "distance_to_barn": 3.0,
-                    "area": 5.12
-                },{
+                    "area": 5.12,
+                    "soil_type": "sand"
+                },
+                {
                     "id": 999912,
                     "name": "Washpool Ground",
                     "distance_to_barn": 3.0,
-                    "area": 4.2
+                    "area": 4.2,
+                    "soil_type": "sand"
                 }
             ]
         }

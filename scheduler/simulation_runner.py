@@ -1,12 +1,11 @@
 import datetime
+import os
 import simpy
-import models.sim_context as sim_context
 
-
-import utils.sim_helper as sim_helper
-from models.planting_plan import PlantingPlan, FieldPhases, FieldOperation 
-from utils.event_logger import EventLogger
 from services.planting_plan_service import PlantingPlanService
+from utils.event_logger import EventLogger
+import models.sim_context as sim_context
+import utils.sim_helper as sim_helper
 
 class SimulationRunner:
     """
@@ -46,6 +45,9 @@ class SimulationRunner:
         """
         Runs the simulation in the SimPy environment.
         """
+
+        EXPORT_BASE_DIR = os.path.join(os.path.dirname(__file__), '../export')
+
         print(f'Starting simulation with parameters: {self.params}')
         
         # Create a SimPy environment
@@ -63,13 +65,28 @@ class SimulationRunner:
         self.env.process(self.observer())
         self.env.process(self.planting_plan_observer())
 
-
-        self.params.harvest_date = self.planting_plan_service.get_harvest_date()
+        harvest_date = self.planting_plan_service.get_harvest_date()
 
         # Run the simulation from start to harvest date
-        iterations = (self.params.harvest_date.date() - self.params.start_date).days + 2
+        iterations = (harvest_date.date() - self.params.start_date).days + 2
         self.env.run(until=iterations)
 
         print('Simulation completed.')
         # Save all events to JSON at the end
-        self.event_logger.save("simulation_events.json", context = self.params)
+        # store in ../export folder from the current directory
+        # get the current date and create a directory if it doesn't exist
+        date = datetime.datetime.now().strftime('%Y-%m-%d')
+
+        export_dir = os.path.join(EXPORT_BASE_DIR, date)
+        if not os.path.exists(export_dir):
+            os.makedirs(export_dir)
+
+        # add field id and name to the filename
+
+        # sanitize field name to be a valid filename (without spaces and special characters)
+        clean_field_name = sim_helper.sanitize_filename(self.params.field_name)
+
+        filename = f'simulation_{self.params.field_id}_{clean_field_name}.json'
+        filepath = os.path.join(export_dir, filename)
+
+        self.event_logger.save(filepath, context = self.params)

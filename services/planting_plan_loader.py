@@ -1,8 +1,10 @@
 import json
 from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldPhases, FieldOperation, TargetDates, ProtectionPlan, Protection
-
+import os
 
 class PlantingPlanLoader:
+
+    config_dir = os.path.join(os.path.dirname(__file__), '..', 'config')
 
     def __init__(self, crop_type=None, variety=None):
         """
@@ -10,6 +12,7 @@ class PlantingPlanLoader:
         :param crop_type: The type of crop (e.g., 'potato').
         :param variety: The specific variety of the crop (e.g., 'early').
         """
+        self.config_dir = PlantingPlanLoader.config_dir
         self.crop_type = crop_type
         self.variety = variety
         self.planting_plan = None
@@ -39,10 +42,38 @@ class PlantingPlanLoader:
         :return: Dictionary representing the planting plan for the specified crop type.
         """
         
-        return 'config/planting_plan_potato.json'
-    
-    
+        # if no crop type or variety is specified, return None
+        if not self.crop_type or not self.variety:
+            print("Crop type and variety must be specified to find a planting plan.")
+            return None
+        
+        # read all planting plans from the config directory
+        # search all planting_plan* files and return the first one that matches the crop type and variety
+        
+        for file_name in os.listdir(self.config_dir):
+            if file_name.startswith('planting_plan_') and file_name.endswith('.json'):
+                file_path = os.path.join(self.config_dir, file_name)
+                planting_plan = self.load_planting_plan(file_path)
+                if planting_plan and planting_plan.get('crop', '').lower() == self.crop_type.lower() and planting_plan.get('variety', '').lower() == self.variety.lower():
+                    return planting_plan
+        
+        print(f"No planting plan found for crop type '{self.crop_type}' and variety '{self.variety}'.")
+        return None
    
+    def get_all_planting_plans(self):
+        """
+        Get all available planting plans from the config directory.
+
+        :return: List of dictionaries representing all planting plans.
+        """
+        planting_plans = []
+        for file_name in os.listdir(self.config_dir):
+            if file_name.startswith('planting_plan_') and file_name.endswith('.json'):
+                file_path = os.path.join(self.config_dir, file_name)
+                planting_plan = self.load_planting_plan(file_path)
+                if planting_plan:
+                    planting_plans.append(planting_plan)
+        return planting_plans
     
     def get_planting_plan(self) -> PlantingPlan:
         """
@@ -52,8 +83,7 @@ class PlantingPlanLoader:
         """
         if not self.planting_plan:
             # load the planting plan from a file
-            file_path = self.find_planting_plan()
-            self.planting_plan = self.load_planting_plan(file_path)
+            self.planting_plan = self.find_planting_plan()
         
         if not self.planting_plan:
             print("No planting plan found. Exiting simulation.")
@@ -82,8 +112,6 @@ class PlantingPlanLoader:
                 days_to_target=protection_plan.get('days_to_target', 0),
                 protections=protections
             ))
-
-
 
         return PlantingPlan(
             crop_type=self.crop_type,
