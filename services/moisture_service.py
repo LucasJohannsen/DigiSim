@@ -6,11 +6,12 @@ import geopandas as gpd
 import netCDF4
 import numpy as np
 
-from utils.event_logger import EventLogger
+import scheduler.simulation_runner as sim_runner
 from models.planting_plan import FieldOperationEvent
 import datetime
-
+from utils import sim_helper
 from models.sim_context import SimContext
+import json
 
 
 # download moisture data
@@ -19,7 +20,7 @@ from models.sim_context import SimContext
 MOISTURE_SOIL_TYPE = 'grass'  # 'grass', 'wheat',  'oak','pine','spruce','beach'
 BASE_URL = 'https://opendata.dwd.de/climate_environment/CDC/grids_germany/daily/soil_moisture'
 CACHE_FOLDER = "dwd_data"
-YEAR = 2024
+YEAR = 2022
 DEPTH_RANGE = '0-10'  # '20-30'
 MIN_MOISTURE_LEVEL = 50  # in % nFK
 
@@ -46,7 +47,7 @@ class MoistureService:
         local_storage_path = os.path.join(os.getcwd(), CACHE_FOLDER, filepath)
 
         if not os.path.exists(local_storage_path):
-            url = f"{BASE_URL}/{MOISTURE_SOIL_TYPE}/{self.year}/{filepath}"
+            url = f"{BASE_URL}/{MOISTURE_SOIL_TYPE}/{year}/{filepath}"
             print(f"Downloading {url} ... (>~130MB)")
             os.makedirs(os.path.dirname(local_storage_path), exist_ok=True)
             request.urlretrieve(url, local_storage_path)
@@ -263,4 +264,35 @@ class MoistureService:
 
         return irrigation_events
 
-    
+    def export_moisture_data(self):
+        """
+        Export the moisture data and irrigation events as json
+        This function is called by the simulation runner.
+        """
+       
+        moisture_data = {
+            'coords': self.planned_events['coords'],
+            'dates': [date.strftime('%Y-%m-%d') for date in self.planned_events['dates']],
+            'moisture_data': self.planned_events['moisture_data'].tolist(),
+            'new_moisture': self.planned_events['new_moisture'].tolist(),
+            'irrigation': self.planned_events['irrigation'].tolist(),
+            #'events': [event.__dict__ for event in self.planned_events['events']]
+        }
+
+        # Save to file under 
+        date = datetime.datetime.now().strftime('%Y-%m-%d')
+
+        export_dir = os.path.join(sim_runner.EXPORT_BASE_DIR, date)
+        if not os.path.exists(export_dir):
+            os.makedirs(export_dir)
+
+        # add field id and name to the filename
+
+        # sanitize field name to be a valid filename (without spaces and special characters)
+        clean_field_name = sim_helper.sanitize_filename(self.context.field_name)
+
+        filename = f'irrigation_{self.context.field_id}_{clean_field_name}.json'
+        filepath = os.path.join(export_dir, filename)
+
+        with open(filepath, 'w') as f:
+            json.dump(moisture_data, f, indent=4)

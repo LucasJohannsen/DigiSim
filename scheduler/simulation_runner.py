@@ -8,6 +8,9 @@ import models.sim_context as sim_context
 import utils.sim_helper as sim_helper
 import services.moisture_service as ms
 
+
+EXPORT_BASE_DIR = os.path.join(os.path.dirname(__file__), '../export')
+
 class SimulationRunner:
     """
     Manages the simulation processes and their execution within a given
@@ -17,7 +20,7 @@ class SimulationRunner:
         self.params = sim_params
         self.event_logger = EventLogger()
         self.planting_plan_service = None
-        self.irrigation_service = None
+        self.irrigation_service: ms.MoistureService = None
 
     def observer(self):
         """A process that yields at each time step and prints the status."""
@@ -66,7 +69,7 @@ class SimulationRunner:
         Runs the simulation in the SimPy environment.
         """
 
-        EXPORT_BASE_DIR = os.path.join(os.path.dirname(__file__), '../export')
+        
 
         print(f'Starting simulation with parameters: {self.params}')
         
@@ -113,3 +116,6 @@ class SimulationRunner:
         filepath = os.path.join(export_dir, filename)
 
         self.event_logger.save(filepath, context = self.params)
+
+        # export moisture data
+        self.irrigation_service.export_moisture_data()
