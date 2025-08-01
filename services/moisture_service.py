@@ -123,18 +123,18 @@ class MoistureService:
             # get moisture data for the day
             if new_moisture[day] < min_moisture_level:
                 # Calculate new moisture level after precipitation
-                preciption_needed = min_moisture_level - new_moisture[day]
+                precipitation_needed = min_moisture_level - new_moisture[day]
 
-                if 0 < preciption_needed < MIN_IRRIGATION_NEEDED:
+                if 0 < precipitation_needed < MIN_IRRIGATION_NEEDED:
                     print(
-                        f"Skipping irrigation for day {day} as only {preciption_needed:.2f}% nFK needed.")
+                        f"Skipping irrigation for day {day} as only {precipitation_needed:.2f}% nFK needed.")
                     continue  # Skip if less than 5% nFK needed
 
                 # Wetterbericht geht 4 Tage im Voraus
                 upcoming_moisture_levels = moisture_data[day:day +
                                                          WEATHER_FORECAST_DAYS]
                 if not np.any(upcoming_moisture_levels > min_moisture_level):
-                    irrigation_needed = preciption_needed * \
+                    irrigation_needed = precipitation_needed * \
                         np.random.uniform(0.8, 1.2)
                     new_moisture[day] = new_moisture[day] + irrigation_needed
                     irrigation[day] = irrigation_needed
