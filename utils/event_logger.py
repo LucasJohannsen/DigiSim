@@ -11,7 +11,9 @@ class EventLogger:
     def log(self, event: FieldOperationEvent):
 
         # add hardcoded values
-        event.machine = "Fendt 719 Vario"
+
+        if not event.machine:
+            event.machine = "Fendt 719 Vario"
         
         event.exa_id = 0
         event.field = 0
