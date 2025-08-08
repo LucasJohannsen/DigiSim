@@ -44,6 +44,16 @@
                         "working_width": 1.8,
                         "fuel_consumption": 26.6,
                         "worktype": 28
+                    },
+                    {
+                        "sequence": 4,
+                        "operation": "Kali",
+                        "min_days_to_target": -5,
+                        "max_days_to_target": -1,
+                        "duration_per_ha": 0.23,
+                        "working_width": 18,
+                        "fuel_consumption": 12.7,
+                        "worktype": 23
                     }
                 ]
             }
@@ -53,19 +63,9 @@
                 "target_date_name": "Planting",
                 "operations": [
                     {
-                        "sequence": 1,
-                        "operation": "Kali",
-                        "min_days_to_target": -5,
-                        "max_days_to_target": -1,
-                        "duration_per_ha": 0.23,
-                        "working_width": 18,
-                        "fuel_consumption": 12.7,
-                        "worktype": 23
-                    },
-                    {
                         "sequence": 2,
                         "operation": "Pflanzguttransport",
-                        "min_days_to_target": -1,
+                        "min_days_to_target": 0,
                         "max_days_to_target": 0,
                         "duration_per_ha": 0.1,
                         "working_width": 0,
@@ -96,7 +96,7 @@
                         "max_days_to_target": 5,
                         "duration_per_ha": 0.5,
                         "working_width": 18,
-                        "fuel_consumption": 15.0,
+                        "fuel_consumption": 1.04,
                         "worktype": 23
                     },
                     {
@@ -106,7 +106,7 @@
                         "max_days_to_target": 13,
                         "duration_per_ha": 0.4,
                         "working_width": 15,
-                        "fuel_consumption": 10.0,
+                        "fuel_consumption": 0.95,
                         "worktype": 23
                     },
                     {

@@ -2,7 +2,7 @@ import random
 from datetime import datetime, timedelta
 import json
 
-from models.planting_plan import PlantingPlan, FieldPhases, FieldOperation
+from models.planting_plan import PlantingPlan, FieldOperation
 
 # get random date between start and end period
 def get_random_date(start_month, end_month, year):

@@ -1,5 +1,5 @@
 import json
-from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldPhases, FieldOperation, TargetDates, ProtectionPlan, Protection
+from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldOperationCycle, FieldOperation, TargetDates, ProtectionPlan, Protection
 import os
 
 class PlantingPlanLoader:
@@ -100,7 +100,7 @@ class PlantingPlanLoader:
             target_date_name = phase.get(phase_name, {}).get('target_date_name', 'NONE').upper()
             target_date_name = TargetDates[target_date_name] if target_date_name in TargetDates.__members__ else TargetDates.NONE
             
-            phases.append(FieldPhases(phase_name=phase_name, operations=operations, target_date_name= target_date_name))
+            phases.append(FieldOperationCycle(phase_name=phase_name, operations=operations, target_date_name= target_date_name))
         
         # protection plans
         protection_plans = []

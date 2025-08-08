@@ -8,7 +8,7 @@ class SimContext:
     """
     field_size: float = 10.0  # Default field size for the simulation
     soil_type: str = 'sand'  # Default soil type for the simulation
-    start_date: datetime.date = datetime.date(2024, 10, 1)  # Default start date for the simulation
+    start_date: datetime = datetime.datetime(2024, 10, 1)  # Default start date for the simulation
     crop_type: str = 'Potato'  # Default crop type for the simulation
     variety: str = 'Belana'  # Default crop variety
     field_id: int = 1

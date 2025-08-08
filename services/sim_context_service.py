@@ -57,9 +57,9 @@ def collect(context: SimContext, defaults=None):
         default=defaults["soil_type"]
     )
     context.start_date = get_input(
-        f"Enter start date (YYYY-MM-DD) [{defaults['start_date']}]: ",
-        lambda s: datetime.datetime.strptime(s, "%Y-%m-%d").date(),
-        default=defaults["start_date"] if isinstance(defaults["start_date"], datetime.date) else datetime.datetime.strptime(defaults["start_date"], "%Y-%m-%d").date()
+        f"Enter start date (YYYY-MM-DD) [{defaults['start_date'].strftime('%Y-%m-%d')}]: ",
+        lambda s: datetime.datetime.strptime(s, "%Y-%m-%d"),
+        default=defaults["start_date"] if isinstance(defaults["start_date"], datetime.datetime) else datetime.datetime.strptime(defaults["start_date"], "%Y-%m-%d")
     )
     context.crop_type = get_input(
         f"Enter crop type [{defaults['crop_type']}]: ",
@@ -136,7 +136,7 @@ def get_batch_simulation_context() -> list[SimContext]:
                 field_id=field.id,
                 field_name=field.name,
                 soil_type=field.soil_type,
-                start_date=datetime.date.today(),  # Default or random choice
+                start_date=datetime.datetime.now(),  # Default or random choice
                 crop_type=planting_plan.get('crop_type', 'Potato'),  # Default or random choice
                 variety=planting_plan.get('variety', 'Belana'),  # Default or random choice
                 fuel_variation=random.uniform(0.05, 0.15)  # Random variation in fuel consumption
