@@ -96,10 +96,10 @@ def get_simulation_context():
 
     # List fields in the selected farm
     print('\nFields in the selected farm:')
-    print(f"{'Field ID':<10} {'Name':<20} {'Distance to Barn (km)':<22} {'Area (ha)':<10}")
+    print(f"{'Field ID':<10} {'Name':<25} {'Distance to Barn (km)':<22} {'Area (ha)':<10}")
     print('-' * 70)
     for field in selected_farm.fields:
-        print(f"{field.id:<10} {field.name:<20} {field.distance_to_barn:<22} {field.area:<10}")
+        print(f"{field.id:<10} {field.name:<25} {field.distance_to_barn:<22} {field.area:<10}")
 
     field_id = input('\nEnter the Field ID to select: ')
     selected_field = next((f for f in selected_farm.fields if f.id == int(field_id)), None)
@@ -120,28 +120,38 @@ def get_batch_simulation_context() -> list[SimContext]:
     farms = farm_loader.get_farms()
 
     batch_contexts = []
+    print(f"{'Farm ID':<10} {'Name':<20}")
+    print('-' * 30)
     for farm in farms:
-        print(f"\nProcessing farm: {farm.name} (ID: {farm.id})")
-        for field in farm.fields:
-            print(f"  Field: {field.name} (ID: {field.id}, Area: {field.area} ha)")
+        print(f"{farm.id:<10} {farm.name:<20}")
 
-            plans = PlantingPlanLoader().get_all_planting_plans()
-            if not plans:
-                print("No planting plans available for this field.")
-                continue
-            planting_plan = random.choice(plans)
+    farm_id = input('\nEnter the Farm ID to select: ')
+    farm = next((f for f in farms if f.id == int(farm_id)), None)
+    if not farm:
+        print("Invalid Farm ID selected.")
+        return
+    
+    print(f"\nProcessing farm: {farm.name} (ID: {farm.id})")
+    for field in farm.fields:
+        print(f"  Field: {field.name} (ID: {field.id}, Area: {field.area} ha)")
 
-            context = SimContext(
-                field_size=field.area,
-                field_id=field.id,
-                field_name=field.name,
-                soil_type=field.soil_type,
-                start_date=datetime.datetime.now(),  # Default or random choice
-                crop_type=planting_plan.get('crop_type', 'Potato'),  # Default or random choice
-                variety=planting_plan.get('variety', 'Belana'),  # Default or random choice
-                fuel_variation=random.uniform(0.05, 0.15)  # Random variation in fuel consumption
-            )
-            batch_contexts.append(context)
+        plans = PlantingPlanLoader().get_all_planting_plans()
+        if not plans:
+            print("No planting plans available for this field.")
+            continue
+        planting_plan = random.choice(plans)
+
+        context = SimContext(
+            field_size=field.area,
+            field_id=field.id,
+            field_name=field.name,
+            soil_type=field.soil_type,
+            start_date=datetime.datetime.now(),  # Default or random choice
+            crop_type=planting_plan.get('crop_type', 'Potato'),  # Default or random choice
+            variety=planting_plan.get('variety', 'Belana'),  # Default or random choice
+            fuel_variation=random.uniform(0.05, 0.15)  # Random variation in fuel consumption
+        )
+        batch_contexts.append(context)
     
     return batch_contexts
     

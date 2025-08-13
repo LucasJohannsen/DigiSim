@@ -1,0 +1,19 @@
+{
+  "count": 1,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 7,
+      "name": "ClarksonFarm",
+      "exa_name": "clarksonfarm",
+      "description": "Simulations-Betrieb",
+      "min_lat": null,
+      "max_lat": null,
+      "min_lon": null,
+      "max_lon": null,
+      "test": false,
+      "active": true
+    }
+  ]
+}
