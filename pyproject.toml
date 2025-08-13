@@ -8,7 +8,10 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "simpy>=4.0.1"
+    "geopandas>=1.1.1",
+    "netcdf4>=1.7.2",
+    "numpy>=2.3.2",
+    "simpy>=4.0.1",
 ]
 
 [project.optional-dependencies]
@@ -20,3 +23,7 @@ dev = [
 [build-system]
 requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["models*", "services*", "scheduler*", "utils*"]
+exclude = ["config*", "export*", "tests*", "documentation*"]
