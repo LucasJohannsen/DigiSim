@@ -16,9 +16,6 @@ dependencies = [
     "requests>=2.26.0",
 ]
 
-[tool.setuptools.packages.find]
-where = ["."]
-
 [project.optional-dependencies]
 dev = [
     "pytest",
