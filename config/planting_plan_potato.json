@@ -52,8 +52,13 @@
                         "max_days_to_target": -1,
                         "duration_per_ha": 0.23,
                         "working_width": 18,
-                        "fuel_consumption": 12.7,
-                        "worktype": 23
+                        "fuel_consumption": 1.2,
+                        "worktype": 23,
+                        "application_type": "mineral fertilizer",
+                        "application_name": "Kali",
+                        "application_category": 34,
+                        "application_amount": 0.6,
+                        "application_unit": 3
                     }
                 ]
             }
@@ -80,7 +85,12 @@
                         "duration_per_ha": 1.07,
                         "working_width": 3.6,
                         "fuel_consumption": 10.85,
-                        "worktype": 26
+                        "worktype": 26,
+                        "application_type": "seed",
+                        "application_name": "Belana",
+                        "application_category": 29,
+                        "application_amount": 2.4,
+                        "application_unit": 3
                     }
                 ]
             }
@@ -97,7 +107,12 @@
                         "duration_per_ha": 0.5,
                         "working_width": 18,
                         "fuel_consumption": 1.04,
-                        "worktype": 23
+                        "worktype": 23,
+                        "application_type": "mineral fertilizer",
+                        "application_name": "kas",
+                        "application_category": 33,
+                        "application_amount": 0.46,
+                        "application_unit": 3
                     },
                     {
                         "sequence": 2,
@@ -107,7 +122,12 @@
                         "duration_per_ha": 0.4,
                         "working_width": 15,
                         "fuel_consumption": 0.95,
-                        "worktype": 23
+                        "worktype": 23,                        
+                        "application_type": "mineral fertilizer",
+                        "application_name": "Superphosphat",
+                        "application_category": 34,
+                        "application_amount": 0.5,
+                        "application_unit": 3
                     },
                     {
                         "sequence": 3,
@@ -146,7 +166,7 @@
                         "operation": "Roden",
                         "min_days_to_target": 0,
                         "max_days_to_target": 5,
-                        "duration_per_ha": 16.25,
+                        "duration_per_ha": 4.25,
                         "working_width": 0.8,
                         "fuel_consumption": 42.09,
                         "worktype": 27
