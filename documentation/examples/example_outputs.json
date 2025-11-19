@@ -1,0 +1,189 @@
+{
+  "field": {
+    "exa_id": 1,
+    "name": "Testfeld Nord",
+    "area": 12.5
+  },
+  "harvest_cycle": {
+    "id": 0,
+    "start_date": "",
+    "end_date": ""
+  },
+  "operations": [
+    {
+      "model": "pipeline.operation",
+      "pk": 0,
+      "fields": {
+        "batch": null,
+        "field": 1,
+        "worktype": 6,
+        "exa_id": 0,
+        "start_date": "2025-04-01 08:51:24",
+        "end_date": "2025-04-01 19:58:54",
+        "machine": "Fendt 719 Vario",
+        "area": 12.5,
+        "distance": 50.0,
+        "distanceWorked": 47.5,
+        "duration": 40050.0,
+        "durationWorked": 38047.5,
+        "fuel": 170.49,
+        "application_type": null,
+        "application_category": null,
+        "application_name": null,
+        "application_amount": 0.0,
+        "application_unit": null,
+        "worktype_text": "Grubbern"
+      }
+    },
+    {
+      "model": "pipeline.operation",
+      "pk": 0,
+      "fields": {
+        "batch": null,
+        "field": 1,
+        "worktype": 7,
+        "exa_id": 0,
+        "start_date": "2025-04-11 07:48:50",
+        "end_date": "2025-04-11 19:48:50",
+        "machine": "Fendt 719 Vario",
+        "area": 12.5,
+        "distance": 41.67,
+        "distanceWorked": 39.59,
+        "duration": 43200.0,
+        "durationWorked": 41040.0,
+        "fuel": 117.63,
+        "application_type": null,
+        "application_category": null,
+        "application_name": null,
+        "application_amount": 0.0,
+        "application_unit": null,
+        "worktype_text": "Kreiseln"
+      }
+    },
+    {
+      "model": "pipeline.operation",
+      "pk": 0,
+      "fields": {
+        "batch": null,
+        "field": 1,
+        "worktype": 28,
+        "exa_id": 0,
+        "start_date": "2025-04-17 12:47:39",
+        "end_date": "2025-04-18 10:32:39",
+        "machine": "Fendt 719 Vario",
+        "area": 12.5,
+        "distance": 69.44,
+        "distanceWorked": 65.97,
+        "duration": 78300.0,
+        "durationWorked": 74385.0,
+        "fuel": 315.74,
+        "application_type": null,
+        "application_category": null,
+        "application_name": null,
+        "application_amount": 0.0,
+        "application_unit": null,
+        "worktype_text": "Separieren"
+      }
+    },
+    {
+      "model": "pipeline.operation",
+      "pk": 0,
+      "fields": {
+        "batch": null,
+        "field": 1,
+        "worktype": 23,
+        "exa_id": 0,
+        "start_date": "2025-04-26 07:13:37",
+        "end_date": "2025-04-26 10:06:07",
+        "machine": "Fendt 719 Vario",
+        "area": 12.5,
+        "distance": 6.94,
+        "distanceWorked": 6.59,
+        "duration": 10350.0,
+        "durationWorked": 9832.5,
+        "fuel": 14.33,
+        "application_type": "mineral fertilizer",
+        "application_category": 34,
+        "application_name": "Kali",
+        "application_amount": 7.5,
+        "application_unit": 3,
+        "worktype_text": "Kali"
+      }
+    },
+    {
+      "model": "pipeline.operation",
+      "pk": 0,
+      "fields": {
+        "batch": null,
+        "field": 1,
+        "worktype": 18,
+        "exa_id": 0,
+        "start_date": "2025-04-28 06:39:18",
+        "end_date": "2025-04-28 07:54:18",
+        "machine": "Fendt 719 Vario",
+        "area": 12.5,
+        "distance": 0,
+        "distanceWorked": 0.0,
+        "duration": 4500.0,
+        "durationWorked": 4275.0,
+        "fuel": 0.0,
+        "application_type": null,
+        "application_category": null,
+        "application_name": null,
+        "application_amount": 0.0,
+        "application_unit": null,
+        "worktype_text": "Pflanzguttransport"
+      }
+    },
+    {
+      "model": "pipeline.operation",
+      "pk": 0,
+      "fields": {
+        "batch": null,
+        "field": 1,
+        "worktype": 26,
+        "exa_id": 0,
+        "start_date": "2025-04-28 10:41:50",
+        "end_date": "2025-04-29 00:04:20",
+        "machine": "Fendt 719 Vario",
+        "area": 12.5,
+        "distance": 34.72,
+        "distanceWorked": 32.98,
+        "duration": 48150.0,
+        "durationWorked": 45742.5,
+        "fuel": 143.91,
+        "application_type": "seed",
+        "application_category": 29,
+        "application_name": "Belana",
+        "application_amount": 30.0,
+        "application_unit": 3,
+        "worktype_text": "Pflanzen"
+      }
+    },
+    {
+      "model": "pipeline.operation",
+      "pk": 0,
+      "fields": {
+        "batch": null,
+        "field": 1,
+        "worktype": 23,
+        "exa_id": 0,
+        "start_date": "2025-05-01 12:02:39",
+        "end_date": "2025-05-01 18:17:39",
+        "machine": "Fendt 719 Vario",
+        "area": 12.5,
+        "distance": 6.94,
+        "distanceWorked": 6.59,
+        "duration": 22500.0,
+        "durationWorked": 21375.0,
+        "fuel": 13.53,
+        "application_type": "mineral fertilizer",
+        "application_category": 33,
+        "application_name": "kas",
+        "application_amount": 5.75,
+        "application_unit": 3,
+        "worktype_text": "N Düngung"
+      }
+    }
+  ]
+}

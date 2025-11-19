@@ -21,7 +21,8 @@
    - [Ablauf der Simulation](#ablauf-der-simulation)
       - [Festlegung der Simulationsparameter](#festlegung-der-simulationsparameter)
       - [Ermittlung der Operationen](#ermittlung-der-operationen)
-   - [Code-Architektur und Klassenübersicht](#code-architektur-und-klassenübersicht)
+  - [Output-Format](#output-format)
+  - [Code-Architektur und Klassenübersicht](#code-architektur-und-klassenübersicht)
       - [Gesamtarchitektur](#gesamtarchitektur)
       - [Kernklassen und ihre Beziehungen](#kernklassen-und-ihre-beziehungen)
       - [Datenfluss](#datenfluss)
@@ -309,6 +310,61 @@ Sinkt der Wert unter einen bestimmten Schwellenwert, wird eine Bewässerung durc
 
 **ProtectionPlanService**:
 Der ProtectionPlanService ermittelt aus der Liste der definieren Schutzmaßnahmen eine zufällige. Ab Pflanzdatum wird der Zeitpunkt des Schadensereignisses ermittelt und die Schutzmaßnahme zeitlich wie im Plan definiert durchgeführt. 
+
+
+## Output-Format
+
+Die Simulation exportiert alle Operationen nach Abschluss in das Verzeichnis `export/<YYYY-MM-DD>/`. Der Dateiname folgt dem Schema `simulation_<field_id>_<field_name>.json`, wobei der Feldname für Dateisysteme bereinigt wird. Jede Datei enthält:
+
+1. `field`: Metadaten zum simulierten Feld (ID, Name, Fläche).
+2. `harvest_cycle`: Zeitraum der simulierten Saison.
+3. `operations`: Liste aller durchgeführten Maßnahmen inklusive Maschinen, Dauer, Verbrauch und optionalem Applikationskontext.
+
+### Beispiel-Output
+
+```json
+{
+  "field": {
+    "exa_id": 1,
+    "name": "Testfeld Nord",
+    "area": 12.5
+  },
+  "harvest_cycle": {
+    "id": 0,
+    "start_date": "",
+    "end_date": ""
+  },
+  "operations": [
+    {
+      "model": "pipeline.operation",
+      "pk": 0,
+      "fields": {
+        "batch": null,
+        "field": 1,
+        "worktype": 6,
+        "exa_id": 0,
+        "start_date": "2025-04-01 08:51:24",
+        "end_date": "2025-04-01 19:58:54",
+        "machine": "Fendt 719 Vario",
+        "area": 12.5,
+        "distance": 50.0,
+        "distanceWorked": 47.5,
+        "duration": 40050.0,
+        "durationWorked": 38047.5,
+        "fuel": 170.49,
+        "application_type": null,
+        "application_category": null,
+        "application_name": null,
+        "application_amount": 0.0,
+        "application_unit": null,
+        "worktype_text": "Grubbern"
+      }
+    },
+  ]
+}
+```
+
+Ein vollständiges Beispiel inklusive aller Operationen findest du unter [documentation/example_output.json](documentation/example_output.json).
 
 
 ## Code-Architektur und Klassenübersicht
