@@ -26,6 +26,9 @@
       - [Kernklassen und ihre Beziehungen](#kernklassen-und-ihre-beziehungen)
       - [Datenfluss](#datenfluss)
       - [Abhängigkeitsmatrix](#abhängigkeitsmatrix)
+   - [Contributing](#contributing)
+   - [Lizenz](#lizenz)
+   - [Danksagungen](#danksagungen)
 
 # DigiSim
 
@@ -450,4 +453,39 @@ class PlantingPlan:
 | ValidationService | - | Alle Input-Handler |
 | CLI | Alle Services | main.py |
 
-Diese Architektur ermöglicht eine klare Trennung der Verantwortlichkeiten und erleichtert zukünftige Erweiterungen und
+Diese Architektur ermöglicht eine klare Trennung der Verantwortlichkeiten und erleichtert zukünftige Erweiterungen.
+
+---
+
+## 🤝 Contributing
+
+Wir freuen uns über Beiträge zur Weiterentwicklung von DigiSim! 
+
+### Wie kann ich beitragen?
+- **Bugs melden**: Nutze unsere [Issue-Templates](.github/ISSUE_TEMPLATE/)
+- **Features vorschlagen**: Erstelle ein Feature-Request
+- **Code beitragen**: Lies unsere [Contributing Guidelines](CONTRIBUTING.md)
+- **Dokumentation verbessern**: Tippfehler, Beispiele, Klarheit
+
+### Quick Start für Contributors
+1. Fork das Repository
+2. Erstelle einen Feature-Branch: `git checkout -b feature/SIM-XX-mein-feature`
+3. Committe deine Änderungen: `git commit -m "SIM-XX: Beschreibung"`
+4. Push zum Branch: `git push origin feature/SIM-XX-mein-feature`
+5. Erstelle einen Pull Request
+
+Weitere Details findest du in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## 📄 Lizenz
+
+Dieses Projekt ist Teil des DigiZert-Forschungsprojekts. Details zur Lizenz findest du in der [LICENSE](LICENSE) Datei.
+
+---
+
+## 🙏 Danksagungen
+
+Entwickelt im Rahmen des DigiZert-Forschungsprojekts von [FARMWISSEN](https://github.com/FARMWISSEN).
+
+Besonderer Dank an alle Contributors, die dieses Projekt unterstützen!
