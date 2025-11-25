@@ -1,0 +1,20 @@
+[
+  {"id": 1, "short": "g", "name": "Gramm", "type": "weight"},
+  {"id": 5, "short": "m", "name": "Meter", "type": "distance"},
+  {"id": 9, "short": "l", "name": "Liter", "type": "volume"},
+  {"id": 13, "short": "m²", "name": "Quadratmeter", "type": "area"},
+  {"id": 2, "short": "kg", "name": "Kilogramm", "type": "weight"},
+  {"id": 3, "short": "t", "name": "Tonne", "type": "weight"},
+  {"id": 4, "short": "dt", "name": "DeziTonne", "type": "weight"},
+  {"id": 6, "short": "dm", "name": "Dezimeter", "type": "distance"},
+  {"id": 7, "short": "cm", "name": "Centimeter", "type": "distance"},
+  {"id": 8, "short": "km", "name": "Kilometer", "type": "distance"},
+  {"id": 10, "short": "dl", "name": "Deziliter", "type": "volume"},
+  {"id": 11, "short": "ml", "name": "Milliliter", "type": "volume"},
+  {"id": 12, "short": "m³", "name": "Kubikmeter", "type": "volume"},
+  {"id": 14, "short": "a", "name": "Ar", "type": "area"},
+  {"id": 15, "short": "ha", "name": "Hektar", "type": "area"},
+  {"id": 16, "short": "km²", "name": "Quadratkilometer", "type": "area"},
+  {"id": 17, "short": "N", "name": "Menge", "type": "amount"},
+  {"id": 18, "short": "#", "name": "Nummer", "type": "number"}
+]

@@ -1,0 +1,139 @@
+{
+  "__instructions": {
+    "description": "Kopiere diese Datei, benenne sie als planting_plan_<frucht>.json und ersetze alle TODO-Werte.",
+    "steps": [
+      "Crop und variety exakt wie in der Simulation verwenden.",
+      "Monate als Zahlen von 1-12 angeben; growth_duration in Tagen.",
+      "Jede Phase besteht aus genau einem Objekt mit dem Phasennamen als Key.",
+      "min_days_to_target Werte sind relativ zum target_date_name der Phase.",
+      "application_* Felder nur ausfüllen, wenn eine Ausbringung stattfindet (sonst null).",
+      "Ein Protection Plan ist optional, kann aber mehrere protektions-Eintrage enthalten."
+    ],
+    "target_date_options": ["PLANTING", "HARVESTING", "FERTILIZATION"],
+    "unit_hints": {
+      "application_amount": "kg oder l pro ha (gleiche Einheit wie application_unit)",
+      "duration_per_ha": "Stunden pro ha",
+      "working_width": "Meter"
+    }
+  },
+  "crop": "TODO_Crop_Name",
+  "variety": "TODO_Variety",
+  "planting_period_months": [1, 2],
+  "harvest_period_months": [7, 8],
+  "growth_duration": 180,
+  "phases": [
+    {
+      "soil_preparation": {
+        "target_date_name": "PLANTING",
+        "operations": [
+          {
+            "sequence": 1,
+            "operation": "TODO Gruppe: Bodenbearbeitung",
+            "min_days_to_target": -30,
+            "max_days_to_target": -20,
+            "duration_per_ha": 1.0,
+            "working_width": 3.0,
+            "fuel_consumption": 12.0,
+            "worktype": 6,
+            "application_type": null,
+            "application_name": null,
+            "application_category": null,
+            "application_amount": 0.0,
+            "application_unit": null
+          }
+        ]
+      }
+    },
+    {
+      "sowing_planting": {
+        "target_date_name": "PLANTING",
+        "operations": [
+          {
+            "sequence": 1,
+            "operation": "TODO Saatgut oder Pflanzung",
+            "min_days_to_target": 0,
+            "max_days_to_target": 0,
+            "duration_per_ha": 1.0,
+            "working_width": 3.0,
+            "fuel_consumption": 10.0,
+            "worktype": 26,
+            "application_type": "seed",
+            "application_name": "TODO Sorte",
+            "application_category": 29,
+            "application_amount": 2.0,
+            "application_unit": 3
+          }
+        ]
+      }
+    },
+    {
+      "crop_management": {
+        "target_date_name": "PLANTING",
+        "operations": [
+          {
+            "sequence": 1,
+            "operation": "TODO Pflege-/Düngung",
+            "min_days_to_target": 30,
+            "max_days_to_target": 60,
+            "duration_per_ha": 0.5,
+            "working_width": 18.0,
+            "fuel_consumption": 3.0,
+            "worktype": 23,
+            "application_type": "mineral fertilizer",
+            "application_name": "TODO Produkt",
+            "application_category": 33,
+            "application_amount": 0.4,
+            "application_unit": 3
+          }
+        ]
+      }
+    },
+    {
+      "harvesting": {
+        "target_date_name": "HARVESTING",
+        "operations": [
+          {
+            "sequence": 1,
+            "operation": "TODO Ernte",
+            "min_days_to_target": 0,
+            "max_days_to_target": 5,
+            "duration_per_ha": 3.0,
+            "working_width": 4.0,
+            "fuel_consumption": 25.0,
+            "worktype": 27,
+            "application_type": null,
+            "application_name": null,
+            "application_category": null,
+            "application_amount": 0.0,
+            "application_unit": null
+          }
+        ]
+      }
+    },
+    {
+      "post_harvest_handling": {
+        "operations": []
+      }
+    },
+    {
+      "stubble_management_cover_cropping": {
+        "operations": []
+      }
+    }
+  ],
+  "protection_plans": [
+    {
+      "name": "TODO Planname",
+      "description": "Beschreibt die Schutzstrategie",
+      "days_to_target": 30,
+      "protections": [
+        {
+          "day": 0,
+          "type": 26,
+          "name": "TODO Wirkstoff",
+          "amount": "0.5"
+        }
+      ]
+    }
+  ]
+}

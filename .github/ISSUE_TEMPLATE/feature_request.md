@@ -23,5 +23,6 @@ assignees: ''
 - [ ] MVP-relevant (kritisch für erste Version)
 - [ ] Post-MVP (Nice-to-have für spätere Versionen)
 
-## 📎 Zusätzlicher Kontext
-<!-- Screenshots, Mockups, Links zu ähnlichen Implementierungen, etc. -->
+## Akzeptanz Kriterien 
+<!-- Welche Akzeptanz Kriterien müssen erfüllt sein? -->
+- [ ] ...

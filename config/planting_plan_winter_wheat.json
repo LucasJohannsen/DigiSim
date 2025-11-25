@@ -1,0 +1,173 @@
+{
+  "crop": "Winter Wheat",
+  "variety": "Julius",
+  "planting_period_months": [9, 10],
+  "harvest_period_months": [7, 8],
+  "growth_duration": 300,
+  "phases": [
+    {
+      "soil_preparation": {
+        "target_date_name": "PLANTING",
+        "operations": [
+          {
+            "sequence": 1,
+            "operation": "Stoppelsturz",
+            "min_days_to_target": -45,
+            "max_days_to_target": -35,
+            "duration_per_ha": 0.7,
+            "working_width": 6.0,
+            "fuel_consumption": 8.5,
+            "worktype": 6
+          },
+          {
+            "sequence": 2,
+            "operation": "Pflügen",
+            "min_days_to_target": -30,
+            "max_days_to_target": -20,
+            "duration_per_ha": 1.1,
+            "working_width": 2.5,
+            "fuel_consumption": 18.0,
+            "worktype": 5
+          },
+          {
+            "sequence": 3,
+            "operation": "Kreiselegge",
+            "min_days_to_target": -10,
+            "max_days_to_target": -3,
+            "duration_per_ha": 0.6,
+            "working_width": 4.0,
+            "fuel_consumption": 6.2,
+            "worktype": 7
+          }
+        ]
+      }
+    },
+    {
+      "sowing_planting": {
+        "target_date_name": "PLANTING",
+        "operations": [
+          {
+            "sequence": 1,
+            "operation": "Saatguttransport",
+            "min_days_to_target": 0,
+            "max_days_to_target": 0,
+            "duration_per_ha": 0.1,
+            "working_width": 0.0,
+            "fuel_consumption": 0.0,
+            "worktype": 18
+          },
+          {
+            "sequence": 2,
+            "operation": "Drillsaat",
+            "min_days_to_target": 0,
+            "max_days_to_target": 0,
+            "duration_per_ha": 0.9,
+            "working_width": 6.0,
+            "fuel_consumption": 9.8,
+            "worktype": 11,
+            "application_type": "seed",
+            "application_name": "Winterweizen Julius",
+            "application_category": 30,
+            "application_amount": 2.0,
+            "application_unit": 4
+          }
+        ]
+      }
+    },
+    {
+      "crop_management": {
+        "target_date_name": "PLANTING",
+        "operations": [
+          {
+            "sequence": 1,
+            "operation": "N-Düngung",
+            "min_days_to_target": 40,
+            "max_days_to_target": 50,
+            "duration_per_ha": 0.5,
+            "working_width": 18.0,
+            "fuel_consumption": 2.8,
+            "worktype": 23,
+            "application_type": "mineral fertilizer",
+            "application_name": "KAS",
+            "application_category": 33,
+            "application_amount": 0.45,
+            "application_unit": 3
+          },
+          {
+            "sequence": 2,
+            "operation": "Fungizid",
+            "min_days_to_target": 120,
+            "max_days_to_target": 135,
+            "duration_per_ha": 0.35,
+            "working_width": 24.0,
+            "fuel_consumption": 1.5,
+            "worktype": 14,
+            "application_type": "protection",
+            "application_name": "Tebuconazol",
+            "application_category": 27,
+            "application_amount": 0.3,
+            "application_unit": 2
+          }
+        ]
+      }
+    },
+    {
+      "harvesting": {
+        "target_date_name": "HARVESTING",
+        "operations": [
+          {
+            "sequence": 1,
+            "operation": "Dreschen",
+            "min_days_to_target": 0,
+            "max_days_to_target": 4,
+            "duration_per_ha": 1.8,
+            "working_width": 7.5,
+            "fuel_consumption": 22.0,
+            "worktype": 50
+          },
+          {
+            "sequence": 2,
+            "operation": "Verladung",
+            "min_days_to_target": 5,
+            "max_days_to_target": 6,
+            "duration_per_ha": 0.2,
+            "working_width": 0.0,
+            "fuel_consumption": 0.0,
+            "worktype": 44
+          }
+        ]
+      }
+    },
+    {
+      "post_harvest_handling": {
+        "operations": []
+      }
+    },
+    {
+      "stubble_management_cover_cropping": {
+        "operations": []
+      }
+    }
+  ],
+  "protection_plans": [
+    {
+      "name": "Fusarium Strategie",
+      "description": "Standardprogramm gegen Pilzbefall",
+      "days_to_target": 100,
+      "protections": [
+        {
+          "day": 0,
+          "type": 26,
+          "name": "Tebuconazol",
+          "amount": "0.3"
+        },
+        {
+          "day": 14,
+          "type": 26,
+          "name": "Prothioconazol",
+          "amount": "0.2"
+        }
+      ]
+    }
+  ]
+}

@@ -167,6 +167,23 @@ Für jede Kultur muss ein Anbauplan hinterlegt werden. HIerzu wird im config Ord
 Die json-Date 
 
 
+#### Template für neue Kulturen
+
+Um Agrar-Expert:innen Schritt für Schritt durch die benötigten Angaben zu führen, liegt im Ordner [`config/`](config) die Datei [`planting_plan_template.json`](config/planting_plan_template.json). Sie enthält:
+
+1. eine erklärende `__instructions`-Sektion mit allen Pflichtfeldern,
+2. vordefinierte Phasen (Bodenbearbeitung, Aussaat, Pflege, Ernte, Nachernte),
+3. Platzhalter-Operationen inklusive typischer Parameter (z. B. `min_days_to_target`, `application_*`).
+
+**Vorgehen:**
+
+1. Datei kopieren und als `planting_plan_<kultur>.json` speichern.
+2. Alle `TODO`-Werte durch reale Angaben ersetzen (Monate als Zahlen 1–12, Dauer/Fuel per Hektar, optionale Schutzpläne).
+3. Datei im Repository einchecken und im Simulationstest verwenden.
+
+Als Referenz ist bereits ein zusätzlicher Plan [`planting_plan_winter_wheat.json`](config/planting_plan_winter_wheat.json) enthalten. Er wurde mit dem Template erstellt und zeigt, wie ein vollständiger Satz an Operationen (z. B. Stoppelsturz, Drillsaat, Fungizid, Dreschen) für eine neue Kultur aussieht.
+
+
 ```json
 {
     "crop": "Potato",
