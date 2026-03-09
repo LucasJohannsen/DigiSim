@@ -115,3 +115,56 @@ class CalendarDrivenRunner:
             print(f"[WARN] Irrigation skipped for day {day_of_year}: {e}")
         
         return irrigation_events
+
+    def get_state_snapshot(self, last_tick_date: datetime.date | None = None):
+        from utils.state_manager import FieldStateSnapshot
+        
+        planting_ops = []
+        for phase in self.planting_plan_service.planting_plan.phases:
+            for op in phase.operations:
+                planting_ops.append({
+                    "phase": phase.phase_name,
+                    "sequence": op.sequence,
+                    "actual_date": op.actual_date.isoformat() if op.actual_date else None
+                })
+        
+        protection_ops = []
+        if self.protection_plan_service:
+            for op in self.protection_plan_service.operations:
+                protection_ops.append({
+                    "actual_date": op.actual_date.isoformat() if op.actual_date else None
+                })
+        
+        return FieldStateSnapshot(
+            field_id=self.context.field_id,
+            last_tick_date=last_tick_date,
+            context=self.context,
+            planting_ops=planting_ops,
+            protection_ops=protection_ops
+        )
+
+    def apply_state_snapshot(self, snapshot) -> None:
+        for op_data in snapshot.planting_ops:
+            phase_name = op_data["phase"]
+            sequence = op_data["sequence"]
+            actual_date_str = op_data.get("actual_date")
+            
+            for phase in self.planting_plan_service.planting_plan.phases:
+                if phase.phase_name == phase_name:
+                    for op in phase.operations:
+                        if op.sequence == sequence:
+                            if actual_date_str:
+                                op.actual_date = datetime.datetime.fromisoformat(actual_date_str)
+                            break
+        
+        if snapshot.protection_ops:
+            if not self.protection_plan_service:
+                self._initialize_services(self.context.start_date)
+            if self.protection_plan_service:
+                for idx, op_data in enumerate(snapshot.protection_ops):
+                    actual_date_str = op_data.get("actual_date")
+                    
+                    if idx < len(self.protection_plan_service.operations):
+                        op = self.protection_plan_service.operations[idx]
+                        if actual_date_str:
+                            op.actual_date = datetime.datetime.fromisoformat(actual_date_str)
