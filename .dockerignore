@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+*.pyc
+__pycache__
+.pytest_cache
+.venv
+venv
+export/
+tests/
+*.md
+!README.md
+state/
+retry_queue/
+logs/
+.DS_Store

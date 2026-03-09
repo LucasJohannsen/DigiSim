@@ -8,6 +8,12 @@
    - [Installation](#installation)
       - [Mit Python lokal installiert](#mit-python-lokal-installiert)
       - [Installation mit conda](#installation-mit-conda)
+   - [Docker Deployment](#docker-deployment)
+      - [Voraussetzungen](#voraussetzungen)
+      - [Setup](#setup)
+      - [Persistente Daten](#persistente-daten)
+      - [Image-Größe](#image-größe)
+      - [Troubleshooting](#troubleshooting)
    - [Einrichtung der Konfiguration](#einrichtung-der-konfiguration)
       - [Manuelle Konfiguration](#manuelle-konfiguration)
       - [Konfiguration über JSON-Datei](#konfiguration-über-json-datei)
@@ -113,6 +119,77 @@ rm -rf .venv
     python main.py
     ```
 6. Um das Environment zu verlassen, führe `conda deactivate` aus.
+
+
+## Docker Deployment
+
+### Voraussetzungen
+- Docker 24.0+
+- Docker Compose 2.0+
+
+### Setup
+
+1. **Konfiguration erstellen:**
+   ```bash
+   cp .env.example .env
+   # .env editieren: DIGIZERT_API_URL, DIGIZERT_API_TOKEN, FARM_ID setzen
+   ```
+
+2. **Container bauen und starten:**
+   ```bash
+   docker-compose up --build -d
+   ```
+
+3. **Logs verfolgen:**
+   ```bash
+   docker-compose logs -f digisim
+   ```
+
+4. **Status prüfen:**
+   ```bash
+   docker-compose ps
+   ```
+
+5. **Stoppen:**
+   ```bash
+   docker-compose down
+   ```
+
+### Persistente Daten
+
+Die folgenden Verzeichnisse werden als Volumes gemountet:
+- `./state` – Simulationszustand pro Feld
+- `./retry_queue` – Fehlgeschlagene API-Requests
+- `./logs` – Strukturierte JSON-Logs
+
+**Backup:** Einfach diese 3 Verzeichnisse sichern.
+
+### Image-Größe
+
+Das finale Image ist **< 300MB** dank Multi-Stage-Build:
+```bash
+docker images digisim
+```
+
+### Troubleshooting
+
+**Container startet nicht:**
+```bash
+docker-compose logs digisim
+# Prüfe auf fehlende Env-Vars in .env
+```
+
+**Keine Events werden gesendet:**
+```bash
+# Prüfe retry_queue/ auf fehlgeschlagene Events
+ls -la retry_queue/
+```
+
+**State geht verloren:**
+```bash
+# Prüfe Volume-Mounts
+docker inspect digisim | grep -A 10 Mounts
+```
 
 
 ## Einrichtung der Konfiguration

@@ -1,0 +1,20 @@
+services:
+  digisim:
+    build: .
+    container_name: digisim
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./state:/app/state
+      - ./retry_queue:/app/retry_queue
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    environment:
+      - STATE_DIR=/app/state
+      - LOG_FILE=/app/logs/digisim.log
+    healthcheck:
+      test: ["CMD-SHELL", "pgrep -f daemon.py || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
