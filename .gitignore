@@ -206,3 +206,6 @@ simulation_events.json
 
 # State persistence
 state/
+
+# Retry queue
+retry_queue/
