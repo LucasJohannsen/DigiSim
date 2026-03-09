@@ -7,7 +7,6 @@ from utils.logger import setup_logging, get_logger
 from utils.state_manager import StateManager
 from services.digizert_client import DigiZertClient
 from services.retry_dispatcher import RetryDispatcher
-from services.farm_sync_service import FarmSyncService
 from scheduler.tick_scheduler import TickScheduler
 
 
@@ -24,35 +23,15 @@ def main() -> None:
     logger = get_logger("daemon")
     logger.info("DigiSim daemon starting", farm_id=config.farm_id)
 
+    state_manager = StateManager(config.state_dir)
+
     try:
-        contexts = load_sim_contexts(config)
+        contexts = load_sim_contexts(config, state_manager)
     except (ValueError, FileNotFoundError) as e:
         logger.error("Failed to load farm configuration", error=str(e))
         sys.exit(1)
 
     logger.info("Farm configuration loaded", farm_id=config.farm_id, field_count=len(contexts))
-
-    state_manager = StateManager(config.state_dir)
-    local_field_ids = state_manager.get_all_field_ids()
-    
-    sync_service = FarmSyncService(config.api_url, config.api_token, config.api_timeout)
-    try:
-        api_fields = sync_service.load_farm_fields(config.farm_id)
-        sync_result = sync_service.sync_fields(api_fields, local_field_ids)
-        
-        logger.info(
-            "Field sync completed",
-            new_fields=sync_result.new_fields,
-            existing_fields=len(sync_result.existing_fields),
-            inactive_fields=sync_result.inactive_fields
-        )
-        
-        active_field_ids = {f.field_id for f in api_fields}
-        contexts = [ctx for ctx in contexts if ctx.field_id in active_field_ids]
-        
-        logger.info("Active fields filtered", active_count=len(contexts))
-    except ValueError as e:
-        logger.warning("Field sync failed, using all loaded contexts", error=str(e))
 
     client = DigiZertClient(
         api_url=config.api_url,

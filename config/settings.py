@@ -67,7 +67,7 @@ def load_and_validate_config() -> DaemonConfig:
     )
 
 
-def load_sim_contexts_from_api(config: DaemonConfig) -> list[SimContext]:
+def load_sim_contexts_from_api(config: DaemonConfig, state_manager=None) -> list[SimContext]:
     sync_service = FarmSyncService(
         api_url=config.api_url,
         api_token=config.api_token,
@@ -75,6 +75,17 @@ def load_sim_contexts_from_api(config: DaemonConfig) -> list[SimContext]:
     )
     
     api_fields = sync_service.load_farm_fields(config.farm_id)
+    
+    if state_manager:
+        local_field_ids = state_manager.get_all_field_ids()
+        sync_result = sync_service.sync_fields(api_fields, local_field_ids)
+        
+        logger.info(
+            "Field sync completed",
+            new_fields=sync_result.new_fields,
+            existing_fields=len(sync_result.existing_fields),
+            inactive_fields=sync_result.inactive_fields
+        )
     
     contexts = []
     for field in api_fields:
@@ -115,10 +126,10 @@ def load_sim_contexts_from_json(config: DaemonConfig) -> list[SimContext]:
     return contexts
 
 
-def load_sim_contexts(config: DaemonConfig) -> list[SimContext]:
+def load_sim_contexts(config: DaemonConfig, state_manager=None) -> list[SimContext]:
     if config.api_url and config.api_token:
         try:
-            return load_sim_contexts_from_api(config)
+            return load_sim_contexts_from_api(config, state_manager)
         except ValueError as e:
             logger.warning("API load failed, falling back to JSON", error=str(e))
     
