@@ -9,6 +9,9 @@ from services.irrigation_service import IrrigationSimulator
 from services.moisture_service import MoistureDataService
 from scheduler.decision_manager import DecisionManager, WorkTypePriorityStrategy
 from utils.event_logger import EventLogger
+from utils.logger import get_logger
+
+logger = get_logger("calendar_driven_runner")
 
 
 class CalendarDrivenRunner:
@@ -112,7 +115,7 @@ class CalendarDrivenRunner:
                 if event:
                     irrigation_events.append(event)
         except Exception as e:
-            print(f"[WARN] Irrigation skipped for day {day_of_year}: {e}")
+            logger.warning("Irrigation skipped", day=day_of_year, error=str(e))
         
         return irrigation_events
 

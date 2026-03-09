@@ -1,6 +1,9 @@
 import httpx
 from models.planting_plan import FieldOperationEvent
 from models.sim_context import SimContext
+from utils.logger import get_logger
+
+logger = get_logger("digizert_client")
 
 
 class DigiZertClient:
@@ -28,6 +31,7 @@ class DigiZertClient:
             timeout=self.timeout
         )
         response.raise_for_status()
+        logger.info("Event dispatched", field=event.field, worktype=event.worktype)
 
     def _build_payload(self, event: FieldOperationEvent, context: SimContext) -> dict:
         return {
