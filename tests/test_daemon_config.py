@@ -7,6 +7,7 @@ import signal
 
 from utils.config_loader import load_and_validate_config, load_sim_contexts, DaemonConfig
 from models.sim_context import SimContext
+import daemon as daemon_module
 
 
 def test_load_config_with_required_env_vars(monkeypatch):
@@ -219,15 +220,41 @@ def test_optional_env_vars_have_defaults(monkeypatch):
     assert config.farms_config_path == "./config/farms.json"
 
 
-def test_sigterm_triggers_scheduler_stop():
+def test_sigterm_registers_shutdown_handler(monkeypatch):
+    monkeypatch.setenv("DIGIZERT_API_URL", "http://api.test/")
+    monkeypatch.setenv("DIGIZERT_API_TOKEN", "token123")
+    monkeypatch.setenv("FARM_ID", "7")
+    
+    registered_handlers = {}
+    
+    def capture_signal(sig, handler):
+        registered_handlers[sig] = handler
+    
     mock_scheduler = Mock()
-    mock_scheduler.stop = Mock()
+    mock_scheduler.start = Mock()
+    mock_scheduler._running = False
     
-    def _shutdown(signum, frame):
-        mock_scheduler.stop()
+    with patch('daemon.load_and_validate_config') as mock_config, \
+         patch('daemon.load_sim_contexts', return_value=[Mock()]), \
+         patch('daemon.setup_logging'), \
+         patch('daemon.get_logger'), \
+         patch('daemon.DigiZertClient'), \
+         patch('daemon.RetryDispatcher'), \
+         patch('daemon.TickScheduler', return_value=mock_scheduler), \
+         patch('signal.signal', side_effect=capture_signal), \
+         patch.object(mock_scheduler, 'start', return_value=None):
+        
+        mock_config.return_value = Mock(
+            log_level="INFO", log_file=None, farm_id=7,
+            api_url="http://test/", api_token="token", api_timeout=10,
+            retry_max_attempts=3, tick_time="06:00", state_dir="./state"
+        )
+        daemon_module.main()
     
-    _shutdown(signal.SIGTERM, None)
+    assert signal.SIGTERM in registered_handlers
+    assert signal.SIGINT in registered_handlers
     
+    registered_handlers[signal.SIGTERM](signal.SIGTERM, None)
     mock_scheduler.stop.assert_called_once()
 
 

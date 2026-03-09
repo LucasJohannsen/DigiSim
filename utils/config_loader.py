@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from pathlib import Path
 import datetime
 
+from models.sim_context import SimContext
+
 
 @dataclass
 class DaemonConfig:
@@ -57,13 +59,12 @@ def load_and_validate_config() -> DaemonConfig:
     )
 
 
-def load_sim_contexts(config: DaemonConfig) -> list:
+def load_sim_contexts(config: DaemonConfig) -> list[SimContext]:
     """
     Liest farms.json, findet den Betrieb mit config.farm_id,
     und gibt eine Liste von SimContext-Objekten zurück (ein pro Feld).
     Wirft ValueError wenn farm_id nicht gefunden.
     """
-    from models.sim_context import SimContext
 
     with open(config.farms_config_path, "r") as f:
         data = json.load(f)
