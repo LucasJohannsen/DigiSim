@@ -49,6 +49,7 @@ def test_daily_tick_calls_tick_for_each_field(sample_contexts):
         
         with patch('scheduler.tick_scheduler.datetime') as mock_datetime:
             mock_datetime.date.today.return_value = datetime.date(2024, 11, 15)
+            mock_datetime.datetime.now.return_value = datetime.datetime(2024, 11, 15, 6, 0, 0)
             
             asyncio.run(scheduler.daily_tick())
             
@@ -73,6 +74,7 @@ def test_daily_tick_field_error_does_not_stop_others(sample_contexts):
         
         with patch('scheduler.tick_scheduler.datetime') as mock_datetime:
             mock_datetime.date.today.return_value = datetime.date(2024, 11, 15)
+            mock_datetime.datetime.now.return_value = datetime.datetime(2024, 11, 15, 6, 0, 0)
             
             asyncio.run(scheduler.daily_tick())
             
@@ -109,6 +111,7 @@ def test_daily_tick_passes_today_to_runners(sample_contexts):
         with patch('scheduler.tick_scheduler.datetime') as mock_datetime:
             test_date = datetime.date(2024, 12, 25)
             mock_datetime.date.today.return_value = test_date
+            mock_datetime.datetime.now.return_value = datetime.datetime(2024, 12, 25, 6, 0, 0)
             
             asyncio.run(scheduler.daily_tick())
             
