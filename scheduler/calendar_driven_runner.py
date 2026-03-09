@@ -97,7 +97,7 @@ class CalendarDrivenRunner:
                 )
                 if event:
                     irrigation_events.append(event)
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"[WARN] Irrigation skipped for day {day_of_year}: {e}")
         
         return irrigation_events
