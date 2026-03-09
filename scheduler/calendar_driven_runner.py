@@ -7,6 +7,7 @@ from services.planting_plan_service import PlantingPlanService
 from services.protection_plan_service import ProtectionPlanService
 from services.irrigation_service import IrrigationSimulator
 from services.moisture_service import MoistureDataService
+from scheduler.decision_manager import DecisionManager, WorkTypePriorityStrategy
 from utils.event_logger import EventLogger
 
 
@@ -14,6 +15,7 @@ class CalendarDrivenRunner:
     def __init__(self, context: SimContext) -> None:
         self.context = context
         self.event_logger = EventLogger()
+        self.decision_manager = DecisionManager(WorkTypePriorityStrategy())
         
         self.planting_plan_service = PlantingPlanService(
             context=self.context,
@@ -37,19 +39,31 @@ class CalendarDrivenRunner:
             self._initialize_services(date)
         
         planting_ops = self.planting_plan_service.get_next_operations(date)
-        if planting_ops:
-            planting_events = self.planting_plan_service.get_events_for_ops(planting_ops, date)
-            all_events.extend(planting_events)
+        protection_ops = (
+            self.protection_plan_service.get_next_operations(date)
+            if self.protection_plan_service else []
+        )
+        all_candidate_ops = planting_ops + protection_ops
         
-        if self.protection_plan_service:
-            protection_ops = self.protection_plan_service.get_next_operations(date)
-            if protection_ops:
-                protection_events = self.protection_plan_service.get_events_for_ops(protection_ops, date)
-                all_events.extend(protection_events)
+        selected_ops = self.decision_manager.decide(all_candidate_ops) or []
+        
+        for op in selected_ops:
+            if op in planting_ops:
+                all_events.extend(
+                    self.planting_plan_service.get_events_for_ops([op], date)
+                )
+            elif op in protection_ops:
+                all_events.extend(
+                    self.protection_plan_service.get_events_for_ops([op], date)
+                )
         
         if self.irrigation_service:
-            irrigation_events = self._handle_irrigation(date)
-            all_events.extend(irrigation_events)
+            has_high_prio = any(
+                getattr(op, 'worktype', None) not in [14, 15]
+                for op in selected_ops
+            )
+            if not has_high_prio:
+                all_events.extend(self._handle_irrigation(date))
         
         for event in all_events:
             self.event_logger.log(event)

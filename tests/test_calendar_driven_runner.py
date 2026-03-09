@@ -199,11 +199,11 @@ def test_tick_handles_multiple_operations_same_day(basic_context, mock_planting_
         actual_date=None
     )
     
-    mock_event1 = FieldOperationEvent(worktype=1, worktype_text="Pflügen")
-    mock_event2 = FieldOperationEvent(worktype=2, worktype_text="Eggen")
-    
     mock_planting_plan_service.get_next_operations.return_value = [mock_op1, mock_op2]
-    mock_planting_plan_service.get_events_for_ops.return_value = [mock_event1, mock_event2]
+    mock_planting_plan_service.get_events_for_ops.side_effect = lambda ops, date: [
+        FieldOperationEvent(worktype=op.worktype, worktype_text=op.operation) for op in ops
+    ]
+    mock_planting_plan_service.active_phase = None
     
     with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
         runner = CalendarDrivenRunner(basic_context)
@@ -228,3 +228,91 @@ def test_tick_integration_with_real_planting_plan(basic_context):
     events = runner.tick(test_date)
     
     assert isinstance(events, list)
+
+
+def test_tick_high_prio_op_suppresses_low_prio(basic_context, mock_planting_plan_service):
+    """
+    Test 9: Wenn Pflügen (worktype=1) und Spritzen (worktype=14) am selben Tag fällig sind,
+    wird nur Pflügen ausgeführt. Spritzen wird nicht ausgeführt (actual_date bleibt None).
+    """
+    test_date = datetime.date(2024, 10, 15)
+    
+    high_prio_op = FieldOperation(
+        sequence=1,
+        operation="Pflügen",
+        worktype=1,
+        planned_date=test_date,
+        actual_date=None,
+        duration_per_ha=2.0,
+        working_width=3.0,
+        fuel_consumption=15.0
+    )
+    
+    low_prio_op = FieldOperation(
+        sequence=2,
+        operation="Spritzen",
+        worktype=14,
+        planned_date=test_date,
+        actual_date=None,
+        duration_per_ha=0.2,
+        working_width=18.0,
+        fuel_consumption=1.0
+    )
+    
+    mock_planting_plan_service.get_next_operations.return_value = [high_prio_op, low_prio_op]
+    mock_planting_plan_service.get_events_for_ops.side_effect = lambda ops, date: [
+        FieldOperationEvent(worktype=op.worktype, worktype_text=op.operation) for op in ops
+    ]
+    mock_planting_plan_service.active_phase = None
+    
+    with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
+        runner = CalendarDrivenRunner(basic_context)
+        events = runner.tick(test_date)
+    
+    assert len(events) == 1
+    assert events[0].worktype == 1
+    assert low_prio_op.actual_date is None
+
+
+def test_tick_all_low_prio_ops_execute_when_no_high_prio(basic_context, mock_planting_plan_service):
+    """
+    Test 10: Wenn nur niedrig-priorisierte Ops (worktype=14, 15) fällig sind,
+    werden alle ausgeführt.
+    """
+    test_date = datetime.date(2024, 10, 15)
+    
+    low_prio_op1 = FieldOperation(
+        sequence=1,
+        operation="Spritzen",
+        worktype=14,
+        planned_date=test_date,
+        actual_date=None,
+        duration_per_ha=0.2,
+        working_width=18.0,
+        fuel_consumption=1.0
+    )
+    
+    low_prio_op2 = FieldOperation(
+        sequence=2,
+        operation="Bewässern",
+        worktype=15,
+        planned_date=test_date,
+        actual_date=None,
+        duration_per_ha=1.0,
+        working_width=10.0,
+        fuel_consumption=5.0
+    )
+    
+    mock_planting_plan_service.get_next_operations.return_value = [low_prio_op1, low_prio_op2]
+    mock_planting_plan_service.get_events_for_ops.side_effect = lambda ops, date: [
+        FieldOperationEvent(worktype=op.worktype, worktype_text=op.operation) for op in ops
+    ]
+    mock_planting_plan_service.active_phase = None
+    
+    with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
+        runner = CalendarDrivenRunner(basic_context)
+        events = runner.tick(test_date)
+    
+    assert len(events) == 2
+    assert events[0].worktype == 14
+    assert events[1].worktype == 15
