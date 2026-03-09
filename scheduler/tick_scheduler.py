@@ -47,7 +47,7 @@ class TickScheduler:
         for field_id, runner in self.runners.items():
             try:
                 events = runner.tick(today)
-                self.state_manager.save(runner)
+                self.state_manager.save(runner, today)
                 print(f"[INFO] Field {field_id}: {len(events)} events on {today}")
             except Exception as e:
                 print(f"[ERROR] Field {field_id} tick failed: {e}")

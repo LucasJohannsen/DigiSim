@@ -24,8 +24,8 @@ class StateManager:
         self.state_dir = Path(state_dir)
         self.state_dir.mkdir(parents=True, exist_ok=True)
     
-    def save(self, runner: "CalendarDrivenRunner") -> None:
-        snapshot = runner.get_state_snapshot()
+    def save(self, runner: "CalendarDrivenRunner", tick_date: datetime.date | None = None) -> None:
+        snapshot = runner.get_state_snapshot(last_tick_date=tick_date)
         
         state_file = self.state_dir / f"field_{snapshot.field_id}.json"
         

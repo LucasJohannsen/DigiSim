@@ -157,17 +157,30 @@ def test_apply_snapshot_restores_protection_ops(basic_context):
     """
     Test 7: apply_state_snapshot() stellt auch Protection-Ops wieder her
     """
+    from utils.state_manager import FieldStateSnapshot
+    
+    snapshot = FieldStateSnapshot(
+        field_id=42,
+        last_tick_date=datetime.date(2025, 6, 1),
+        context=basic_context,
+        planting_ops=[
+            {"phase": "soil_preparation", "sequence": 1, "actual_date": "2024-10-05T08:30:00"}
+        ],
+        protection_ops=[
+            {"actual_date": "2025-06-10T09:00:00"},
+            {"actual_date": None}
+        ]
+    )
+    
     runner = CalendarDrivenRunner(basic_context)
+    runner.apply_state_snapshot(snapshot)
     
-    runner.tick(datetime.date(2025, 5, 1))
+    assert runner.protection_plan_service is not None, "Protection service should be initialized when snapshot has protection_ops"
+    assert len(runner.protection_plan_service.operations) >= 2, "Protection operations should exist"
     
-    if runner.protection_plan_service:
-        snapshot = runner.get_state_snapshot(last_tick_date=datetime.date(2025, 5, 1))
-        
-        runner2 = CalendarDrivenRunner(basic_context)
-        runner2.apply_state_snapshot(snapshot)
-        
-        if runner2.protection_plan_service and len(snapshot.protection_ops) > 0:
-            first_protection_op = runner2.protection_plan_service.operations[0]
-            if snapshot.protection_ops[0].get('actual_date'):
-                assert first_protection_op.actual_date is not None
+    first_op = runner.protection_plan_service.operations[0]
+    assert first_op.actual_date is not None, "First protection op should have actual_date restored"
+    assert first_op.actual_date == datetime.datetime(2025, 6, 10, 9, 0, 0), "Restored actual_date should match snapshot"
+    
+    second_op = runner.protection_plan_service.operations[1]
+    assert second_op.actual_date is None, "Second protection op should not have actual_date"

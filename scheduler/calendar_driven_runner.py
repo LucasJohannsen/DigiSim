@@ -132,7 +132,6 @@ class CalendarDrivenRunner:
         if self.protection_plan_service:
             for op in self.protection_plan_service.operations:
                 protection_ops.append({
-                    "sequence": op.sequence,
                     "actual_date": op.actual_date.isoformat() if op.actual_date else None
                 })
         
@@ -158,16 +157,14 @@ class CalendarDrivenRunner:
                                 op.actual_date = datetime.datetime.fromisoformat(actual_date_str)
                             break
         
-        if snapshot.protection_ops and self._should_initialize_services():
-            self._initialize_services(self.context.start_date)
-        
-        if self.protection_plan_service and snapshot.protection_ops:
-            for op_data in snapshot.protection_ops:
-                sequence = op_data["sequence"]
-                actual_date_str = op_data.get("actual_date")
-                
-                for op in self.protection_plan_service.operations:
-                    if op.sequence == sequence:
+        if snapshot.protection_ops:
+            if not self.protection_plan_service:
+                self._initialize_services(self.context.start_date)
+            if self.protection_plan_service:
+                for idx, op_data in enumerate(snapshot.protection_ops):
+                    actual_date_str = op_data.get("actual_date")
+                    
+                    if idx < len(self.protection_plan_service.operations):
+                        op = self.protection_plan_service.operations[idx]
                         if actual_date_str:
                             op.actual_date = datetime.datetime.fromisoformat(actual_date_str)
-                        break
