@@ -3,12 +3,12 @@ import datetime
 import json
 import os
 
-import scheduler.simulation_runner as sim_runner
 from models.planting_plan import FieldOperationEvent
 from utils import sim_helper
 from models.sim_context import SimContext
 
 MIN_MOISTURE_LEVEL = 50  # fallback if not in context
+EXPORT_BASE_DIR = os.path.join(os.path.dirname(__file__), '../export')
 
 
 class IrrigationSimulator:
@@ -140,7 +140,7 @@ class IrrigationSimulator:
         # Save to file under 
         date = datetime.datetime.now().strftime('%Y-%m-%d')
 
-        export_dir = os.path.join(sim_runner.EXPORT_BASE_DIR, date)
+        export_dir = os.path.join(EXPORT_BASE_DIR, date)
         if not os.path.exists(export_dir):
             os.makedirs(export_dir)
 
