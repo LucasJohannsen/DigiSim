@@ -15,8 +15,8 @@ class RetryDispatcher:
     def __init__(
         self,
         client: DigiZertClient,
-        max_attempts: int = 3,
-        queue_dir: str = "./retry_queue",
+        max_attempts: int,
+        queue_dir: str,
         _wait_strategy=None
     ) -> None:
         self.client = client

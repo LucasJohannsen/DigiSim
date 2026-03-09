@@ -15,6 +15,7 @@ class DaemonConfig:
     farm_id: int
     api_timeout: int
     retry_max_attempts: int
+    retry_queue_dir: str
     tick_time: str
     state_dir: str
     log_level: str
@@ -45,6 +46,7 @@ def load_and_validate_config() -> DaemonConfig:
         farm_id=int(os.environ["FARM_ID"]),
         api_timeout=int(os.getenv("API_TIMEOUT_SECONDS", "10")),
         retry_max_attempts=int(os.getenv("RETRY_MAX_ATTEMPTS", "3")),
+        retry_queue_dir=os.getenv("RETRY_QUEUE_DIR", "./retry_queue"),
         tick_time=os.getenv("TICK_TIME", "06:00"),
         state_dir=os.getenv("STATE_DIR", "./state"),
         log_level=os.getenv("LOG_LEVEL", "INFO"),

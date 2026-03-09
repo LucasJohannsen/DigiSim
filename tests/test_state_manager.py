@@ -16,9 +16,11 @@ def basic_context():
         field_id=42,
         field_name="Test Field",
         field_size=10.0,
+        soil_type="sand",
         start_date=datetime.datetime(2024, 10, 1),
         crop_type="Potato",
-        variety="Belana"
+        variety="Belana",
+        fuel_variation=0.1
     )
 
 
@@ -100,9 +102,11 @@ def test_tick_scheduler_restores_state_on_init(tmp_path):
         field_id=1,
         field_name="Field 1",
         field_size=10.0,
+        soil_type="sand",
         start_date=datetime.datetime(2024, 10, 1),
         crop_type="Potato",
-        variety="Belana"
+        variety="Belana",
+        fuel_variation=0.1
     )
     
     state_file = tmp_path / "field_1.json"

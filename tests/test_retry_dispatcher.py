@@ -80,8 +80,8 @@ def queue_data(mock_event, mock_context):
     }
 
 
-def make_fast_dispatcher(client, **kwargs):
-    return RetryDispatcher(client, _wait_strategy=wait_none(), **kwargs)
+def make_fast_dispatcher(client, max_attempts=3, queue_dir="./retry_queue", **kwargs):
+    return RetryDispatcher(client, max_attempts=max_attempts, queue_dir=queue_dir, _wait_strategy=wait_none(), **kwargs)
 
 
 def test_send_event_succeeds_on_first_attempt(tmp_path, mock_event, mock_context):
