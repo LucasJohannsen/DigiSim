@@ -6,6 +6,9 @@ from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 from models.planting_plan import FieldOperationEvent
 from models.sim_context import SimContext
 from services.digizert_client import DigiZertClient
+from utils.logger import get_logger
+
+logger = get_logger("retry_dispatcher")
 
 
 class RetryDispatcher:
@@ -25,14 +28,14 @@ class RetryDispatcher:
         try:
             self._send_with_retry(event, context)
         except Exception as e:
-            print(f"[ERROR] All {self.max_attempts} attempts failed: {e}. Queuing event.")
+            logger.error("All retry attempts failed", max_attempts=self.max_attempts, error=str(e))
             self._save_to_queue(event, context)
 
     def _send_with_retry(self, event: FieldOperationEvent, context: SimContext) -> None:
         def _log_retry(retry_state):
             exception = retry_state.outcome.exception()
             wait_time = self._wait(retry_state)
-            print(f"[WARN] Retry attempt {retry_state.attempt_number}/{self.max_attempts} after error: {exception}. Waiting {wait_time}s...")
+            logger.warning("Retry attempt", attempt=retry_state.attempt_number, max_attempts=self.max_attempts, error=str(exception), wait_time=wait_time)
         
         @retry(
             stop=stop_after_attempt(self.max_attempts),
@@ -60,11 +63,11 @@ class RetryDispatcher:
                 try:
                     self._send_with_retry(event, context)
                     queue_file.unlink()
-                    print(f"[INFO] Successfully resent queued event from {queue_file}")
+                    logger.info("Queued event resent", queue_file=str(queue_file))
                 except Exception as e:
-                    print(f"[ERROR] Failed to resend queued event from {queue_file}: {e}")
+                    logger.error("Failed to resend queued event", queue_file=str(queue_file), error=str(e))
             except Exception as e:
-                print(f"[ERROR] Failed to process queue file {queue_file}: {e}")
+                logger.error("Failed to process queue file", queue_file=str(queue_file), error=str(e))
 
     def _save_to_queue(self, event: FieldOperationEvent, context: SimContext) -> None:
         field_dir = self.queue_dir / str(context.field_id)
@@ -83,7 +86,7 @@ class RetryDispatcher:
         with open(queue_file, 'w') as f:
             json.dump(queue_data, f, indent=2)
         
-        print(f"[INFO] Event queued to {queue_file}")
+        logger.info("Event queued", queue_file=str(queue_file))
 
     def _serialize_event(self, event: FieldOperationEvent) -> dict:
         return {

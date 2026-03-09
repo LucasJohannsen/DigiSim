@@ -8,6 +8,9 @@ from apscheduler.triggers.cron import CronTrigger
 from models.sim_context import SimContext
 from scheduler.calendar_driven_runner import CalendarDrivenRunner
 from utils.state_manager import StateManager
+from utils.logger import get_logger
+
+logger = get_logger("tick_scheduler")
 
 
 class TickScheduler:
@@ -25,7 +28,7 @@ class TickScheduler:
             snapshot = self.state_manager.load(context.field_id)
             if snapshot:
                 runner.apply_state_snapshot(snapshot)
-                print(f"[INFO] Field {context.field_id}: state restored (last tick: {snapshot.last_tick_date})")
+                logger.info("State restored", field_id=context.field_id, last_tick_date=str(snapshot.last_tick_date))
             self.runners[context.field_id] = runner
         
         self.scheduler = BackgroundScheduler()
@@ -52,13 +55,14 @@ class TickScheduler:
                     for event in events:
                         self.event_dispatcher.send_event(event, runner.context)
                 self.state_manager.save(runner, today)
-                print(f"[INFO] Field {field_id}: {len(events)} events on {today}")
+                logger.info("Tick completed", field_id=field_id, events_sent=len(events), tick_date=str(today))
             except Exception as e:
-                print(f"[ERROR] Field {field_id} tick failed: {e}")
+                logger.error("Tick failed", field_id=field_id, error=str(e))
     
     def start(self) -> None:
         self.scheduler.start()
         self._running = True
+        logger.info("TickScheduler started", field_count=len(self.runners), tick_time=self.tick_time)
         
         try:
             while self._running:
@@ -70,3 +74,4 @@ class TickScheduler:
         self._running = False
         if self.scheduler.running:
             self.scheduler.shutdown(wait=False)
+        logger.info("TickScheduler stopped")

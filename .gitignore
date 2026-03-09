@@ -209,3 +209,6 @@ state/
 
 # Retry queue
 retry_queue/
+
+# Logs
+logs/
