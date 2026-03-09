@@ -99,7 +99,7 @@ def test_tick_scheduler_logs_tick_failed(mock_context):
     assert "error" in error_logs[0]
 
 
-def test_retry_dispatcher_logs_retry_attempt(mock_event, mock_context):
+def test_retry_dispatcher_logs_retry_attempt(tmp_path, mock_event, mock_context):
     with structlog.testing.capture_logs() as logs:
         mock_client = Mock()
         mock_client.send_event.side_effect = [
@@ -108,7 +108,7 @@ def test_retry_dispatcher_logs_retry_attempt(mock_event, mock_context):
         ]
         
         from tenacity import wait_none
-        dispatcher = RetryDispatcher(mock_client, max_attempts=3, _wait_strategy=wait_none())
+        dispatcher = RetryDispatcher(mock_client, max_attempts=3, queue_dir=str(tmp_path), _wait_strategy=wait_none())
         dispatcher.send_event(mock_event, mock_context)
     
     retry_logs = [l for l in logs if l.get("event") == "Retry attempt"]

@@ -2,7 +2,7 @@ import signal
 import sys
 from dotenv import load_dotenv
 
-from utils.config_loader import load_and_validate_config, load_sim_contexts
+from config.settings import load_and_validate_config, load_sim_contexts
 from utils.logger import setup_logging, get_logger
 from services.digizert_client import DigiZertClient
 from services.retry_dispatcher import RetryDispatcher
@@ -35,7 +35,11 @@ def main() -> None:
         api_token=config.api_token,
         timeout=config.api_timeout,
     )
-    dispatcher = RetryDispatcher(client, max_attempts=config.retry_max_attempts)
+    dispatcher = RetryDispatcher(
+        client,
+        max_attempts=config.retry_max_attempts,
+        queue_dir=config.retry_queue_dir
+    )
     dispatcher.process_queue()
 
     scheduler = TickScheduler(

@@ -13,17 +13,21 @@ def sample_contexts():
             field_id=1,
             field_name="Field 1",
             field_size=10.0,
+            soil_type="sand",
             start_date=datetime.datetime(2024, 10, 1),
             crop_type="Potato",
-            variety="Belana"
+            variety="Belana",
+            fuel_variation=0.1
         ),
         SimContext(
             field_id=2,
             field_name="Field 2",
             field_size=15.0,
+            soil_type="sand",
             start_date=datetime.datetime(2024, 10, 1),
             crop_type="Potato",
-            variety="Belana"
+            variety="Belana",
+            fuel_variation=0.1
         )
     ]
 
@@ -113,7 +117,16 @@ def test_tick_scheduler_parses_tick_time():
     """
     Test 5: TickScheduler parst tick_time korrekt
     """
-    context = SimContext(field_id=1, field_name="Test")
+    context = SimContext(
+        field_id=1,
+        field_name="Test",
+        field_size=10.0,
+        soil_type="sand",
+        start_date=datetime.datetime(2024, 10, 1),
+        crop_type="Potato",
+        variety="Belana",
+        fuel_variation=0.1
+    )
     
     with patch('scheduler.tick_scheduler.CalendarDrivenRunner'):
         scheduler = TickScheduler([context], tick_time="14:30")
@@ -126,7 +139,16 @@ def test_tick_scheduler_default_tick_time():
     """
     Test 6: TickScheduler verwendet Standard-Zeit 06:00
     """
-    context = SimContext(field_id=1, field_name="Test")
+    context = SimContext(
+        field_id=1,
+        field_name="Test",
+        field_size=10.0,
+        soil_type="sand",
+        start_date=datetime.datetime(2024, 10, 1),
+        crop_type="Potato",
+        variety="Belana",
+        fuel_variation=0.1
+    )
     
     with patch('scheduler.tick_scheduler.CalendarDrivenRunner'):
         scheduler = TickScheduler([context])

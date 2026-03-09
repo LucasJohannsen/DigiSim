@@ -5,7 +5,7 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 import signal
 
-from utils.config_loader import load_and_validate_config, load_sim_contexts, DaemonConfig
+from config.settings import load_and_validate_config, load_sim_contexts, DaemonConfig
 from models.sim_context import SimContext
 import daemon as daemon_module
 
@@ -94,6 +94,7 @@ def test_load_sim_contexts_returns_correct_count(monkeypatch, tmp_path):
         farm_id=7,
         api_timeout=10,
         retry_max_attempts=3,
+        retry_queue_dir="./retry_queue",
         tick_time="06:00",
         state_dir="./state",
         log_level="INFO",
@@ -131,6 +132,7 @@ def test_load_sim_contexts_unknown_farm_raises(monkeypatch, tmp_path):
         farm_id=99,
         api_timeout=10,
         retry_max_attempts=3,
+        retry_queue_dir="./retry_queue",
         tick_time="06:00",
         state_dir="./state",
         log_level="INFO",
@@ -142,7 +144,7 @@ def test_load_sim_contexts_unknown_farm_raises(monkeypatch, tmp_path):
         farms_config_path=str(farms_file)
     )
     
-    with pytest.raises(ValueError, match="Farm ID 99"):
+    with pytest.raises(ValueError, match="Farm ID 99 not found"):
         load_sim_contexts(config)
 
 
@@ -172,6 +174,7 @@ def test_load_sim_contexts_maps_fields_correctly(tmp_path):
         farm_id=7,
         api_timeout=10,
         retry_max_attempts=3,
+        retry_queue_dir="./retry_queue",
         tick_time="06:00",
         state_dir="./state",
         log_level="INFO",
@@ -324,6 +327,7 @@ def test_load_sim_contexts_with_multiple_farms_selects_correct_one(tmp_path):
         farm_id=7,
         api_timeout=10,
         retry_max_attempts=3,
+        retry_queue_dir="./retry_queue",
         tick_time="06:00",
         state_dir="./state",
         log_level="INFO",
@@ -340,3 +344,71 @@ def test_load_sim_contexts_with_multiple_farms_selects_correct_one(tmp_path):
     assert len(contexts) == 1
     assert contexts[0].field_id == 999901
     assert contexts[0].field_name == "F7-Field1"
+
+
+def test_retry_queue_dir_from_env(monkeypatch):
+    monkeypatch.setenv("DIGIZERT_API_URL", "http://test/")
+    monkeypatch.setenv("DIGIZERT_API_TOKEN", "token")
+    monkeypatch.setenv("FARM_ID", "7")
+    monkeypatch.setenv("RETRY_QUEUE_DIR", "/custom/queue")
+    
+    config = load_and_validate_config()
+    assert config.retry_queue_dir == "/custom/queue"
+
+
+def test_retry_queue_dir_default(monkeypatch):
+    monkeypatch.setenv("DIGIZERT_API_URL", "http://test/")
+    monkeypatch.setenv("DIGIZERT_API_TOKEN", "token")
+    monkeypatch.setenv("FARM_ID", "7")
+    monkeypatch.delenv("RETRY_QUEUE_DIR", raising=False)
+    
+    config = load_and_validate_config()
+    assert config.retry_queue_dir == "./retry_queue"
+
+
+def test_retry_dispatcher_uses_config_queue_dir(tmp_path):
+    import httpx
+    from services.retry_dispatcher import RetryDispatcher
+    from models.planting_plan import FieldOperationEvent
+    from tenacity import wait_none
+    
+    custom_queue = tmp_path / "custom_queue"
+    mock_client = Mock()
+    mock_client.send_event.side_effect = httpx.TimeoutException("timeout")
+    
+    dispatcher = RetryDispatcher(
+        mock_client,
+        max_attempts=3,
+        queue_dir=str(custom_queue),
+        _wait_strategy=wait_none()
+    )
+    
+    mock_event = FieldOperationEvent(
+        field=1,
+        worktype=6,
+        start_date="2024-10-01",
+        end_date="2024-10-01",
+        machine="Test Machine",
+        area=10.0,
+        distance=5.0,
+        distanceWorked=4.5,
+        duration=3600.0,
+        durationWorked=3400.0,
+        fuel=15.0
+    )
+    
+    mock_context = SimContext(
+        field_id=1,
+        field_name="Test Field",
+        field_size=10.0,
+        soil_type="sand",
+        crop_type="Potato",
+        variety="Belana",
+        start_date=datetime.datetime(2024, 10, 1),
+        fuel_variation=0.1
+    )
+    
+    dispatcher.send_event(mock_event, mock_context)
+    
+    queue_files = list(custom_queue.rglob("*.json"))
+    assert len(queue_files) == 1

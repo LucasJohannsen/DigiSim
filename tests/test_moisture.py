@@ -9,8 +9,14 @@ def test_min_moisture_level():
     """
     MIN_MOISTURE_LEVEL = 0
     context = SimContext(
+        field_id=1,
+        field_name="Test",
+        field_size=10.0,
+        soil_type="sand",
         start_date=datetime.datetime(2023, 1, 1),
-        field_size=10
+        crop_type="Potato",
+        variety="Belana",
+        fuel_variation=0.1
     )
 
     moisture_service = MoistureDataService(context=context, min_moisture_level=MIN_MOISTURE_LEVEL)
@@ -30,8 +36,14 @@ def test_extreme_moisture_level():
     """
     MIN_MOISTURE_LEVEL = 150000
     context = SimContext(
+        field_id=1,
+        field_name="Test",
+        field_size=10.0,
+        soil_type="sand",
         start_date=datetime.datetime(2023, 1, 1),
-        field_size=10
+        crop_type="Potato",
+        variety="Belana",
+        fuel_variation=0.1
     )
 
     moisture_service = MoistureDataService(context=context, min_moisture_level=MIN_MOISTURE_LEVEL)
