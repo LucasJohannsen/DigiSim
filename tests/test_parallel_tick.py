@@ -84,15 +84,18 @@ async def test_max_concurrent_fields_limits_parallelism(tmp_path):
     
     concurrent_count = 0
     max_concurrent = 0
-    lock = asyncio.Lock()
+    import threading
+    lock = threading.Lock()
     
     def slow_tick(*args):
         import time
         nonlocal concurrent_count, max_concurrent
-        concurrent_count += 1
-        max_concurrent = max(max_concurrent, concurrent_count)
+        with lock:
+            concurrent_count += 1
+            max_concurrent = max(max_concurrent, concurrent_count)
         time.sleep(0.01)
-        concurrent_count -= 1
+        with lock:
+            concurrent_count -= 1
         return []
     
     with patch('scheduler.tick_scheduler.CalendarDrivenRunner') as MockRunner:
