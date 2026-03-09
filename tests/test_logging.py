@@ -164,23 +164,34 @@ def test_setup_logging_outputs_valid_json():
     
     assert len(logs) == 1
     log_entry = logs[0]
+    # capture_logs captures before processors run, so fields are pre-processing
     assert log_entry["log_level"] == "info"
     assert log_entry["event"] == "Test message"
     assert log_entry["field_id"] == 1
 
 
-def test_log_level_filters_info_logs():
-    with structlog.testing.capture_logs() as logs:
-        logger = get_logger("test")
-        logger.info("Should not appear")
-        logger.warning("Should appear", test_field="value")
+def test_log_level_filters_info_logs(capsys):
+    import logging
     
-    assert len(logs) == 2
-    info_logs = [l for l in logs if l.get("log_level") == "info"]
-    warning_logs = [l for l in logs if l.get("log_level") == "warning"]
-    assert len(info_logs) == 1
-    assert len(warning_logs) == 1
-    assert warning_logs[0]["event"] == "Should appear"
+    # Reset and configure with WARNING level
+    structlog.reset_defaults()
+    logging.root.handlers = []
+    setup_logging(log_level="WARNING")
+    
+    logger = get_logger("test")
+    logger.info("Should not appear")
+    logger.warning("Should appear", test_field="value")
+    
+    captured = capsys.readouterr()
+    lines = [line for line in captured.out.strip().split("\n") if line]
+    
+    # Only WARNING should appear, INFO should be filtered
+    assert len(lines) == 1
+    log_entry = json.loads(lines[0])
+    assert log_entry["level"] == "warning"
+    assert log_entry["event"] == "Should appear"
+    assert log_entry["service"] == "test"
+    assert "Should not appear" not in captured.out
 
 
 def test_setup_logging_writes_to_file(tmp_path):
@@ -191,16 +202,18 @@ def test_setup_logging_writes_to_file(tmp_path):
     
     # Reset structlog to avoid test interference
     structlog.reset_defaults()
+    logging.root.handlers = []
     
     setup_logging(log_level="INFO", log_file=str(log_file))
     logger = structlog.get_logger("test_file")
     logger.info("File test", field_id=99)
     
-    # Flush and close all handlers
+    # Flush handlers carefully
     for handler in logging.root.handlers:
-        handler.flush()
-        if hasattr(handler, 'close'):
-            handler.close()
+        try:
+            handler.flush()
+        except (ValueError, OSError):
+            pass
     
     # Small delay to ensure write completes
     time.sleep(0.1)

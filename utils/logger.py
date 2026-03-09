@@ -4,6 +4,11 @@ from pathlib import Path
 import structlog
 
 
+def rename_logger_to_service(logger, method, event_dict):
+    event_dict["service"] = event_dict.pop("logger", None)
+    return event_dict
+
+
 def setup_logging(log_level: str = "INFO", log_file: str | None = None) -> None:
     level = getattr(logging, log_level.upper(), logging.INFO)
     
@@ -18,6 +23,8 @@ def setup_logging(log_level: str = "INFO", log_file: str | None = None) -> None:
         processors=[
             structlog.stdlib.filter_by_level,
             structlog.stdlib.add_log_level,
+            structlog.stdlib.add_logger_name,
+            rename_logger_to_service,
             structlog.processors.TimeStamper(fmt="iso", utc=True),
             structlog.processors.JSONRenderer()
         ],
