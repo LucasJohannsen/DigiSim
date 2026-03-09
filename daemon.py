@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 from config.settings import load_and_validate_config, load_sim_contexts
 from utils.logger import setup_logging, get_logger
+from utils.state_manager import StateManager
 from services.digizert_client import DigiZertClient
 from services.retry_dispatcher import RetryDispatcher
 from scheduler.tick_scheduler import TickScheduler
@@ -22,8 +23,10 @@ def main() -> None:
     logger = get_logger("daemon")
     logger.info("DigiSim daemon starting", farm_id=config.farm_id)
 
+    state_manager = StateManager(config.state_dir)
+
     try:
-        contexts = load_sim_contexts(config)
+        contexts = load_sim_contexts(config, state_manager)
     except (ValueError, FileNotFoundError) as e:
         logger.error("Failed to load farm configuration", error=str(e))
         sys.exit(1)
