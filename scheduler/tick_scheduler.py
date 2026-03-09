@@ -11,10 +11,11 @@ from utils.state_manager import StateManager
 
 
 class TickScheduler:
-    def __init__(self, contexts: List[SimContext], tick_time: str = "06:00", state_dir: str = "./state") -> None:
+    def __init__(self, contexts: List[SimContext], tick_time: str = "06:00", state_dir: str = "./state", event_dispatcher=None) -> None:
         self.contexts = contexts
         self.tick_time = tick_time
         self.state_manager = StateManager(state_dir)
+        self.event_dispatcher = event_dispatcher
         
         self.tick_hour, self.tick_minute = self._parse_tick_time(tick_time)
         
@@ -47,6 +48,9 @@ class TickScheduler:
         for field_id, runner in self.runners.items():
             try:
                 events = runner.tick(today)
+                if self.event_dispatcher:
+                    for event in events:
+                        self.event_dispatcher.send_event(event, runner.context)
                 self.state_manager.save(runner, today)
                 print(f"[INFO] Field {field_id}: {len(events)} events on {today}")
             except Exception as e:
