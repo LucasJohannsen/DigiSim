@@ -47,6 +47,7 @@ def main() -> None:
         tick_time=config.tick_time,
         state_dir=config.state_dir,
         event_dispatcher=dispatcher,
+        max_concurrent_fields=config.max_concurrent_fields,
     )
 
     def _shutdown(signum, frame):

@@ -25,6 +25,7 @@ class DaemonConfig:
     season_start_date: datetime.datetime
     fuel_variation: float
     farms_config_path: str
+    max_concurrent_fields: int
 
 
 def load_and_validate_config() -> DaemonConfig:
@@ -58,6 +59,7 @@ def load_and_validate_config() -> DaemonConfig:
         ),
         fuel_variation=float(os.getenv("FUEL_VARIATION", "0.1")),
         farms_config_path=os.getenv("FARMS_CONFIG_PATH", "./config/farms.json"),
+        max_concurrent_fields=int(os.getenv("MAX_CONCURRENT_FIELDS", "10")),
     )
 
 

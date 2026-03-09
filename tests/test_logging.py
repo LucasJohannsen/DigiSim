@@ -42,6 +42,7 @@ def mock_context():
 
 
 def test_tick_scheduler_logs_tick_completed(mock_context):
+    import asyncio
     with structlog.testing.capture_logs() as logs:
         with patch('scheduler.tick_scheduler.CalendarDrivenRunner') as MockRunner:
             mock_runner = Mock()
@@ -51,7 +52,7 @@ def test_tick_scheduler_logs_tick_completed(mock_context):
             
             with patch('scheduler.tick_scheduler.StateManager'):
                 scheduler = TickScheduler([mock_context])
-                scheduler.daily_tick()
+                asyncio.run(scheduler.daily_tick())
     
     tick_logs = [l for l in logs if l.get("event") == "Tick completed"]
     assert len(tick_logs) == 1
@@ -82,6 +83,7 @@ def test_tick_scheduler_logs_state_restored(mock_context):
 
 
 def test_tick_scheduler_logs_tick_failed(mock_context):
+    import asyncio
     with structlog.testing.capture_logs() as logs:
         with patch('scheduler.tick_scheduler.CalendarDrivenRunner') as MockRunner:
             mock_runner = Mock()
@@ -91,7 +93,7 @@ def test_tick_scheduler_logs_tick_failed(mock_context):
             
             with patch('scheduler.tick_scheduler.StateManager'):
                 scheduler = TickScheduler([mock_context])
-                scheduler.daily_tick()
+                asyncio.run(scheduler.daily_tick())
     
     error_logs = [l for l in logs if l.get("event") == "Tick failed"]
     assert len(error_logs) == 1

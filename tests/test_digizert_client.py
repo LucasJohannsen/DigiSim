@@ -158,6 +158,7 @@ def test_send_event_raises_on_timeout(mock_event, mock_context):
 
 
 def test_tick_scheduler_dispatches_events(mock_context):
+    import asyncio
     from scheduler.tick_scheduler import TickScheduler
     
     mock_dispatcher = Mock()
@@ -172,7 +173,7 @@ def test_tick_scheduler_dispatches_events(mock_context):
         
         with patch('scheduler.tick_scheduler.StateManager'):
             scheduler = TickScheduler([mock_context], event_dispatcher=mock_dispatcher)
-            scheduler.daily_tick()
+            asyncio.run(scheduler.daily_tick())
             
             assert mock_dispatcher.send_event.call_count == 2
             mock_dispatcher.send_event.assert_any_call(event1, mock_context)
@@ -180,6 +181,7 @@ def test_tick_scheduler_dispatches_events(mock_context):
 
 
 def test_tick_scheduler_works_without_dispatcher(mock_context):
+    import asyncio
     from scheduler.tick_scheduler import TickScheduler
     
     with patch('scheduler.tick_scheduler.CalendarDrivenRunner') as MockRunner:
@@ -194,7 +196,7 @@ def test_tick_scheduler_works_without_dispatcher(mock_context):
             scheduler = TickScheduler([mock_context])
             
             try:
-                scheduler.daily_tick()
+                asyncio.run(scheduler.daily_tick())
             except Exception as e:
                 pytest.fail(f"TickScheduler without dispatcher raised exception: {e}")
 
