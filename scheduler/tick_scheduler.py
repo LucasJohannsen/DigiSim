@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import time
 from typing import List
@@ -14,11 +15,19 @@ logger = get_logger("tick_scheduler")
 
 
 class TickScheduler:
-    def __init__(self, contexts: List[SimContext], tick_time: str = "06:00", state_dir: str = "./state", event_dispatcher=None) -> None:
+    def __init__(
+        self,
+        contexts: List[SimContext],
+        tick_time: str = "06:00",
+        state_dir: str = "./state",
+        event_dispatcher=None,
+        max_concurrent_fields: int = 10
+    ) -> None:
         self.contexts = contexts
         self.tick_time = tick_time
         self.state_manager = StateManager(state_dir)
         self.event_dispatcher = event_dispatcher
+        self.max_concurrent_fields = max_concurrent_fields
         
         self.tick_hour, self.tick_minute = self._parse_tick_time(tick_time)
         
@@ -33,7 +42,7 @@ class TickScheduler:
         
         self.scheduler = BackgroundScheduler()
         self.scheduler.add_job(
-            self.daily_tick,
+            self._daily_tick_sync,
             CronTrigger(hour=self.tick_hour, minute=self.tick_minute),
             id='daily_tick'
         )
@@ -46,23 +55,45 @@ class TickScheduler:
         minute = int(parts[1])
         return hour, minute
     
-    def daily_tick(self) -> None:
+    def _daily_tick_sync(self) -> None:
+        asyncio.run(self.daily_tick())
+    
+    async def daily_tick(self) -> None:
         today = datetime.date.today()
-        for field_id, runner in self.runners.items():
-            try:
-                events = runner.tick(today)
-                if self.event_dispatcher:
-                    for event in events:
-                        self.event_dispatcher.send_event(event, runner.context)
-                self.state_manager.save(runner, today)
-                logger.info("Tick completed", field_id=field_id, events_sent=len(events), tick_date=str(today))
-            except Exception as e:
-                logger.error("Tick failed", field_id=field_id, error=str(e))
+        
+        semaphore = asyncio.Semaphore(self.max_concurrent_fields)
+        
+        async def process_field(field_id: int, runner: CalendarDrivenRunner):
+            async with semaphore:
+                try:
+                    events = await asyncio.to_thread(runner.tick, today)
+                    
+                    if self.event_dispatcher:
+                        for event in events:
+                            await asyncio.to_thread(
+                                self.event_dispatcher.send_event,
+                                event,
+                                runner.context
+                            )
+                    
+                    await asyncio.to_thread(self.state_manager.save, runner, today)
+                    logger.info("Tick completed", field_id=field_id, events_sent=len(events), tick_date=str(today))
+                    return {"field_id": field_id, "success": True, "events": len(events)}
+                except Exception as e:
+                    logger.error("Tick failed", field_id=field_id, error=str(e))
+                    return {"field_id": field_id, "success": False, "error": str(e)}
+        
+        tasks = [process_field(fid, runner) for fid, runner in self.runners.items()]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        successful = sum(1 for r in results if isinstance(r, dict) and r.get("success"))
+        total = len(results)
+        logger.info("Tick summary", successful=successful, total=total, tick_date=str(today))
     
     def start(self) -> None:
         self.scheduler.start()
         self._running = True
-        logger.info("TickScheduler started", field_count=len(self.runners), tick_time=self.tick_time)
+        logger.info("TickScheduler started", field_count=len(self.runners), tick_time=self.tick_time, max_concurrent=self.max_concurrent_fields)
         
         try:
             while self._running:

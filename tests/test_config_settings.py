@@ -103,7 +103,8 @@ def test_load_sim_contexts_returns_correct_count(monkeypatch, tmp_path):
         variety="Belana",
         season_start_date=datetime.datetime(2024, 10, 1),
         fuel_variation=0.1,
-        farms_config_path=str(farms_file)
+        farms_config_path=str(farms_file),
+        max_concurrent_fields=10
     )
     
     contexts = load_sim_contexts(config)
@@ -141,7 +142,8 @@ def test_load_sim_contexts_unknown_farm_raises(monkeypatch, tmp_path):
         variety="Belana",
         season_start_date=datetime.datetime(2024, 10, 1),
         fuel_variation=0.1,
-        farms_config_path=str(farms_file)
+        farms_config_path=str(farms_file),
+        max_concurrent_fields=10
     )
     
     with pytest.raises(ValueError, match="Farm ID 99 not found"):
@@ -183,7 +185,8 @@ def test_load_sim_contexts_maps_fields_correctly(tmp_path):
         variety="Spelt",
         season_start_date=datetime.datetime(2024, 11, 1),
         fuel_variation=0.2,
-        farms_config_path=str(farms_file)
+        farms_config_path=str(farms_file),
+        max_concurrent_fields=10
     )
     
     contexts = load_sim_contexts(config)
@@ -336,7 +339,8 @@ def test_load_sim_contexts_with_multiple_farms_selects_correct_one(tmp_path):
         variety="Belana",
         season_start_date=datetime.datetime(2024, 10, 1),
         fuel_variation=0.1,
-        farms_config_path=str(farms_file)
+        farms_config_path=str(farms_file),
+        max_concurrent_fields=10
     )
     
     contexts = load_sim_contexts(config)
