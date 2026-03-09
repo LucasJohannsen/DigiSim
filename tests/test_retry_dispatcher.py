@@ -41,6 +41,45 @@ def mock_context():
     )
 
 
+@pytest.fixture
+def queue_data(mock_event, mock_context):
+    return {
+        "field_id": 42,
+        "failed_at": "2024-03-15T08:30:05",
+        "event": {
+            "batch": mock_event.batch,
+            "field": mock_event.field,
+            "worktype": mock_event.worktype,
+            "exa_id": mock_event.exa_id,
+            "start_date": mock_event.start_date,
+            "end_date": mock_event.end_date,
+            "area": mock_event.area,
+            "distance": mock_event.distance,
+            "distanceWorked": mock_event.distanceWorked,
+            "duration": mock_event.duration,
+            "durationWorked": mock_event.durationWorked,
+            "fuel": mock_event.fuel,
+            "application_type": mock_event.application_type,
+            "application_category": mock_event.application_category,
+            "application_name": mock_event.application_name,
+            "application_amount": mock_event.application_amount,
+            "application_unit": mock_event.application_unit,
+            "worktype_text": mock_event.worktype_text,
+            "machine": mock_event.machine
+        },
+        "context": {
+            "field_size": mock_context.field_size,
+            "soil_type": mock_context.soil_type,
+            "start_date": mock_context.start_date.isoformat(),
+            "crop_type": mock_context.crop_type,
+            "variety": mock_context.variety,
+            "field_id": mock_context.field_id,
+            "field_name": mock_context.field_name,
+            "fuel_variation": mock_context.fuel_variation
+        }
+    }
+
+
 def make_fast_dispatcher(client, **kwargs):
     return RetryDispatcher(client, _wait_strategy=wait_none(), **kwargs)
 
@@ -142,45 +181,9 @@ def test_queue_file_stored_in_field_subdirectory(tmp_path, mock_event, mock_cont
     assert len(queue_files) == 1
 
 
-def test_process_queue_resends_events(tmp_path, mock_event, mock_context):
+def test_process_queue_resends_events(tmp_path, queue_data):
     field_dir = tmp_path / "42"
     field_dir.mkdir(parents=True)
-    
-    queue_data = {
-        "field_id": 42,
-        "failed_at": "2024-03-15T08:30:05",
-        "event": {
-            "batch": mock_event.batch,
-            "field": mock_event.field,
-            "worktype": mock_event.worktype,
-            "exa_id": mock_event.exa_id,
-            "start_date": mock_event.start_date,
-            "end_date": mock_event.end_date,
-            "area": mock_event.area,
-            "distance": mock_event.distance,
-            "distanceWorked": mock_event.distanceWorked,
-            "duration": mock_event.duration,
-            "durationWorked": mock_event.durationWorked,
-            "fuel": mock_event.fuel,
-            "application_type": mock_event.application_type,
-            "application_category": mock_event.application_category,
-            "application_name": mock_event.application_name,
-            "application_amount": mock_event.application_amount,
-            "application_unit": mock_event.application_unit,
-            "worktype_text": mock_event.worktype_text,
-            "machine": mock_event.machine
-        },
-        "context": {
-            "field_size": mock_context.field_size,
-            "soil_type": mock_context.soil_type,
-            "start_date": mock_context.start_date.isoformat(),
-            "crop_type": mock_context.crop_type,
-            "variety": mock_context.variety,
-            "field_id": mock_context.field_id,
-            "field_name": mock_context.field_name,
-            "fuel_variation": mock_context.fuel_variation
-        }
-    }
     
     queue_file = field_dir / "2024-03-15T083005.json"
     with open(queue_file, 'w') as f:
@@ -195,45 +198,9 @@ def test_process_queue_resends_events(tmp_path, mock_event, mock_context):
     assert mock_client.send_event.call_count == 1
 
 
-def test_process_queue_deletes_on_success(tmp_path, mock_event, mock_context):
+def test_process_queue_deletes_on_success(tmp_path, queue_data):
     field_dir = tmp_path / "42"
     field_dir.mkdir(parents=True)
-    
-    queue_data = {
-        "field_id": 42,
-        "failed_at": "2024-03-15T08:30:05",
-        "event": {
-            "batch": mock_event.batch,
-            "field": mock_event.field,
-            "worktype": mock_event.worktype,
-            "exa_id": mock_event.exa_id,
-            "start_date": mock_event.start_date,
-            "end_date": mock_event.end_date,
-            "area": mock_event.area,
-            "distance": mock_event.distance,
-            "distanceWorked": mock_event.distanceWorked,
-            "duration": mock_event.duration,
-            "durationWorked": mock_event.durationWorked,
-            "fuel": mock_event.fuel,
-            "application_type": mock_event.application_type,
-            "application_category": mock_event.application_category,
-            "application_name": mock_event.application_name,
-            "application_amount": mock_event.application_amount,
-            "application_unit": mock_event.application_unit,
-            "worktype_text": mock_event.worktype_text,
-            "machine": mock_event.machine
-        },
-        "context": {
-            "field_size": mock_context.field_size,
-            "soil_type": mock_context.soil_type,
-            "start_date": mock_context.start_date.isoformat(),
-            "crop_type": mock_context.crop_type,
-            "variety": mock_context.variety,
-            "field_id": mock_context.field_id,
-            "field_name": mock_context.field_name,
-            "fuel_variation": mock_context.fuel_variation
-        }
-    }
     
     queue_file = field_dir / "2024-03-15T083005.json"
     with open(queue_file, 'w') as f:
@@ -248,45 +215,9 @@ def test_process_queue_deletes_on_success(tmp_path, mock_event, mock_context):
     assert not queue_file.exists()
 
 
-def test_process_queue_keeps_file_on_failure(tmp_path, mock_event, mock_context):
+def test_process_queue_keeps_file_on_failure(tmp_path, queue_data):
     field_dir = tmp_path / "42"
     field_dir.mkdir(parents=True)
-    
-    queue_data = {
-        "field_id": 42,
-        "failed_at": "2024-03-15T08:30:05",
-        "event": {
-            "batch": mock_event.batch,
-            "field": mock_event.field,
-            "worktype": mock_event.worktype,
-            "exa_id": mock_event.exa_id,
-            "start_date": mock_event.start_date,
-            "end_date": mock_event.end_date,
-            "area": mock_event.area,
-            "distance": mock_event.distance,
-            "distanceWorked": mock_event.distanceWorked,
-            "duration": mock_event.duration,
-            "durationWorked": mock_event.durationWorked,
-            "fuel": mock_event.fuel,
-            "application_type": mock_event.application_type,
-            "application_category": mock_event.application_category,
-            "application_name": mock_event.application_name,
-            "application_amount": mock_event.application_amount,
-            "application_unit": mock_event.application_unit,
-            "worktype_text": mock_event.worktype_text,
-            "machine": mock_event.machine
-        },
-        "context": {
-            "field_size": mock_context.field_size,
-            "soil_type": mock_context.soil_type,
-            "start_date": mock_context.start_date.isoformat(),
-            "crop_type": mock_context.crop_type,
-            "variety": mock_context.variety,
-            "field_id": mock_context.field_id,
-            "field_name": mock_context.field_name,
-            "fuel_variation": mock_context.fuel_variation
-        }
-    }
     
     queue_file = field_dir / "2024-03-15T083005.json"
     with open(queue_file, 'w') as f:
@@ -313,45 +244,9 @@ def test_process_queue_empty_queue(tmp_path):
     mock_client.send_event.assert_not_called()
 
 
-def test_process_queue_handles_multiple_files(tmp_path, mock_event, mock_context):
+def test_process_queue_handles_multiple_files(tmp_path, queue_data):
     field_dir = tmp_path / "42"
     field_dir.mkdir(parents=True)
-    
-    queue_data = {
-        "field_id": 42,
-        "failed_at": "2024-03-15T08:30:05",
-        "event": {
-            "batch": mock_event.batch,
-            "field": mock_event.field,
-            "worktype": mock_event.worktype,
-            "exa_id": mock_event.exa_id,
-            "start_date": mock_event.start_date,
-            "end_date": mock_event.end_date,
-            "area": mock_event.area,
-            "distance": mock_event.distance,
-            "distanceWorked": mock_event.distanceWorked,
-            "duration": mock_event.duration,
-            "durationWorked": mock_event.durationWorked,
-            "fuel": mock_event.fuel,
-            "application_type": mock_event.application_type,
-            "application_category": mock_event.application_category,
-            "application_name": mock_event.application_name,
-            "application_amount": mock_event.application_amount,
-            "application_unit": mock_event.application_unit,
-            "worktype_text": mock_event.worktype_text,
-            "machine": mock_event.machine
-        },
-        "context": {
-            "field_size": mock_context.field_size,
-            "soil_type": mock_context.soil_type,
-            "start_date": mock_context.start_date.isoformat(),
-            "crop_type": mock_context.crop_type,
-            "variety": mock_context.variety,
-            "field_id": mock_context.field_id,
-            "field_name": mock_context.field_name,
-            "fuel_variation": mock_context.fuel_variation
-        }
-    }
     
     for i in range(3):
         queue_file = field_dir / f"2024-03-15T08300{i}.json"

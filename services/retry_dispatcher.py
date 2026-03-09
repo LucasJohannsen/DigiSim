@@ -1,7 +1,6 @@
 import json
 import datetime
 from pathlib import Path
-from dataclasses import asdict
 from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
 
 from models.planting_plan import FieldOperationEvent
@@ -30,10 +29,16 @@ class RetryDispatcher:
             self._save_to_queue(event, context)
 
     def _send_with_retry(self, event: FieldOperationEvent, context: SimContext) -> None:
+        def _log_retry(retry_state):
+            exception = retry_state.outcome.exception()
+            wait_time = self._wait(retry_state)
+            print(f"[WARN] Retry attempt {retry_state.attempt_number}/{self.max_attempts} after error: {exception}. Waiting {wait_time}s...")
+        
         @retry(
             stop=stop_after_attempt(self.max_attempts),
             wait=self._wait,
-            reraise=True
+            reraise=True,
+            before_sleep=_log_retry
         )
         def _attempt():
             self.client.send_event(event, context)
