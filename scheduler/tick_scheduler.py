@@ -1,6 +1,8 @@
 import asyncio
 import datetime
+import json
 import time
+from pathlib import Path
 from typing import List
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -25,6 +27,7 @@ class TickScheduler:
     ) -> None:
         self.contexts = contexts
         self.tick_time = tick_time
+        self.state_dir = state_dir
         self.state_manager = StateManager(state_dir)
         self.event_dispatcher = event_dispatcher
         self.max_concurrent_fields = max_concurrent_fields
@@ -89,6 +92,15 @@ class TickScheduler:
         successful = sum(1 for r in results if isinstance(r, dict) and r.get("success"))
         total = len(results)
         logger.info("Tick summary", successful=successful, total=total, tick_date=str(today))
+        
+        heartbeat = {
+            "last_tick": datetime.datetime.now().isoformat(),
+            "successful_fields": successful,
+            "total_fields": total,
+        }
+        heartbeat_path = Path(self.state_dir) / "heartbeat.json"
+        heartbeat_path.write_text(json.dumps(heartbeat))
+        logger.info("Heartbeat written", path=str(heartbeat_path), successful=successful, total=total)
     
     def start(self) -> None:
         self.scheduler.start()

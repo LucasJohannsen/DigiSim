@@ -13,8 +13,8 @@ services:
       - STATE_DIR=/app/state
       - LOG_FILE=/app/logs/digisim.log
     healthcheck:
-      test: ["CMD-SHELL", "pgrep -f daemon.py || exit 1"]
-      interval: 30s
+      test: ["CMD", "python", "scripts/healthcheck.py"]
+      interval: 60m
       timeout: 10s
       retries: 3
-      start_period: 10s
+      start_period: 70m
