@@ -1,3 +1,5 @@
+[![CI](https://github.com/LucasJohannsen/DigiSim/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasJohannsen/DigiSim/actions/workflows/ci.yml)
+
 ## Inhaltsverzeichnis
 
 - [DigiSim](#digisim)
