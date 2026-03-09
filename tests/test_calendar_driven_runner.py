@@ -167,6 +167,7 @@ def test_tick_with_crop_management_phase_initializes_services(basic_context):
         with patch.object(runner, '_initialize_services') as mock_init:
             events = runner.tick(test_date)
             
+            mock_init.assert_called_once()
             assert isinstance(events, list)
 
 
