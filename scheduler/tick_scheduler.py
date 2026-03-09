@@ -7,18 +7,25 @@ from apscheduler.triggers.cron import CronTrigger
 
 from models.sim_context import SimContext
 from scheduler.calendar_driven_runner import CalendarDrivenRunner
+from utils.state_manager import StateManager
 
 
 class TickScheduler:
-    def __init__(self, contexts: List[SimContext], tick_time: str = "06:00") -> None:
+    def __init__(self, contexts: List[SimContext], tick_time: str = "06:00", state_dir: str = "./state") -> None:
         self.contexts = contexts
         self.tick_time = tick_time
+        self.state_manager = StateManager(state_dir)
         
         self.tick_hour, self.tick_minute = self._parse_tick_time(tick_time)
         
         self.runners = {}
         for context in contexts:
-            self.runners[context.field_id] = CalendarDrivenRunner(context)
+            runner = CalendarDrivenRunner(context)
+            snapshot = self.state_manager.load(context.field_id)
+            if snapshot:
+                runner.apply_state_snapshot(snapshot)
+                print(f"[INFO] Field {context.field_id}: state restored (last tick: {snapshot.last_tick_date})")
+            self.runners[context.field_id] = runner
         
         self.scheduler = BackgroundScheduler()
         self.scheduler.add_job(
@@ -40,6 +47,7 @@ class TickScheduler:
         for field_id, runner in self.runners.items():
             try:
                 events = runner.tick(today)
+                self.state_manager.save(runner)
                 print(f"[INFO] Field {field_id}: {len(events)} events on {today}")
             except Exception as e:
                 print(f"[ERROR] Field {field_id} tick failed: {e}")
