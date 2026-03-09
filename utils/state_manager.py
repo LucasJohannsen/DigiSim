@@ -81,3 +81,14 @@ class StateManager:
             planting_ops=data.get("planting_operations", []),
             protection_ops=data.get("protection_operations", [])
         )
+    
+    def get_all_field_ids(self) -> list[int]:
+        state_files = Path(self.state_dir).glob("field_*.json")
+        field_ids = []
+        for file in state_files:
+            try:
+                field_id = int(file.stem.replace("field_", ""))
+                field_ids.append(field_id)
+            except ValueError:
+                continue
+        return field_ids

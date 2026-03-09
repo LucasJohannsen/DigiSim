@@ -5,6 +5,10 @@ from pathlib import Path
 import datetime
 
 from models.sim_context import SimContext
+from services.farm_sync_service import FarmSyncService, FieldData
+from utils.logger import get_logger
+
+logger = get_logger("config")
 
 
 @dataclass
@@ -63,13 +67,32 @@ def load_and_validate_config() -> DaemonConfig:
     )
 
 
-def load_sim_contexts(config: DaemonConfig) -> list[SimContext]:
-    """
-    Liest farms.json, findet den Betrieb mit config.farm_id,
-    und gibt eine Liste von SimContext-Objekten zurück (ein pro Feld).
-    Wirft ValueError wenn farm_id nicht gefunden.
-    """
+def load_sim_contexts_from_api(config: DaemonConfig) -> list[SimContext]:
+    sync_service = FarmSyncService(
+        api_url=config.api_url,
+        api_token=config.api_token,
+        timeout=config.api_timeout
+    )
+    
+    api_fields = sync_service.load_farm_fields(config.farm_id)
+    
+    contexts = []
+    for field in api_fields:
+        contexts.append(SimContext(
+            field_id=field.field_id,
+            field_name=field.field_name,
+            field_size=field.field_size,
+            soil_type=field.soil_type,
+            crop_type=config.crop_type,
+            variety=config.variety,
+            start_date=config.season_start_date,
+            fuel_variation=config.fuel_variation,
+        ))
+    
+    return contexts
 
+
+def load_sim_contexts_from_json(config: DaemonConfig) -> list[SimContext]:
     with open(config.farms_config_path, "r") as f:
         data = json.load(f)
 
@@ -90,3 +113,13 @@ def load_sim_contexts(config: DaemonConfig) -> list[SimContext]:
             fuel_variation=config.fuel_variation,
         ))
     return contexts
+
+
+def load_sim_contexts(config: DaemonConfig) -> list[SimContext]:
+    if config.api_url and config.api_token:
+        try:
+            return load_sim_contexts_from_api(config)
+        except ValueError as e:
+            logger.warning("API load failed, falling back to JSON", error=str(e))
+    
+    return load_sim_contexts_from_json(config)
