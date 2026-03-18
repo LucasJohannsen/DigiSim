@@ -16,7 +16,6 @@ logger = get_logger("config")
 class DaemonConfig:
     """Validierte Konfiguration für den Daemon-Start."""
     api_url: str
-    api_base_url: str
     api_token: str
     farm_id: int
     api_timeout: int
@@ -32,6 +31,12 @@ class DaemonConfig:
     fuel_variation: float
     farms_config_path: str
     max_concurrent_fields: int
+    api_base_url: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.api_base_url:
+            parsed = urlparse(self.api_url)
+            self.api_base_url = f"{parsed.scheme}://{parsed.netloc}"
 
 
 def load_and_validate_config() -> DaemonConfig:
@@ -47,13 +52,8 @@ def load_and_validate_config() -> DaemonConfig:
     if missing:
         raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
 
-    _api_url = os.environ["DIGIZERT_API_URL"]
-    _parsed = urlparse(_api_url)
-    _api_base_url = f"{_parsed.scheme}://{_parsed.netloc}"
-
     return DaemonConfig(
-        api_url=_api_url,
-        api_base_url=_api_base_url,
+        api_url=os.environ["DIGIZERT_API_URL"],
         api_token=os.environ["DIGIZERT_API_TOKEN"],
         farm_id=int(os.environ["FARM_ID"]),
         api_timeout=int(os.getenv("API_TIMEOUT_SECONDS", "10")),

@@ -18,14 +18,15 @@ from utils.state_manager import StateManager, FieldStateSnapshot
 
 API_URL = "http://api.test"
 FARM_ID = 7
-FIELDS_URL = f"{API_URL}/api/v1/enterprises/{FARM_ID}/fields"
+FIELDS_URL = f"{API_URL}/api/v1/fields/{FARM_ID}/enterprise/"
 EVENTS_URL = f"{API_URL}/operations/"
 
 MOCK_FIELDS = {
     "results": [
         {"id": 1, "name": "Field 1", "area": 10.5, "soil_type": "sand"},
         {"id": 2, "name": "Field 2", "area": 15.0, "soil_type": "loam"},
-    ]
+    ],
+    "next": None
 }
 
 
