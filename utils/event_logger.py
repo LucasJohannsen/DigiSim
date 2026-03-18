@@ -15,8 +15,6 @@ class EventLogger:
         if not event.machine:
             event.machine = "Fendt 719 Vario"
         
-        event.exa_id = 0
-        event.field = 0
         event.batch = None
 
         # anfügen

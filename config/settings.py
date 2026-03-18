@@ -3,6 +3,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 import datetime
+from urllib.parse import urlparse
 
 from models.sim_context import SimContext
 from services.farm_sync_service import FarmSyncService, FieldData
@@ -15,6 +16,7 @@ logger = get_logger("config")
 class DaemonConfig:
     """Validierte Konfiguration für den Daemon-Start."""
     api_url: str
+    api_base_url: str
     api_token: str
     farm_id: int
     api_timeout: int
@@ -45,8 +47,13 @@ def load_and_validate_config() -> DaemonConfig:
     if missing:
         raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
 
+    _api_url = os.environ["DIGIZERT_API_URL"]
+    _parsed = urlparse(_api_url)
+    _api_base_url = f"{_parsed.scheme}://{_parsed.netloc}"
+
     return DaemonConfig(
-        api_url=os.environ["DIGIZERT_API_URL"],
+        api_url=_api_url,
+        api_base_url=_api_base_url,
         api_token=os.environ["DIGIZERT_API_TOKEN"],
         farm_id=int(os.environ["FARM_ID"]),
         api_timeout=int(os.getenv("API_TIMEOUT_SECONDS", "10")),
@@ -69,7 +76,7 @@ def load_and_validate_config() -> DaemonConfig:
 
 def load_sim_contexts_from_api(config: DaemonConfig, state_manager=None) -> list[SimContext]:
     sync_service = FarmSyncService(
-        api_url=config.api_url,
+        api_url=config.api_base_url,
         api_token=config.api_token,
         timeout=config.api_timeout
     )

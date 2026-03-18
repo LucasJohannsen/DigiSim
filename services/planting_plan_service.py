@@ -219,7 +219,7 @@ class PlantingPlanService:
             event.application_category = operation.application_category
             event.application_amount = round(operation.application_amount * self.context.field_size, 2)
             event.application_unit = operation.application_unit
-            
+            event.field = self.context.field_id
 
             # variations for e.g. fuel consumption (in the range of 0.9 to 1.1 if set to 0.1 --> 10% variation in both directions)
             event.fuel = round(event.fuel * fuel_variation_factor, 2)

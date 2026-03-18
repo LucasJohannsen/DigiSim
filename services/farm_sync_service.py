@@ -28,23 +28,26 @@ class FarmSyncService:
         self.timeout = timeout
     
     def load_farm_fields(self, farm_id: int) -> List[FieldData]:
-        url = f"{self.api_url}/api/v1/enterprises/{farm_id}/fields"
-        headers = {"Authorization": f"Bearer {self.api_token}"}
+        url = f"{self.api_url}/api/v1/fields/{farm_id}/enterprise/"
+        headers = {"Authorization": f"Token {self.api_token}"}
         
         try:
-            with httpx.Client(timeout=self.timeout) as client:
-                response = client.get(url, headers=headers)
-                response.raise_for_status()
-                data = response.json()
-            
             fields = []
-            for result in data.get("results", []):
-                fields.append(FieldData(
-                    field_id=result["id"],
-                    field_name=result["name"],
-                    field_size=result["area"],
-                    soil_type=result.get("soil_type", "sand")
-                ))
+            with httpx.Client(timeout=self.timeout) as client:
+                while url:
+                    response = client.get(url, headers=headers)
+                    response.raise_for_status()
+                    data = response.json()
+                    
+                    for result in data.get("results", []):
+                        fields.append(FieldData(
+                            field_id=result["id"],
+                            field_name=result["name"],
+                            field_size=result["area"],
+                            soil_type=result.get("soil_type", "sand")
+                        ))
+                    
+                    url = data.get("next")
             
             logger.info("Farm fields loaded from API", farm_id=farm_id, field_count=len(fields))
             return fields
