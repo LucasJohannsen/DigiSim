@@ -143,7 +143,7 @@ def test_event_dispatch_success_no_queue(tmp_path):
     """Erfolgreiches Event-Dispatch (201) hinterlässt keine Queue-Dateien."""
     dispatcher = make_fast_dispatcher(tmp_path)
     event = FieldOperationEvent(
-        batch=None, field=1, worktype="sowing", exa_id=None,
+        field=1, worktype="sowing", exa_id=None,
         start_date="2024-10-01", end_date="2024-10-01", area=10.5,
         distance=None, distanceWorked=None, duration=None, durationWorked=None,
         fuel=5.0, application_type=None, application_category=None,
@@ -165,7 +165,7 @@ def test_event_queued_on_persistent_failure(tmp_path):
     """Bei dauerhaftem API-Fehler (503) wird das Event in die Queue geschrieben."""
     dispatcher = make_fast_dispatcher(tmp_path)
     event = FieldOperationEvent(
-        batch=None, field=1, worktype="sowing", exa_id=None,
+        field=1, worktype="sowing", exa_id=None,
         start_date="2024-10-01", end_date="2024-10-01", area=10.5,
         distance=None, distanceWorked=None, duration=None, durationWorked=None,
         fuel=5.0, application_type=None, application_category=None,
@@ -225,7 +225,7 @@ async def test_daily_tick_dispatches_events(tmp_path):
     snapshot = make_snapshot(1)
 
     event = FieldOperationEvent(
-        batch=None, field=1, worktype="sowing", exa_id=None,
+        field=1, worktype="sowing", exa_id=None,
         start_date="2024-10-01", end_date="2024-10-01", area=10.5,
         distance=None, distanceWorked=None, duration=None, durationWorked=None,
         fuel=5.0, application_type=None, application_category=None,

@@ -90,7 +90,6 @@ class RetryDispatcher:
 
     def _serialize_event(self, event: FieldOperationEvent) -> dict:
         return {
-            "batch": event.batch,
             "field": event.field,
             "worktype": event.worktype,
             "exa_id": event.exa_id,
@@ -125,7 +124,6 @@ class RetryDispatcher:
 
     def _deserialize_event(self, data: dict) -> FieldOperationEvent:
         return FieldOperationEvent(
-            batch=data.get("batch"),
             field=data.get("field"),
             worktype=data.get("worktype"),
             exa_id=data.get("exa_id"),
