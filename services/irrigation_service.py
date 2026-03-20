@@ -153,4 +153,29 @@ class IrrigationSimulator:
         filepath = os.path.join(export_dir, filename)
 
         with open(filepath, 'w') as f:
-            json.dump(moisture_data, f, indent=4)
+            json.dump(moisture_data, f, indent=2)
+    
+    def get_state(self) -> dict:
+        """
+        Return the current state of the irrigation simulator for persistence.
+        Converts numpy arrays to lists for JSON serialization.
+        """
+        return {
+            "irrigation": self.irrigation.tolist(),
+            "updated_moisture": self.updated_moisture.tolist()
+        }
+    
+    def apply_state(self, state: dict) -> None:
+        """
+        Restore the irrigation simulator state from a saved snapshot.
+        Converts lists back to numpy arrays.
+        """
+        if state:
+            self.irrigation = np.array(state.get("irrigation", []), dtype=float)
+            self.updated_moisture = np.array(state.get("updated_moisture", []), dtype=float)
+            
+            # Ensure arrays have correct shape
+            if len(self.irrigation) != len(self.moisture):
+                self.irrigation = np.zeros_like(self.moisture)
+            if len(self.updated_moisture) != len(self.moisture):
+                self.updated_moisture = self.moisture.copy()

@@ -17,6 +17,7 @@ class FieldStateSnapshot:
     context: SimContext
     planting_ops: list[dict]
     protection_ops: list[dict]
+    irrigation_state: dict | None = None  # Contains: irrigation, updated_moisture arrays
 
 
 class StateManager:
@@ -43,7 +44,8 @@ class StateManager:
                 "fuel_variation": snapshot.context.fuel_variation
             },
             "planting_operations": snapshot.planting_ops,
-            "protection_operations": snapshot.protection_ops
+            "protection_operations": snapshot.protection_ops,
+            "irrigation_state": snapshot.irrigation_state
         }
         
         with open(state_file, 'w') as f:
@@ -79,7 +81,8 @@ class StateManager:
             last_tick_date=last_tick_date,
             context=context,
             planting_ops=data.get("planting_operations", []),
-            protection_ops=data.get("protection_operations", [])
+            protection_ops=data.get("protection_operations", []),
+            irrigation_state=data.get("irrigation_state")
         )
     
     def get_all_field_ids(self) -> list[int]:
