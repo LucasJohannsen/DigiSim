@@ -44,3 +44,9 @@ Bewässerungslogik
 neuen Entscheidungsregeln
 Replay- und Fast-Forward-Funktionen
 zusätzlicher Beobachtbarkeit oder Audit-Historie
+
+Technische Hinweise
+Event Bus via Constructor Injection übergeben (nie global)
+Event Bus Checks: if self.event_bus is not None (nicht if self.event_bus)
+Domain Events (intern) ≠ Integration Events (extern an DigiZert)
+Event Bus ist optional für Abwärtskompatibilität

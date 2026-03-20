@@ -1,5 +1,12 @@
-from typing import List, Protocol, Any
+from typing import List, Protocol, Any, Optional
 from models.worktypes import LOW_PRIORITY_WORKTYPES
+from events.domain_event_bus import DomainEventBus
+from models.domain_events import (
+    create_operation_considered,
+    create_operation_approved,
+    create_operation_rejected
+)
+import datetime
 
 class DecisionStrategy(Protocol):
     """
@@ -98,8 +105,106 @@ class WorkTypePriorityStrategy:
         return filtered_operations
 
 class DecisionManager:
-    def __init__(self, strategy: DecisionStrategy):
+    def __init__(
+        self,
+        strategy: DecisionStrategy,
+        event_bus: Optional[DomainEventBus] = None
+    ):
         self.strategy = strategy
+        self.event_bus = event_bus
 
-    def decide(self, operations: List[Any]) -> Any:
-        return self.strategy.select_operation(operations)
+    def decide(
+        self,
+        operations: List[Any],
+        field_id: str | None = None,
+        date: datetime.datetime | None = None
+    ) -> Any:
+        """
+        Decide which operations to execute from the candidate list.
+        
+        Emits domain events for each operation:
+        - OperationConsidered for each candidate
+        - OperationApproved for selected operations
+        - OperationRejected for rejected operations (with reason)
+        
+        Args:
+            operations: List of candidate operations
+            field_id: Optional field ID for domain events
+            date: Optional date for domain events
+            
+        Returns:
+            List of selected operations or None
+        """
+        if not operations:
+            return None
+        
+        # Emit OperationConsidered events for all candidates
+        if self.event_bus is not None and field_id and date:
+            for op in operations:
+                operation_type = getattr(op, 'operation', None) or getattr(op, 'worktype_text', 'Unknown')
+                worktype = getattr(op, 'worktype', 0)
+                
+                self.event_bus.publish(
+                    create_operation_considered(
+                        field_id=field_id,
+                        date=date,
+                        operation_type=operation_type,
+                        worktype=worktype
+                    )
+                )
+        
+        # Apply strategy to select operations
+        selected = self.strategy.select_operation(operations)
+        
+        # Emit OperationApproved and OperationRejected events
+        if self.event_bus is not None and field_id and date:
+            selected_list = selected if selected else []
+            
+            for op in operations:
+                operation_type = getattr(op, 'operation', None) or getattr(op, 'worktype_text', 'Unknown')
+                worktype = getattr(op, 'worktype', 0)
+                
+                if op in selected_list:
+                    self.event_bus.publish(
+                        create_operation_approved(
+                            field_id=field_id,
+                            date=date,
+                            operation_type=operation_type,
+                            worktype=worktype
+                        )
+                    )
+                else:
+                    # Determine rejection reason
+                    reason = self._get_rejection_reason(op, selected)
+                    
+                    self.event_bus.publish(
+                        create_operation_rejected(
+                            field_id=field_id,
+                            date=date,
+                            operation_type=operation_type,
+                            worktype=worktype,
+                            reason=reason
+                        )
+                    )
+        
+        return selected
+    
+    def _get_rejection_reason(self, operation: Any, selected_ops: List[Any]) -> str:
+        """
+        Determine why an operation was rejected.
+        
+        Args:
+            operation: The rejected operation
+            selected_ops: List of selected operations
+            
+        Returns:
+            Reason string for rejection
+        """
+        worktype = getattr(operation, 'worktype', None)
+        
+        # Check if rejected due to low priority
+        if worktype in LOW_PRIORITY_WORKTYPES:
+            if selected_ops:  # If high-priority ops were selected
+                return 'low_priority'
+        
+        return 'strategy_decision'

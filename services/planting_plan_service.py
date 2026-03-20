@@ -1,5 +1,6 @@
 import random
 from datetime import datetime, timedelta
+from typing import Optional
 
 from services.planting_plan_loader import PlantingPlanLoader
 from models.planting_plan import (
@@ -14,10 +15,15 @@ from utils import sim_helper
 
 class PlantingPlanService:
 
-    def __init__(self, context: sim_context.SimContext, start_date:datetime):
+    def __init__(
+        self,
+        context: sim_context.SimContext,
+        start_date: datetime,
+        event_bus: Optional[object] = None
+    ):
         self.context = context
-        
         self.start_date = start_date
+        self.event_bus = event_bus
         self.planting_plan = None
 
         self.active_phase = None
