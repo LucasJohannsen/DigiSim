@@ -15,7 +15,6 @@ from services.digizert_client import DigiZertClient
 @pytest.fixture
 def mock_event():
     return FieldOperationEvent(
-        batch="test-batch",
         field=42,
         worktype=5,
         exa_id=1,
@@ -47,7 +46,6 @@ def queue_data(mock_event, mock_context):
         "field_id": 42,
         "failed_at": "2024-03-15T08:30:05",
         "event": {
-            "batch": mock_event.batch,
             "field": mock_event.field,
             "worktype": mock_event.worktype,
             "exa_id": mock_event.exa_id,

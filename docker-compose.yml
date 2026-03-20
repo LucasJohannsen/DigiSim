@@ -14,7 +14,7 @@ services:
       - LOG_FILE=/app/logs/digisim.log
     healthcheck:
       test: ["CMD", "python", "scripts/healthcheck.py"]
-      interval: 60m
-      timeout: 10s
-      retries: 3
-      start_period: 70m
+      interval: 60s      # Check every minute for faster failure detection
+      timeout: 10s       # Allow 10s for healthcheck script to complete
+      retries: 3         # Mark unhealthy after 3 consecutive failures
+      start_period: 2m   # Allow 2 minutes for initial startup

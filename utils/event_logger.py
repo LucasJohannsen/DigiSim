@@ -14,8 +14,6 @@ class EventLogger:
 
         if not event.machine:
             event.machine = "Fendt 719 Vario"
-        
-        event.batch = None
 
         # anfügen
         self.events.append(event)
@@ -42,7 +40,6 @@ class EventLogger:
                 "model": "pipeline.operation",
                 "pk": 0,
                 "fields": {
-                    "batch": event.batch,
                     "field": context.field_id if context else 0,
                     "worktype": event.worktype,
                     "exa_id": event.exa_id,

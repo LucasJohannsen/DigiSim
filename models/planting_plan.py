@@ -7,7 +7,6 @@ from enum import Enum
 
 @dataclass
 class FieldOperationEvent():
-    batch: str = None
     field: int = 0
     worktype: int = 0
     exa_id: int = 0

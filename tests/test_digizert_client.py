@@ -11,7 +11,6 @@ from services.digizert_client import DigiZertClient
 @pytest.fixture
 def mock_event():
     return FieldOperationEvent(
-        batch="test-batch",
         field=123,
         worktype=5,
         exa_id=1,

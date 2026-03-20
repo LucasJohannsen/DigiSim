@@ -93,6 +93,14 @@ class TickScheduler:
         total = len(results)
         logger.info("Tick summary", successful=successful, total=total, tick_date=str(today))
         
+        # Process retry queue after tick completes (non-blocking)
+        if self.event_dispatcher:
+            try:
+                await asyncio.to_thread(self.event_dispatcher.process_queue)
+                logger.info("Retry queue processed after tick")
+            except Exception as e:
+                logger.error("Failed to process retry queue", error=str(e))
+        
         heartbeat = {
             "last_tick": datetime.datetime.now().isoformat(),
             "successful_fields": successful,
