@@ -138,12 +138,17 @@ class CalendarDrivenRunner:
                     "actual_date": op.actual_date.isoformat() if op.actual_date else None
                 })
         
+        irrigation_state = None
+        if self.irrigation_service:
+            irrigation_state = self.irrigation_service.get_state()
+        
         return FieldStateSnapshot(
             field_id=self.context.field_id,
             last_tick_date=last_tick_date,
             context=self.context,
             planting_ops=planting_ops,
-            protection_ops=protection_ops
+            protection_ops=protection_ops,
+            irrigation_state=irrigation_state
         )
 
     def apply_state_snapshot(self, snapshot) -> None:
@@ -171,3 +176,9 @@ class CalendarDrivenRunner:
                         op = self.protection_plan_service.operations[idx]
                         if actual_date_str:
                             op.actual_date = datetime.datetime.fromisoformat(actual_date_str)
+        
+        if snapshot.irrigation_state:
+            if not self.irrigation_service:
+                self._initialize_services(self.context.start_date)
+            if self.irrigation_service:
+                self.irrigation_service.apply_state(snapshot.irrigation_state)
