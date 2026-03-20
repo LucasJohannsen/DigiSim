@@ -16,10 +16,7 @@ Closes #
 ## ✅ Checkliste
 <!-- Stelle sicher, dass alle Punkte erfüllt sind -->
 - [ ] Mein Code folgt dem Stil dieses Projekts
-- [ ] Ich habe eine Selbst-Review meines Codes durchgeführt
-- [ ] Ich habe meinen Code kommentiert, besonders an komplexen Stellen
 - [ ] Ich habe die Dokumentation entsprechend aktualisiert
-- [ ] Meine Änderungen erzeugen keine neuen Warnungen
 - [ ] Ich habe Tests hinzugefügt, die beweisen, dass mein Fix funktioniert bzw. mein Feature funktioniert
 - [ ] Neue und bestehende Unit-Tests laufen lokal erfolgreich
 
@@ -33,19 +30,7 @@ Closes #
 <!-- Falls zutreffend: Welche Breaking Changes gibt es und wie migriert man? -->
 Keine / Beschreibung hier einfügen
 
-## 🧪 Wie wurde getestet?
-<!-- Beschreibe, wie du deine Änderungen getestet hast -->
-- [ ] Manuell getestet mit: [Beschreibung]
-- [ ] Unit-Tests hinzugefügt/aktualisiert
-- [ ] Integration-Tests durchgeführt
 
 ## 📸 Screenshots (falls relevant)
 <!-- Füge Screenshots hinzu, wenn UI-Änderungen vorliegen -->
 
-## 🎯 MVP-Relevanz
-<!-- Ist dieser PR relevant für den MVP? -->
-- [ ] MVP-kritisch
-- [ ] Post-MVP
-
-## 📎 Zusätzlicher Kontext
-<!-- Weitere Informationen, die für Reviewer hilfreich sein könnten -->
