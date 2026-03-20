@@ -177,6 +177,9 @@ class PlantingPlanService:
         if not next_operations:
             #print("No next operations found for the active phase.")
             return []
+        
+        # Sort by sequence to ensure correct execution order
+        next_operations.sort(key=lambda op: op.sequence)
         #print(f"Next operations for phase '{self.active_phase.phase_name}':")
   
         return next_operations
@@ -184,13 +187,12 @@ class PlantingPlanService:
 
     def get_events_for_ops(self, operations: list[FieldOperation], date:datetime) -> list[FieldOperationEvent]:
         
-        # get the variation factor for fuel consumption
-        fuel_variation_factor = random.uniform(1 - self.context.fuel_variation, 1 + self.context.fuel_variation)
-
         # get active phase 
         events = []
 
         for operation in operations:
+            # get the variation factor for fuel consumption (individual per operation)
+            fuel_variation_factor = random.uniform(1 - self.context.fuel_variation, 1 + self.context.fuel_variation)
             # Process the operation
             
             # Update the actual date of the operation
@@ -199,10 +201,10 @@ class PlantingPlanService:
 
             event = FieldOperationEvent()
 
-            # add a random time between 6:00 and 18:00 to the actual date and cast as datetime
+            # add a random time between 6:00 and 17:00 to the actual date and cast as datetime
             operation.actual_datetime = datetime.combine(
                 operation.actual_date,
-                (datetime.min + timedelta(seconds=random.randint(0,7*60*60) + 6*60*60)).time() # irgendwas zwischen 6:00 und 13:00 Uhr
+                (datetime.min + timedelta(seconds=random.randint(0,11*60*60) + 6*60*60)).time() # 6:00 bis 17:00 Uhr
             )
             event.start_date = operation.actual_datetime.strftime('%Y-%m-%d %H:%M:%S')
             event.end_date = (operation.actual_datetime + timedelta(hours=operation.duration_per_ha * self.context.field_size)).strftime('%Y-%m-%d %H:%M:%S')

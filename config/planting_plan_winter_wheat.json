@@ -149,6 +149,11 @@
       }
     }
   ],
+  "protection_defaults": {
+    "duration_per_ha": 0.2,
+    "working_width": 18,
+    "fuel_consumption": 1.0
+  },
   "protection_plans": [
     {
       "name": "Fusarium Strategie",
