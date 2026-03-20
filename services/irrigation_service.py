@@ -3,6 +3,8 @@ import datetime
 import json
 import os
 
+from typing import List
+
 from models.planting_plan import FieldOperationEvent
 from utils import sim_helper
 from models.sim_context import SimContext
@@ -14,6 +16,11 @@ EXPORT_BASE_DIR = os.path.join(os.path.dirname(__file__), '../export')
 class IrrigationSimulator:
     """
     Simulates irrigation needs based on moisture data.
+    
+    Architecture:
+    - get_candidate_operations(): Generates candidate operations without side-effects
+    - apply_irrigation(): Applies side-effects (moisture updates) after decision confirmation
+    - trigger_irrigation(): Legacy method combining both (for backward compatibility)
     """
 
     def __init__(self, context: SimContext, moisture_data: dict):
@@ -71,12 +78,18 @@ class IrrigationSimulator:
             "needs_irrigation": needs_irrigation
         }
 
-    def trigger_irrigation(self, day, irrigation_amount: float = None):
+    def _create_irrigation_event(self, day: int, irrigation_amount: float) -> FieldOperationEvent:
         """
-        Trigger irrigation for the given day and return the event.
-        If irrigation_amount is not provided, use the calculated need.
+        Create an irrigation event for the given day and amount.
+        Internal helper method for event creation without side-effects.
+        
+        Args:
+            day: Day of year (0-indexed)
+            irrigation_amount: Amount of irrigation in mm
+            
+        Returns:
+            FieldOperationEvent with worktype=15 (irrigation)
         """
-        # Create event
         PUMP_FLOW_RATE = 50  # in m³/h und für 7 bar
         FUEL_CONSUMPTION = 5  # in l/h
         fuel_per_ha_and_mm_irrigation = (10 / PUMP_FLOW_RATE) * FUEL_CONSUMPTION
@@ -107,21 +120,112 @@ class IrrigationSimulator:
             machine="Regner 5000"
         )
         event.field = self.context.field_id
+        return event
 
-        if irrigation_amount is None:
-            # Calculate how much irrigation is needed
-            moisture_level = self.updated_moisture[day]
-            irrigation_needed = max(0, self.min_moisture_level - moisture_level)
-            MIN_IRRIGATION_NEEDED = 5
-            if irrigation_needed < MIN_IRRIGATION_NEEDED:
-                return None
-            irrigation_amount = irrigation_needed * np.random.uniform(0.8, 1.2)
+    def get_candidate_operations(self, day: int) -> List[FieldOperationEvent]:
+        """
+        Generate irrigation candidate operations for the given day.
+        
+        This method evaluates moisture status and returns candidate operations
+        WITHOUT applying side-effects. Side-effects (moisture array updates) are
+        applied separately via apply_irrigation() after the DecisionManager confirms
+        the operation.
+        
+        Args:
+            day: Day of year (0-indexed)
+            
+        Returns:
+            List of FieldOperationEvent candidates (empty if no irrigation needed)
+            
+        Note:
+            This is part of the unified decision pipeline (Issue #38).
+            Does NOT modify self.irrigation or self.updated_moisture arrays.
+        """
+        try:
+            status = self.get_status_for_day(day)
+        except IndexError:
+            return []
+        
+        MIN_IRRIGATION_NEEDED = 5  # in % nFK
+        
+        if not status["needs_irrigation"]:
+            return []
+        
+        if status["irrigation_needed"] < MIN_IRRIGATION_NEEDED:
+            return []
+        
+        # Calculate irrigation amount with randomization
+        irrigation_amount = status["irrigation_needed"] * np.random.uniform(0.8, 1.2)
+        
+        # Create candidate event (no side-effects yet)
+        event = self._create_irrigation_event(day, irrigation_amount)
+        
+        return [event]
 
+    def apply_irrigation(self, day: int, irrigation_amount: float) -> None:
+        """
+        Apply irrigation side-effects to moisture arrays.
+        
+        This method updates the internal state (irrigation and updated_moisture arrays)
+        after the DecisionManager has confirmed the irrigation operation.
+        
+        Args:
+            day: Day of year (0-indexed)
+            irrigation_amount: Amount of irrigation in mm
+            
+        Note:
+            This is called after decision confirmation (Issue #38).
+            Modifies self.irrigation and self.updated_moisture arrays.
+        """
+        if day < 0 or day >= len(self.irrigation):
+            raise IndexError(f"Day {day} out of range [0, {len(self.irrigation)-1}]")
+        
+        # Record irrigation event
         self.irrigation[day] = irrigation_amount
+        
+        # Update moisture for this day
         self.updated_moisture[day] += irrigation_amount
+        
+        # Propagate moisture increase to future days
         for d in range(day + 1, len(self.updated_moisture)):
             self.updated_moisture[d] = max(self.updated_moisture[d], self.updated_moisture[d-1])
 
+    def trigger_irrigation(self, day: int, irrigation_amount: float = None) -> FieldOperationEvent:
+        """
+        Trigger irrigation for the given day and return the event.
+        
+        Legacy method that combines candidate generation and side-effect application.
+        Kept for backward compatibility with existing code.
+        
+        Args:
+            day: Day of year (0-indexed)
+            irrigation_amount: Amount of irrigation in mm (if None, calculated from status)
+            
+        Returns:
+            FieldOperationEvent or None if irrigation not needed
+            
+        Note:
+            For new code, prefer using get_candidate_operations() + apply_irrigation().
+        """
+        if irrigation_amount is None:
+            # Calculate how much irrigation is needed
+            try:
+                status = self.get_status_for_day(day)
+            except IndexError:
+                return None
+            
+            MIN_IRRIGATION_NEEDED = 5
+            if not status["needs_irrigation"] or status["irrigation_needed"] < MIN_IRRIGATION_NEEDED:
+                return None
+            
+            irrigation_amount = status["irrigation_needed"] * np.random.uniform(0.8, 1.2)
+        
+        # Create event
+        event = self._create_irrigation_event(day, irrigation_amount)
+        
+        # Apply side-effects
+        self.apply_irrigation(day, irrigation_amount)
+        
         return event
 
     def export_moisture_data(self):
