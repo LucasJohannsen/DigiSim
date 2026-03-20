@@ -92,13 +92,22 @@ class MoistureDataService:
     def get_moisture_data(self, **kwargs):
         """
         Loads and returns the moisture data and coordinates.
+        Falls back to nearest available year if requested year is not available.
         """
         year = kwargs.get('year', YEAR)
         depth_range = kwargs.get('depth_range', DEPTH_RANGE)
 
-        nc_file_path = self.get_moisture_file(
-            year=year, depth_range=depth_range)
-        nc_file = netCDF4.Dataset(nc_file_path, 'r')
+        try:
+            nc_file_path = self.get_moisture_file(
+                year=year, depth_range=depth_range)
+            nc_file = netCDF4.Dataset(nc_file_path, 'r')
+        except Exception as e:
+            # Fallback to default year if requested year is not available
+            print(f"Warning: Moisture data for year {year} not available. Falling back to {YEAR}. Error: {e}")
+            year = YEAR
+            nc_file_path = self.get_moisture_file(
+                year=year, depth_range=depth_range)
+            nc_file = netCDF4.Dataset(nc_file_path, 'r')
 
         moisture_object = self.find_random_coordinate_with_date(nc_file)
         lat, lon = self.gauss_to_wgs84(

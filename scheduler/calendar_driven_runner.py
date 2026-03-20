@@ -94,10 +94,13 @@ class CalendarDrivenRunner:
             planting_plan=self.planting_plan_service.planting_plan
         )
         
+        # Extract year from current simulation date
+        simulation_year = current_date.year if isinstance(current_date, datetime.datetime) else current_date.year
+        
         ms = MoistureDataService(context=self.context, min_moisture_level=200)
         self.irrigation_service = IrrigationSimulator(
             context=self.context,
-            moisture_data=ms.get_moisture_data(year=2022, depth_range='0-10')
+            moisture_data=ms.get_moisture_data(year=simulation_year, depth_range='0-10')
         )
 
     def _handle_irrigation(self, date: datetime.date) -> List[FieldOperationEvent]:
