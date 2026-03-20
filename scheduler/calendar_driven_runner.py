@@ -29,6 +29,20 @@ class CalendarDrivenRunner:
         self.irrigation_service: IrrigationSimulator = None
 
     def tick(self, date: datetime.date) -> List[FieldOperationEvent]:
+        """
+        Execute one simulation tick for the given date.
+        
+        Unified decision pipeline:
+        1. Collect candidate operations from all services (planting, protection, irrigation)
+        2. Pass all candidates to DecisionManager for prioritization
+        3. Execute selected operations and apply side-effects
+        
+        Args:
+            date: The simulation date to process
+            
+        Returns:
+            List of executed FieldOperationEvents
+        """
         all_events = []
         
         if isinstance(date, datetime.date) and not isinstance(date, datetime.datetime):
@@ -41,15 +55,29 @@ class CalendarDrivenRunner:
         if self._should_initialize_services():
             self._initialize_services(date)
         
+        # Collect candidate operations from all services
         planting_ops = self.planting_plan_service.get_next_operations(date)
         protection_ops = (
             self.protection_plan_service.get_next_operations(date)
             if self.protection_plan_service else []
         )
-        all_candidate_ops = planting_ops + protection_ops
         
+        # Add irrigation candidates to the unified pipeline
+        irrigation_candidates = []
+        if self.irrigation_service:
+            day_of_year = date.timetuple().tm_yday
+            try:
+                irrigation_candidates = self.irrigation_service.get_candidate_operations(day_of_year)
+            except Exception as e:
+                logger.warning("Irrigation candidate generation failed", day=day_of_year, error=str(e))
+        
+        # Unified candidate list - all operations compete equally
+        all_candidate_ops = planting_ops + protection_ops + irrigation_candidates
+        
+        # DecisionManager decides which operations to execute
         selected_ops = self.decision_manager.decide(all_candidate_ops) or []
         
+        # Execute selected operations
         for op in selected_ops:
             if op in planting_ops:
                 all_events.extend(
@@ -59,14 +87,17 @@ class CalendarDrivenRunner:
                 all_events.extend(
                     self.protection_plan_service.get_events_for_ops([op], date)
                 )
-        
-        if self.irrigation_service:
-            has_high_prio = any(
-                getattr(op, 'worktype', None) not in [14, 15]
-                for op in selected_ops
-            )
-            if not has_high_prio:
-                all_events.extend(self._handle_irrigation(date))
+            elif op in irrigation_candidates:
+                # Irrigation candidate confirmed - apply side-effects
+                day_of_year = date.timetuple().tm_yday
+                try:
+                    self.irrigation_service.apply_irrigation(
+                        day=day_of_year,
+                        irrigation_amount=op.application_amount
+                    )
+                    all_events.append(op)
+                except Exception as e:
+                    logger.error("Irrigation execution failed", day=day_of_year, error=str(e))
         
         for event in all_events:
             self.event_logger.log(event)
@@ -103,24 +134,6 @@ class CalendarDrivenRunner:
             moisture_data=ms.get_moisture_data(year=simulation_year, depth_range='0-10')
         )
 
-    def _handle_irrigation(self, date: datetime.date) -> List[FieldOperationEvent]:
-        irrigation_events = []
-        
-        day_of_year = date.timetuple().tm_yday
-        
-        try:
-            irrigation_status = self.irrigation_service.get_status_for_day(day_of_year)
-            if irrigation_status["irrigation_needed"] >= 5:
-                event = self.irrigation_service.trigger_irrigation(
-                    day_of_year, 
-                    irrigation_amount=irrigation_status["irrigation_needed"]
-                )
-                if event:
-                    irrigation_events.append(event)
-        except Exception as e:
-            logger.warning("Irrigation skipped", day=day_of_year, error=str(e))
-        
-        return irrigation_events
 
     def get_state_snapshot(self, last_tick_date: datetime.date | None = None):
         from utils.state_manager import FieldStateSnapshot
