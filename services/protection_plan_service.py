@@ -13,6 +13,7 @@ from models.planting_plan import (
     PlantingPlan
 )
 import models.sim_context as sim_context
+from models.worktypes import WorkType
 from utils import sim_helper
 
 
@@ -37,6 +38,11 @@ class ProtectionPlanService:
             print("No protection plans available in the planting plan.")
             return
 
+        # Get protection defaults from planting plan or use fallback values
+        protection_defaults = getattr(self.planting_plan, 'protection_defaults', {})
+        default_duration = protection_defaults.get('duration_per_ha', 0.2)
+        default_width = protection_defaults.get('working_width', 18)
+        default_fuel = protection_defaults.get('fuel_consumption', 1.0)
 
         # read categories from config
         protection_categories = sim_helper.get_protection_categories()
@@ -68,10 +74,10 @@ class ProtectionPlanService:
  
             spritz_operation = FieldOperation(
                 operation="Spritzen",
-                worktype=14,
-                duration_per_ha=0.2,  
-                working_width=18,
-                fuel_consumption=1,  
+                worktype=WorkType.SPRITZEN,
+                duration_per_ha=default_duration,
+                working_width=default_width,
+                fuel_consumption=default_fuel,  
                 planned_date=protection_operation_date,
                 application_type=application_type_text,
                 application_category=protection.type,
@@ -106,13 +112,12 @@ class ProtectionPlanService:
 
     def get_events_for_ops(self, operations: list[FieldOperation], date:datetime) -> list[FieldOperationEvent]:
         
-        # get the variation factor for fuel consumption
-        fuel_variation_factor = random.uniform(1 - self.context.fuel_variation, 1 + self.context.fuel_variation)
-
         # get active phase 
         events = []
 
         for operation in operations:
+            # get the variation factor for fuel consumption (individual per operation)
+            fuel_variation_factor = random.uniform(1 - self.context.fuel_variation, 1 + self.context.fuel_variation)
             # Process the operation
             
             # Update the actual date of the operation
@@ -121,10 +126,10 @@ class ProtectionPlanService:
 
             event = FieldOperationEvent()
 
-            # add a random time between 6:00 and 18:00 to the actual date and cast as datetime
+            # add a random time between 6:00 and 17:00 to the actual date and cast as datetime
             operation.actual_datetime = datetime.combine(
                 operation.actual_date,
-                (datetime.min + timedelta(seconds=random.randint(0,7*60*60) + 6*60*60)).time() # irgendwas zwischen 6:00 und 13:00 Uhr
+                (datetime.min + timedelta(seconds=random.randint(0,11*60*60) + 6*60*60)).time() # 6:00 bis 17:00 Uhr
             )
             event.start_date = operation.actual_datetime.strftime('%Y-%m-%d %H:%M:%S')
             event.end_date = (operation.actual_datetime + timedelta(hours=operation.duration_per_ha * self.context.field_size)).strftime('%Y-%m-%d %H:%M:%S')
