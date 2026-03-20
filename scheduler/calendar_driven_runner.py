@@ -1,5 +1,5 @@
 import datetime
-from typing import List
+from typing import List, Optional
 
 from models.sim_context import SimContext
 from models.planting_plan import FieldOperationEvent, FieldOperationPhases, FieldOperationStatus
@@ -10,32 +10,52 @@ from services.moisture_service import MoistureDataService
 from scheduler.decision_manager import DecisionManager, WorkTypePriorityStrategy
 from utils.event_logger import EventLogger
 from utils.logger import get_logger
+from events.domain_event_bus import DomainEventBus
+from models.domain_events import (
+    create_daily_tick_started,
+    create_daily_tick_completed,
+    create_crop_cycle_started,
+    create_harvest_completed,
+    create_operation_applied
+)
 
 logger = get_logger("calendar_driven_runner")
 
 
 class CalendarDrivenRunner:
-    def __init__(self, context: SimContext) -> None:
+    def __init__(
+        self,
+        context: SimContext,
+        event_bus: Optional[DomainEventBus] = None
+    ) -> None:
         self.context = context
         self.event_logger = EventLogger()
-        self.decision_manager = DecisionManager(WorkTypePriorityStrategy())
+        self.event_bus = event_bus or DomainEventBus()
+        self.decision_manager = DecisionManager(
+            strategy=WorkTypePriorityStrategy(),
+            event_bus=self.event_bus
+        )
         
         self.planting_plan_service = PlantingPlanService(
             context=self.context,
-            start_date=self.context.start_date
+            start_date=self.context.start_date,
+            event_bus=self.event_bus
         )
         
         self.protection_plan_service: ProtectionPlanService = None
         self.irrigation_service: IrrigationSimulator = None
+        self._crop_cycle_started = False
 
     def tick(self, date: datetime.date) -> List[FieldOperationEvent]:
         """
         Execute one simulation tick for the given date.
         
         Unified decision pipeline:
-        1. Collect candidate operations from all services (planting, protection, irrigation)
-        2. Pass all candidates to DecisionManager for prioritization
-        3. Execute selected operations and apply side-effects
+        1. Emit DailyTickStarted event
+        2. Collect candidate operations from all services (planting, protection, irrigation)
+        3. Pass all candidates to DecisionManager for prioritization
+        4. Execute selected operations and apply side-effects
+        5. Emit DailyTickCompleted event
         
         Args:
             date: The simulation date to process
@@ -44,6 +64,15 @@ class CalendarDrivenRunner:
             List of executed FieldOperationEvents
         """
         all_events = []
+        
+        # Emit DailyTickStarted event
+        self.event_bus.publish(
+            create_daily_tick_started(
+                field_id=str(self.context.field_id),
+                date=date
+            )
+        )
+        logger.debug("Daily tick started", field_id=self.context.field_id, date=date)
         
         if isinstance(date, datetime.date) and not isinstance(date, datetime.datetime):
             date = datetime.datetime.combine(date, datetime.time())
@@ -54,6 +83,23 @@ class CalendarDrivenRunner:
         
         if self._should_initialize_services():
             self._initialize_services(date)
+            
+            # Emit CropCycleStarted when entering crop management phase
+            if not self._crop_cycle_started:
+                self.event_bus.publish(
+                    create_crop_cycle_started(
+                        field_id=str(self.context.field_id),
+                        date=date,
+                        crop_type=self.context.crop_type
+                    )
+                )
+                self._crop_cycle_started = True
+                logger.debug(
+                    "Crop cycle started",
+                    field_id=self.context.field_id,
+                    crop_type=self.context.crop_type,
+                    date=date
+                )
         
         # Collect candidate operations from all services
         planting_ops = self.planting_plan_service.get_next_operations(date)
@@ -75,7 +121,11 @@ class CalendarDrivenRunner:
         all_candidate_ops = planting_ops + protection_ops + irrigation_candidates
         
         # DecisionManager decides which operations to execute
-        selected_ops = self.decision_manager.decide(all_candidate_ops) or []
+        selected_ops = self.decision_manager.decide(
+            all_candidate_ops,
+            field_id=str(self.context.field_id),
+            date=date
+        ) or []
         
         # Execute selected operations
         for op in selected_ops:
@@ -99,8 +149,46 @@ class CalendarDrivenRunner:
                 except Exception as e:
                     logger.error("Irrigation execution failed", day=day_of_year, error=str(e))
         
+        # Log integration events and emit OperationApplied domain events
         for event in all_events:
             self.event_logger.log(event)
+            
+            # Emit OperationApplied domain event
+            self.event_bus.publish(
+                create_operation_applied(
+                    field_id=str(self.context.field_id),
+                    date=date,
+                    operation_type=event.worktype_text or f"Worktype {event.worktype}",
+                    worktype=event.worktype,
+                    integration_event_id=str(event.exa_id) if event.exa_id else None
+                )
+            )
+        
+        # Check for harvest completion
+        if self._is_phase_completed(FieldOperationPhases.HARVESTING):
+            self.event_bus.publish(
+                create_harvest_completed(
+                    field_id=str(self.context.field_id),
+                    date=date,
+                    yield_estimate=None
+                )
+            )
+            logger.debug("Harvest completed", field_id=self.context.field_id, date=date)
+        
+        # Emit DailyTickCompleted event
+        self.event_bus.publish(
+            create_daily_tick_completed(
+                field_id=str(self.context.field_id),
+                date=date,
+                events_dispatched=len(all_events)
+            )
+        )
+        logger.debug(
+            "Daily tick completed",
+            field_id=self.context.field_id,
+            date=date,
+            events_dispatched=len(all_events)
+        )
         
         return all_events
 
