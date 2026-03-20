@@ -68,7 +68,7 @@
                 "target_date_name": "Planting",
                 "operations": [
                     {
-                        "sequence": 2,
+                        "sequence": 1,
                         "operation": "Pflanzguttransport",
                         "min_days_to_target": 0,
                         "max_days_to_target": 0,
@@ -78,7 +78,7 @@
                         "worktype": 18
                     },
                     {
-                        "sequence": 3,
+                        "sequence": 2,
                         "operation": "Pflanzen",
                         "min_days_to_target": 0,
                         "max_days_to_target": 0,
@@ -166,7 +166,7 @@
                         "operation": "Roden",
                         "min_days_to_target": 0,
                         "max_days_to_target": 5,
-                        "duration_per_ha": 4.25,
+                        "duration_per_ha": 2.5,
                         "working_width": 0.8,
                         "fuel_consumption": 42.09,
                         "worktype": 27
@@ -179,7 +179,7 @@
                         "duration_per_ha": 0.1,
                         "working_width": 0,
                         "fuel_consumption": 0,
-                        "worktype": 18
+                        "worktype": 58
                     }
                 ]
             }
@@ -195,6 +195,11 @@
             }
         }
     ],
+    "protection_defaults": {
+        "duration_per_ha": 0.2,
+        "working_width": 18,
+        "fuel_consumption": 1.0
+    },
     "protection_plans": [
         {
             "name": "Protection Plan Belana 1",

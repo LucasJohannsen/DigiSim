@@ -1,4 +1,5 @@
 from typing import List, Protocol, Any
+from models.worktypes import LOW_PRIORITY_WORKTYPES
 
 class DecisionStrategy(Protocol):
     def select_operation(self, operations: List[Any]) -> Any:
@@ -6,7 +7,7 @@ class DecisionStrategy(Protocol):
 
 class WorkTypePriorityStrategy:
     def select_operation(self, operations: List[Any]) -> Any:
-        low_prio_worktypes = [14, 15]  # Example low priority work types (Spritzen, Bewässern)
+        low_prio_worktypes = LOW_PRIORITY_WORKTYPES
 
         if not operations:
             return None
