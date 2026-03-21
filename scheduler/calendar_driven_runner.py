@@ -30,7 +30,7 @@ class CalendarDrivenRunner:
     ) -> None:
         self.context = context
         self.event_logger = EventLogger()
-        self.event_bus = event_bus or DomainEventBus()
+        self.event_bus = event_bus if event_bus is not None else DomainEventBus()
         self.decision_manager = DecisionManager(
             strategy=WorkTypePriorityStrategy(),
             event_bus=self.event_bus
