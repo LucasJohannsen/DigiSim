@@ -1,9 +1,12 @@
 import cmd
 import simpy
 import sys
+import datetime
 
 import models.sim_context as sc
 import scheduler.simulation_runner as sr
+from scheduler.replay_runner import ReplayRunner
+from scheduler.fast_forward_runner import FastForwardRunner
 from services.sim_context_service import get_simulation_context, get_batch_simulation_context
 import services.sim_context_service as scs
 
@@ -78,6 +81,62 @@ class DigiSimCli(cmd.Cmd):
 
        
 
+    def do_replay(self, arg):
+        'Replay simulation for a past time period. Usage: replay --from YYYY-MM-DD --to YYYY-MM-DD [--output json|stdout]'
+        import argparse
+        
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--from', dest='start_date', required=True, help='Start date (YYYY-MM-DD)')
+        parser.add_argument('--to', dest='end_date', required=True, help='End date (YYYY-MM-DD)')
+        parser.add_argument('--output', default='json', choices=['json', 'stdout', 'digizert'], help='Output target')
+        
+        try:
+            args = parser.parse_args(arg.split())
+            start_date = datetime.datetime.strptime(args.start_date, '%Y-%m-%d').date()
+            end_date = datetime.datetime.strptime(args.end_date, '%Y-%m-%d').date()
+            
+            print(f'\nStarting replay simulation from {start_date} to {end_date}...')
+            
+            runner = ReplayRunner(
+                context=self.context,
+                start_date=start_date,
+                end_date=end_date,
+                output_target=args.output
+            )
+            events = runner.run()
+            
+            print(f'\nReplay completed: {len(events)} events generated.')
+            
+        except Exception as e:
+            print(f'Error: {e}')
+            print('Usage: replay --from YYYY-MM-DD --to YYYY-MM-DD [--output json|stdout]')
+    
+    def do_fast_forward(self, arg):
+        'Fast-forward simulation for N days. Usage: fast_forward --days N [--output json|stdout]'
+        import argparse
+        
+        parser = argparse.ArgumentParser()
+        parser.add_argument('--days', type=int, required=True, help='Number of days to simulate')
+        parser.add_argument('--output', default='json', choices=['json', 'stdout', 'digizert'], help='Output target')
+        
+        try:
+            args = parser.parse_args(arg.split())
+            
+            print(f'\nStarting fast-forward simulation for {args.days} days...')
+            
+            runner = FastForwardRunner(
+                context=self.context,
+                n_days=args.days,
+                output_target=args.output
+            )
+            events = runner.run()
+            
+            print(f'\nFast-forward completed: {len(events)} events generated.')
+            
+        except Exception as e:
+            print(f'Error: {e}')
+            print('Usage: fast_forward --days N [--output json|stdout]')
+    
     def do_exit(self, arg = None):
         'Exit the DigiSim CLI.\n'
         print('Exiting DigiSim CLI.')

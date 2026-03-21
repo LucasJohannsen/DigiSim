@@ -336,6 +336,8 @@ Aktuell sind die folgenden Befehle verfügbar:
 - `pick_field`: Wählt ein vordefiniertes Feld für die Simulation aus (aus DigiZert oder lokal)
 - `run`: Startet die Simulation und gibt die Ergebnisse als JSON aus.
 - `run_batch`: Führt eine Batch-Simulation für alle Felder aus und gibt die Ergebnisse als JSON aus.
+- `replay`: Re-simuliert einen vergangenen Zeitraum (siehe MS4 Features)
+- `fast_forward`: Schnelle Simulation für mehrere Tage ohne Real-Time-Delay (siehe MS4 Features)
 
 ### Simulation eines eigenen Feldes
 Um ein eigenes Feld zu simulieren, kannst du die `plan`-Funktion verwenden, um die Parameter für das Feld festzulegen. Hierbei kannst du die folgenden Parameter anpassen:
@@ -407,6 +409,66 @@ Sinkt der Wert unter einen bestimmten Schwellenwert, wird eine Bewässerung durc
 **ProtectionPlanService**:
 Der ProtectionPlanService ermittelt aus der Liste der definieren Schutzmaßnahmen eine zufällige. Ab Pflanzdatum wird der Zeitpunkt des Schadensereignisses ermittelt und die Schutzmaßnahme zeitlich wie im Plan definiert durchgeführt. 
 
+## MS4 Features - Erweiterte Simulationsplattform
+
+Mit Milestone 4 wurden drei wichtige Erweiterungen implementiert:
+
+### 1. Replay Simulation (Issue #44)
+
+Re-simuliere vergangene Zeiträume deterministisch:
+
+```bash
+replay --from 2024-01-01 --to 2024-12-31 --output json
+```
+
+**Verwendung:**
+- Nachträgliche Simulation vergangener Perioden
+- Validierung gegen historische Daten
+- Generierung von Event-Daten für Analysen
+
+### 2. Fast-Forward Simulation (Issue #45)
+
+Schnelle Simulation ohne Real-Time-Delay:
+
+```bash
+fast_forward --days 365 --output json
+```
+
+**Verwendung:**
+- Demo-Vorbereitung
+- Synthetische Datengenerierung
+- Testen von Saison-Szenarien
+- Batch-Processing
+
+### 3. Externe Datenquellen (Issue #46)
+
+Integration von Wetter-, Boden- und Sensordaten:
+
+**Weather Data (Open-Meteo API):**
+```python
+from services.weather_adapters import OpenMeteoWeatherAdapter
+
+adapter = OpenMeteoWeatherAdapter(latitude=52.52, longitude=13.41)
+weather_data = adapter.get_data(
+    start_date=datetime.date(2024, 1, 1),
+    end_date=datetime.date(2024, 12, 31)
+)
+```
+
+**Soil Parameters (Config File):**
+```python
+from services.soil_adapters import ConfigFileSoilAdapter
+
+adapter = ConfigFileSoilAdapter(config_path="config/soil_parameters.json")
+soil_data = adapter.get_data(field_id="12345")
+```
+
+**Features:**
+- Automatischer Fallback auf synthetische Daten
+- Konfigurierbar über `.env` oder Code
+- Keine API-Keys erforderlich (Open-Meteo)
+
+Detaillierte Dokumentation: [documentation/MS4_FEATURES.md](documentation/MS4_FEATURES.md)
 
 ## Output-Format
 
