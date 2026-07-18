@@ -1,0 +1,277 @@
+{
+  "crop": "Potato",
+  "region": "Norddeutschland",
+  "version": "1.0",
+  "source_document": "documentation/fachregeln/kartoffel.md",
+  "worktype_reference": "models/worktypes.py",
+  "worktypes": {
+    "GRUBBERN": 6, "EGGEN": 7, "SEPARIEREN": 28, "MIN_DUENGUNG": 23,
+    "ORG_DUENGUNG": 13, "TRANSPORT": 18, "KARTOFFELN_LEGEN": 26,
+    "SPRITZEN": 14, "BEREGNEN": 15, "HAEUFELN": 29, "KRAUT_SCHLAGEN": 30,
+    "RODEN": 27, "VERLADEN": 58
+  },
+  "rules": [
+    {
+      "id": "KAR-001",
+      "category": "sequence",
+      "severity": "hard",
+      "description": "Phasenreihenfolge Bodenbearbeitung -> Legen -> Pflege -> Sikkation -> Roden -> Einlagerung darf nicht invertiert werden.",
+      "check": {"type": "phase_order", "order": [[5, 6, 7, 28], [26], [23, 29], [14], [27], [58]]}
+    },
+    {
+      "id": "KAR-002",
+      "category": "sequence",
+      "severity": "hard",
+      "description": "Kein Legen vor Abschluss der Saatbettbereitung; keine Saatbettbereitung nach dem Legen im selben Zyklus.",
+      "check": {"type": "no_worktype_after", "worktypes": [5, 6, 7, 28], "after_worktype": 26, "until_worktype": 27}
+    },
+    {
+      "id": "KAR-003",
+      "category": "sequence",
+      "severity": "hard",
+      "description": "Intra-Tages-Sequenz: Zeitstempel duerfen die geplante Sequenz nicht invertieren (z. B. Pflanzguttransport vor Legen).",
+      "check": {"type": "intraday_timestamp_order", "pairs": [[18, 26]]}
+    },
+    {
+      "id": "KAR-004",
+      "category": "sequence",
+      "severity": "hard",
+      "description": "Roden erst nach Sikkation (Herbizid Kat. 26 auf abreifenden Bestand oder Kraut schlagen).",
+      "check": {"type": "requires_prior_event", "worktype": 27, "prior": {"worktype": 14, "application_category": 26}, "alternative_prior": {"worktype": 30}}
+    },
+    {
+      "id": "KAR-005",
+      "category": "sequence",
+      "severity": "hard",
+      "description": "Nach dem Roden keine Bestandesmassnahmen (Spritzen, Beregnen, Duengen, Haeufeln) im selben Zyklus.",
+      "check": {"type": "no_worktype_after", "worktypes": [13, 14, 15, 23, 29], "after_worktype": 27, "until": "cycle_end"}
+    },
+    {
+      "id": "KAR-006",
+      "category": "sequence",
+      "severity": "hard",
+      "description": "Keine Beregnung vor dem Legen.",
+      "check": {"type": "no_worktype_before", "worktype": 15, "before_worktype": 26}
+    },
+    {
+      "id": "KAR-007",
+      "category": "sequence",
+      "severity": "soft",
+      "assumption": true,
+      "description": "Haeufeln 10-25 Tage nach dem Legen (vor Reihenschluss).",
+      "check": {"type": "interval_days", "from_worktype": 26, "to_worktype": 29, "min_days": 10, "max_days": 25}
+    },
+    {
+      "id": "KAR-008",
+      "category": "sequence",
+      "severity": "soft",
+      "assumption": true,
+      "description": "Vorauflauf-Herbizid 0-14 Tage nach dem Legen.",
+      "check": {"type": "interval_days", "from_worktype": 26, "to_worktype": 14, "to_application_category": 26, "occurrence": "first", "min_days": 0, "max_days": 14}
+    },
+    {
+      "id": "KAR-010",
+      "category": "time_window",
+      "severity": "hard",
+      "description": "Legen im Zeitfenster April-Mai (Maerz weiche Verletzung).",
+      "check": {"type": "month_window", "worktype": 26, "hard_months": [3, 4, 5], "soft_months": [4, 5]}
+    },
+    {
+      "id": "KAR-011",
+      "category": "time_window",
+      "severity": "hard",
+      "description": "Roden September-Oktober (August/November weiche Verletzung).",
+      "check": {"type": "month_window", "worktype": 27, "hard_months": [8, 9, 10, 11], "soft_months": [9, 10]}
+    },
+    {
+      "id": "KAR-012",
+      "category": "time_window",
+      "severity": "soft",
+      "assumption": true,
+      "description": "Fruehjahrsbodenbearbeitung Februar-April.",
+      "check": {"type": "month_window", "worktypes": [6, 7, 28], "soft_months": [2, 3, 4, 5]}
+    },
+    {
+      "id": "KAR-013",
+      "category": "time_window",
+      "severity": "hard",
+      "description": "Beregnung nur Mai-September.",
+      "check": {"type": "month_window", "worktype": 15, "hard_months": [5, 6, 7, 8, 9]}
+    },
+    {
+      "id": "KAR-014",
+      "category": "time_window",
+      "severity": "hard",
+      "description": "Pflanzenschutz nur April-September.",
+      "check": {"type": "month_window", "worktype": 14, "hard_months": [4, 5, 6, 7, 8, 9]}
+    },
+    {
+      "id": "KAR-015",
+      "category": "time_window",
+      "severity": "hard",
+      "description": "Konsistente Zeitachse: Event-Jahr muss dem Simulationsjahr entsprechen; keine Jahres-Spruenge innerhalb eines Zyklus.",
+      "check": {"type": "chronology_consistency", "max_year_gap_within_cycle": 0}
+    },
+    {
+      "id": "KAR-016",
+      "category": "time_window",
+      "severity": "soft",
+      "assumption": true,
+      "description": "Grunddueungung (Kali/P) vor dem Legen; N-Kopfduengung 1-35 Tage nach dem Legen.",
+      "check": {"type": "fertilization_windows", "base_fertilizer_categories": [34], "top_dressing_categories": [33], "reference_worktype": 26, "top_dressing_max_days_after": 35}
+    },
+    {
+      "id": "KAR-020",
+      "category": "interval",
+      "severity": "hard",
+      "description": "Sikkation -> Roden: mindestens 14 Tage Wartezeit (Quickdown/Shark), Schalenfestigkeit 2-5 Wochen.",
+      "check": {"type": "interval_days", "from": {"worktype": 14, "application_category": 26, "occurrence": "last_before_harvest"}, "to_worktype": 27, "min_days": 14, "soft_max_days": 35}
+    },
+    {
+      "id": "KAR-021",
+      "category": "interval",
+      "severity": "hard",
+      "description": "Fungizidabstaende (Krautfaeule): hart >= 3 Tage; ueblich 5-14 Tage.",
+      "check": {"type": "gap_between_events", "worktype": 14, "application_category": 27, "hard_min_days": 3, "soft_min_days": 5, "soft_max_days": 14}
+    },
+    {
+      "id": "KAR-022",
+      "category": "interval",
+      "severity": "soft",
+      "description": "Beregnungsintervall >= 4 Tage (bei 20-25 mm Gabe rechnerisch 5-8 Tage).",
+      "check": {"type": "gap_between_events", "worktype": 15, "soft_min_days": 4}
+    },
+    {
+      "id": "KAR-023",
+      "category": "interval",
+      "severity": "soft",
+      "assumption": true,
+      "description": "Letzte Saatbettbereitung max. 21 Tage vor dem Legen.",
+      "check": {"type": "interval_days", "from_worktypes": [7, 28], "occurrence": "last", "to_worktype": 26, "max_days": 21}
+    },
+    {
+      "id": "KAR-024",
+      "category": "interval",
+      "severity": "hard",
+      "description": "Sikkation: Shark max. 1x/Jahr; Quickdown max. 2x mit 4-7 Tagen Abstand; letzte Gabe >= 14 Tage vor Roden.",
+      "check": {"type": "siccation_limits", "max_shark_per_cycle": 1, "max_quickdown_per_cycle": 2, "quickdown_gap_days": [4, 7], "min_days_before_harvest": 14}
+    },
+    {
+      "id": "KAR-025",
+      "category": "interval",
+      "severity": "soft",
+      "assumption": true,
+      "description": "Zwischen Grubbern und Eggen/Kreiseln min. 1 Tag Abstand.",
+      "check": {"type": "interval_days", "from_worktype": 6, "to_worktype": 7, "min_days": 1}
+    },
+    {
+      "id": "KAR-030",
+      "category": "weather",
+      "severity": "hard",
+      "requires_weather_data": true,
+      "description": "Kein Spritzen bei Regen (>1 mm waehrend Applikation / >5 mm am Tag) oder Wind > 5 m/s.",
+      "check": {"type": "weather_condition", "worktype": 14, "max_precipitation_mm_day": 5, "max_wind_ms": 5}
+    },
+    {
+      "id": "KAR-031",
+      "category": "weather",
+      "severity": "hard",
+      "requires_weather_data": true,
+      "description": "Keine Beregnung bei prognostiziertem Niederschlag > 10 mm in den naechsten 3-4 Tagen.",
+      "check": {"type": "forecast_condition", "worktype": 15, "forecast_days": 4, "max_cumulative_precipitation_mm": 10}
+    },
+    {
+      "id": "KAR-032",
+      "category": "weather",
+      "severity": "hard",
+      "assumption": true,
+      "requires_weather_data": true,
+      "description": "Keine Bodenbearbeitung / kein Legen auf nassem Boden (> ~90 % nFK oder Vortagesniederschlag > 10 mm).",
+      "check": {"type": "soil_condition", "worktypes": [5, 6, 7, 26, 28], "max_soil_moisture_pct_nfk": 90, "max_previous_day_precipitation_mm": 10}
+    },
+    {
+      "id": "KAR-033",
+      "category": "weather",
+      "severity": "soft",
+      "assumption": true,
+      "requires_weather_data": true,
+      "description": "Legen erst ab Bodentemperatur >= 8 Grad C in Legetiefe.",
+      "check": {"type": "soil_condition", "worktype": 26, "min_soil_temperature_c": 8}
+    },
+    {
+      "id": "KAR-034",
+      "category": "weather",
+      "severity": "hard",
+      "description": "Beregnungsausloesung nur bei nFK < 50 % (frueh/Speise) bzw. < 40 % (mittelfrueh/spaet); Feuchtedaten muessen aus dem Simulationsjahr und vom Standort stammen.",
+      "check": {"type": "irrigation_trigger", "worktype": 15, "trigger_pct_nfk_early": 50, "trigger_pct_nfk_late": 40, "moisture_data_year_must_match_simulation_year": true}
+    },
+    {
+      "id": "KAR-035",
+      "category": "weather",
+      "severity": "soft",
+      "requires_weather_data": true,
+      "description": "Keine Sikkation bei Hitzestress (Tmax > 30 C) oder auf nassen Bestand.",
+      "check": {"type": "weather_condition", "worktype": 14, "application_category": 26, "phase": "siccation", "max_temperature_c": 30, "max_precipitation_mm_day": 1}
+    },
+    {
+      "id": "KAR-040",
+      "category": "amount",
+      "severity": "hard",
+      "description": "Beregnungseinzelgabe hart 10-40 mm, plausibel 20-30 mm.",
+      "check": {"type": "amount_range", "worktype": 15, "unit": "mm", "hard_min": 10, "hard_max": 40, "soft_min": 20, "soft_max": 30}
+    },
+    {
+      "id": "KAR-041",
+      "category": "amount",
+      "severity": "soft",
+      "description": "Saisonale Beregnungssumme 30-180 mm (typisch 70-140 mm auf leichten Boeden).",
+      "check": {"type": "seasonal_sum", "worktype": 15, "unit": "mm", "min": 30, "max": 180}
+    },
+    {
+      "id": "KAR-042",
+      "category": "frequency",
+      "severity": "soft",
+      "assumption": true,
+      "description": "Pflanzenschutzdurchgaenge je Saison: gesamt 8-18; Fungizide 6-14, Insektizide 0-3, Herbizide 1-3.",
+      "check": {"type": "event_count", "worktype": 14, "total_range": [8, 18], "by_category": {"27": [6, 14], "28": [0, 3], "26": [1, 3]}}
+    },
+    {
+      "id": "KAR-043",
+      "category": "amount",
+      "severity": "hard",
+      "assumption": true,
+      "description": "N-Duengung gesamt <= 220 kg N/ha (typisch 120-180 kg N/ha).",
+      "check": {"type": "nutrient_sum", "worktype": 23, "application_category": 33, "max_kg_n_per_ha": 220}
+    },
+    {
+      "id": "KAR-044",
+      "category": "amount",
+      "severity": "soft",
+      "assumption": true,
+      "description": "Pflanzgutmenge 2.0-3.0 t/ha.",
+      "check": {"type": "amount_per_ha_range", "worktype": 26, "unit": "t/ha", "min": 2.0, "max": 3.0}
+    },
+    {
+      "id": "KAR-045",
+      "category": "plausibility",
+      "severity": "soft",
+      "assumption": true,
+      "description": "Arbeitsbeginn 05:00-20:00; Einzeloperation max. 18 h Dauer.",
+      "check": {"type": "operation_timing", "start_hour_range": [5, 20], "max_duration_hours": 18}
+    },
+    {
+      "id": "KAR-046",
+      "category": "frequency",
+      "severity": "hard",
+      "description": "Genau ein Lege- und ein Rode-Event je Feld und Anbauzyklus.",
+      "check": {"type": "event_count", "per_cycle": {"26": 1, "27": 1}}
+    },
+    {
+      "id": "KAR-047",
+      "category": "interval",
+      "severity": "soft",
+      "description": "Roden 90-150 Tage nach dem Legen (Belana mittelfrueh ~100-120 Tage).",
+      "check": {"type": "interval_days", "from_worktype": 26, "to_worktype": 27, "min_days": 90, "max_days": 150}
+    }
+  ]
+}
