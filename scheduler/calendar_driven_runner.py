@@ -111,11 +111,10 @@ class CalendarDrivenRunner:
         # Add irrigation candidates to the unified pipeline
         irrigation_candidates = []
         if self.irrigation_service:
-            day_of_year = date.timetuple().tm_yday
             try:
-                irrigation_candidates = self.irrigation_service.get_candidate_operations(day_of_year)
+                irrigation_candidates = self.irrigation_service.get_candidate_operations(date)
             except Exception as e:
-                logger.warning("Irrigation candidate generation failed", day=day_of_year, error=str(e))
+                logger.warning("Irrigation candidate generation failed", date=date, error=str(e))
         
         # Unified candidate list - all operations compete equally
         all_candidate_ops = planting_ops + protection_ops + irrigation_candidates
@@ -139,15 +138,14 @@ class CalendarDrivenRunner:
                 )
             elif op in irrigation_candidates:
                 # Irrigation candidate confirmed - apply side-effects
-                day_of_year = date.timetuple().tm_yday
                 try:
                     self.irrigation_service.apply_irrigation(
-                        day=day_of_year,
+                        date=date,
                         irrigation_amount=op.application_amount
                     )
                     all_events.append(op)
                 except Exception as e:
-                    logger.error("Irrigation execution failed", day=day_of_year, error=str(e))
+                    logger.error("Irrigation execution failed", date=date, error=str(e))
         
         # Log integration events and emit OperationApplied domain events
         for event in all_events:

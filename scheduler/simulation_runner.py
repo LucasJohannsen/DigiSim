@@ -80,7 +80,6 @@ class SimulationRunner:
         """
         while True:
             current_date = self.params.start_date + datetime.timedelta(days=self.env.now)
-            day_of_year = current_date.timetuple().tm_yday
 
             # Reset services if crop management phase is completed
             if self._is_phase_completed(FieldOperationPhases.HARVESTING):
@@ -92,10 +91,10 @@ class SimulationRunner:
                 self._initialize_services(current_date)
 
             # Collect operations and events from all services
-            all_operations, all_events = self._collect_operations_and_events(current_date, day_of_year)
+            all_operations, all_events = self._collect_operations_and_events(current_date)
 
             # Decide and execute selected operations
-            self._execute_selected_operations(all_operations, all_events, day_of_year)
+            self._execute_selected_operations(all_operations, all_events, current_date)
 
             yield self.env.timeout(1)  # Wait for the next time step
 
@@ -130,7 +129,7 @@ class SimulationRunner:
             moisture_data=ms.get_moisture_data(year=2022, depth_range='0-10')
         )
 
-    def _collect_operations_and_events(self, current_date, day_of_year):
+    def _collect_operations_and_events(self, current_date):
         """Collects operations and events from planting, protection, and irrigation services."""
         all_operations, all_events = [], []
 
@@ -148,18 +147,18 @@ class SimulationRunner:
 
         # Irrigation operations
         if self.irrigation_service:
-            irrigation_ops, irrigation_events = self._get_irrigation_operations(current_date, day_of_year)
+            irrigation_ops, irrigation_events = self._get_irrigation_operations(current_date)
             all_operations.extend(irrigation_ops)
             all_events.extend(irrigation_events)
 
         return all_operations, all_events
 
-    def _get_irrigation_operations(self, current_date, day_of_year):
+    def _get_irrigation_operations(self, current_date):
         """Gets irrigation operations and events."""
         irrigation_ops, irrigation_events = [], []
         day = (current_date - self.params.start_date).days
         try:
-            irrigation_status = self.irrigation_service.get_status_for_day(day_of_year)
+            irrigation_status = self.irrigation_service.get_status_for_day(current_date)
             if irrigation_status["irrigation_needed"] >= 5:  # Threshold
                 irrigation_ops.append({"type": "irrigation", "day": day, "status": irrigation_status})
                 irrigation_events.append(None)  # Placeholder for event
@@ -167,7 +166,7 @@ class SimulationRunner:
             pass
         return irrigation_ops, irrigation_events
 
-    def _execute_selected_operations(self, all_operations, all_events, day_of_year):
+    def _execute_selected_operations(self, all_operations, all_events, current_date):
         """Executes the selected operations."""
         selected_ops = self.decision_manager.decide(all_operations)
         if selected_ops:
@@ -176,14 +175,14 @@ class SimulationRunner:
                 related_event = all_events[op_index]
 
                 if isinstance(op, dict) and op.get("type") == "irrigation":
-                    self._handle_irrigation_event(op, day_of_year)
+                    self._handle_irrigation_event(op, current_date)
                 else:
                     self.event_logger.log(related_event)
 
-    def _handle_irrigation_event(self, op, day_of_year):
+    def _handle_irrigation_event(self, op, current_date):
         """Handles irrigation-specific events."""
         event = self.irrigation_service.trigger_irrigation(
-            day_of_year, irrigation_amount=op["status"]["irrigation_needed"]
+            current_date, irrigation_amount=op["status"]["irrigation_needed"]
         )
         if event:
             self.event_logger.log(event)

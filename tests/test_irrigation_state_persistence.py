@@ -38,20 +38,20 @@ def moisture_data():
 def test_irrigation_simulator_get_state(sim_context, moisture_data):
     """Test that get_state returns correct structure"""
     simulator = IrrigationSimulator(sim_context, moisture_data)
-    
+
     # Trigger some irrigation to change state
-    simulator.trigger_irrigation(day=10, irrigation_amount=15.0)
-    simulator.trigger_irrigation(day=20, irrigation_amount=10.0)
-    
+    simulator.trigger_irrigation(date=datetime.date(2022, 1, 10), irrigation_amount=15.0)
+    simulator.trigger_irrigation(date=datetime.date(2022, 1, 20), irrigation_amount=10.0)
+
     state = simulator.get_state()
-    
+
     assert "irrigation" in state
     assert "updated_moisture" in state
     assert isinstance(state["irrigation"], list)
     assert isinstance(state["updated_moisture"], list)
     assert len(state["irrigation"]) == 365
     assert len(state["updated_moisture"]) == 365
-    
+
     # Check that irrigation was recorded
     assert state["irrigation"][10] == 15.0
     assert state["irrigation"][20] == 10.0
@@ -61,16 +61,16 @@ def test_irrigation_simulator_apply_state(sim_context, moisture_data):
     """Test that apply_state correctly restores simulator state"""
     # Create first simulator and trigger irrigation
     simulator1 = IrrigationSimulator(sim_context, moisture_data)
-    simulator1.trigger_irrigation(day=10, irrigation_amount=15.0)
-    simulator1.trigger_irrigation(day=20, irrigation_amount=10.0)
-    
+    simulator1.trigger_irrigation(date=datetime.date(2022, 1, 10), irrigation_amount=15.0)
+    simulator1.trigger_irrigation(date=datetime.date(2022, 1, 20), irrigation_amount=10.0)
+
     # Get state from first simulator
     state = simulator1.get_state()
-    
+
     # Create second simulator and apply state
     simulator2 = IrrigationSimulator(sim_context, moisture_data)
     simulator2.apply_state(state)
-    
+
     # Verify state was restored
     np.testing.assert_array_equal(simulator2.irrigation, simulator1.irrigation)
     np.testing.assert_array_equal(simulator2.updated_moisture, simulator1.updated_moisture)
@@ -83,36 +83,39 @@ def test_irrigation_simulator_continuity_after_restore(sim_context, moisture_dat
     """
     # Simulator 1: Run continuously for 30 days
     simulator_continuous = IrrigationSimulator(sim_context, moisture_data)
-    
+
     for day in range(30):
-        status = simulator_continuous.get_status_for_day(day)
+        date = sim_context.start_date + datetime.timedelta(days=day)
+        status = simulator_continuous.get_status_for_day(date)
         if status["needs_irrigation"]:
-            simulator_continuous.trigger_irrigation(day, irrigation_amount=status["irrigation_needed"])
-    
+            simulator_continuous.trigger_irrigation(date, irrigation_amount=status["irrigation_needed"])
+
     continuous_state_day30 = simulator_continuous.get_state()
-    
+
     # Simulator 2: Run for 15 days, save state, restore, continue
     simulator_restored = IrrigationSimulator(sim_context, moisture_data)
-    
+
     # Run first 15 days
     for day in range(15):
-        status = simulator_restored.get_status_for_day(day)
+        date = sim_context.start_date + datetime.timedelta(days=day)
+        status = simulator_restored.get_status_for_day(date)
         if status["needs_irrigation"]:
-            simulator_restored.trigger_irrigation(day, irrigation_amount=status["irrigation_needed"])
-    
+            simulator_restored.trigger_irrigation(date, irrigation_amount=status["irrigation_needed"])
+
     # Save and restore state
     saved_state = simulator_restored.get_state()
     simulator_restored = IrrigationSimulator(sim_context, moisture_data)
     simulator_restored.apply_state(saved_state)
-    
+
     # Continue for remaining 15 days
     for day in range(15, 30):
-        status = simulator_restored.get_status_for_day(day)
+        date = sim_context.start_date + datetime.timedelta(days=day)
+        status = simulator_restored.get_status_for_day(date)
         if status["needs_irrigation"]:
-            simulator_restored.trigger_irrigation(day, irrigation_amount=status["irrigation_needed"])
-    
+            simulator_restored.trigger_irrigation(date, irrigation_amount=status["irrigation_needed"])
+
     restored_state_day30 = simulator_restored.get_state()
-    
+
     # Both simulators should have identical state after 30 days
     np.testing.assert_array_almost_equal(
         np.array(continuous_state_day30["irrigation"]),
@@ -120,7 +123,7 @@ def test_irrigation_simulator_continuity_after_restore(sim_context, moisture_dat
         decimal=2,
         err_msg="Irrigation arrays should match after restore"
     )
-    
+
     np.testing.assert_array_almost_equal(
         np.array(continuous_state_day30["updated_moisture"]),
         np.array(restored_state_day30["updated_moisture"]),
