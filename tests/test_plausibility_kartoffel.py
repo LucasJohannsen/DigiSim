@@ -118,8 +118,6 @@ def rules() -> list[dict[str, Any]]:
 XFAIL_REASONS: dict[str, str] = {
     "KAR-003": "Befund B7, Issue #57 – Intra-Tages-Sequenz invertiert (Pflanzguttransport nach Legen).",
     "KAR-005": "Befund B6, Issue #57 – Pflanzenschutz/Sikkation nach dem Roden.",
-    "KAR-006": "Befund B1, Issue #57 – Beregnungs-Events tragen falsches Jahr (vor dem Legen).",
-    "KAR-015": "Befund B1, Issue #57 – Jahressprung innerhalb Zyklus durch Beregnungs-Datierung.",
     "KAR-016": "Befund B14, Issue #57 – P-Grunddüngung erst nach dem Legen.",
     "KAR-020": "Befund B5, Issue #57 – Sikkation→Roden < 14 Tage.",
     "KAR-024": "Befund B5/B6, Issue #57 – Sikkations-Grenzen verletzt (letzte Gabe < 14 d vor Roden / nach Roden).",
