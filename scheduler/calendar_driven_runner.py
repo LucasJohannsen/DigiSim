@@ -1,4 +1,5 @@
 import datetime
+from enum import Enum
 from typing import List, Optional
 
 from models.sim_context import SimContext
@@ -20,6 +21,13 @@ from models.domain_events import (
 )
 
 logger = get_logger("calendar_driven_runner")
+
+
+class CropCycleState(Enum):
+    """Terminal states of a crop cycle within the CalendarDrivenRunner."""
+    SCHEDULED = "scheduled"
+    RUNNING = "running"
+    COMPLETED = "completed"
 
 
 class CalendarDrivenRunner:
@@ -44,7 +52,7 @@ class CalendarDrivenRunner:
         
         self.protection_plan_service: ProtectionPlanService = None
         self.irrigation_service: IrrigationSimulator = None
-        self._crop_cycle_started = False
+        self._crop_cycle_state = CropCycleState.SCHEDULED
 
     def tick(self, date: datetime.date) -> List[FieldOperationEvent]:
         """
@@ -76,30 +84,42 @@ class CalendarDrivenRunner:
         
         if isinstance(date, datetime.date) and not isinstance(date, datetime.datetime):
             date = datetime.datetime.combine(date, datetime.time())
-        
-        if self._is_phase_completed(FieldOperationPhases.HARVESTING):
-            if self.irrigation_service or self.protection_plan_service:
-                self._reset_services()
-        
-        if self._should_initialize_services():
-            self._initialize_services(date)
-            
-            # Emit CropCycleStarted when entering crop management phase
-            if not self._crop_cycle_started:
-                self.event_bus.publish(
-                    create_crop_cycle_started(
-                        field_id=str(self.context.field_id),
-                        date=date,
-                        crop_type=self.context.crop_type
-                    )
+
+        # State transition: RUNNING -> COMPLETED on first completed harvest
+        if self._crop_cycle_state == CropCycleState.RUNNING:
+            if self._is_phase_completed(FieldOperationPhases.HARVESTING):
+                harvest_completed_event = create_harvest_completed(
+                    field_id=str(self.context.field_id),
+                    date=date,
+                    yield_estimate=None
                 )
-                self._crop_cycle_started = True
+                self.event_bus.publish(harvest_completed_event)
+                self._crop_cycle_state = CropCycleState.COMPLETED
+                if self.irrigation_service or self.protection_plan_service:
+                    self._reset_services()
                 logger.debug(
-                    "Crop cycle started",
+                    "Harvest completed",
                     field_id=self.context.field_id,
-                    crop_type=self.context.crop_type,
                     date=date
                 )
+
+        if self._should_initialize_services():
+            self._initialize_services(date)
+
+            # State transition: SCHEDULED -> RUNNING when entering crop management phase
+            crop_cycle_started_event = create_crop_cycle_started(
+                field_id=str(self.context.field_id),
+                date=date,
+                crop_type=self.context.crop_type
+            )
+            self.event_bus.publish(crop_cycle_started_event)
+            self._crop_cycle_state = CropCycleState.RUNNING
+            logger.debug(
+                "Crop cycle started",
+                field_id=self.context.field_id,
+                crop_type=self.context.crop_type,
+                date=date
+            )
         
         # Collect candidate operations from all services
         planting_ops = self.planting_plan_service.get_next_operations(date)
@@ -162,17 +182,6 @@ class CalendarDrivenRunner:
                 )
             )
         
-        # Check for harvest completion
-        if self._is_phase_completed(FieldOperationPhases.HARVESTING):
-            self.event_bus.publish(
-                create_harvest_completed(
-                    field_id=str(self.context.field_id),
-                    date=date,
-                    yield_estimate=None
-                )
-            )
-            logger.debug("Harvest completed", field_id=self.context.field_id, date=date)
-        
         # Emit DailyTickCompleted event
         self.event_bus.publish(
             create_daily_tick_completed(
@@ -199,6 +208,7 @@ class CalendarDrivenRunner:
 
     def _should_initialize_services(self) -> bool:
         return (
+            self._crop_cycle_state == CropCycleState.SCHEDULED and
             not self.protection_plan_service and
             self.planting_plan_service.active_phase and
             self.planting_plan_service.active_phase.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
@@ -250,7 +260,8 @@ class CalendarDrivenRunner:
             context=self.context,
             planting_ops=planting_ops,
             protection_ops=protection_ops,
-            irrigation_state=irrigation_state
+            irrigation_state=irrigation_state,
+            crop_cycle_state=self._crop_cycle_state.value
         )
 
     def apply_state_snapshot(self, snapshot) -> None:
@@ -258,7 +269,7 @@ class CalendarDrivenRunner:
             phase_name = op_data["phase"]
             sequence = op_data["sequence"]
             actual_date_str = op_data.get("actual_date")
-            
+
             for phase in self.planting_plan_service.planting_plan.phases:
                 if phase.phase_name == phase_name:
                     for op in phase.operations:
@@ -266,21 +277,38 @@ class CalendarDrivenRunner:
                             if actual_date_str:
                                 op.actual_date = datetime.datetime.fromisoformat(actual_date_str)
                             break
-        
+
         if snapshot.protection_ops:
             if not self.protection_plan_service:
                 self._initialize_services(self.context.start_date)
             if self.protection_plan_service:
                 for idx, op_data in enumerate(snapshot.protection_ops):
                     actual_date_str = op_data.get("actual_date")
-                    
+
                     if idx < len(self.protection_plan_service.operations):
                         op = self.protection_plan_service.operations[idx]
                         if actual_date_str:
                             op.actual_date = datetime.datetime.fromisoformat(actual_date_str)
-        
+
         if snapshot.irrigation_state:
             if not self.irrigation_service:
                 self._initialize_services(self.context.start_date)
             if self.irrigation_service:
                 self.irrigation_service.apply_state(snapshot.irrigation_state)
+
+        # Restore or derive crop cycle state for backward compatibility
+        if snapshot.crop_cycle_state is not None:
+            self._crop_cycle_state = CropCycleState(snapshot.crop_cycle_state)
+        else:
+            if self._is_phase_completed(FieldOperationPhases.HARVESTING):
+                self._crop_cycle_state = CropCycleState.COMPLETED
+                self._reset_services()
+            elif (
+                self.planting_plan_service.active_phase and
+                self.planting_plan_service.active_phase.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
+            ):
+                self._crop_cycle_state = CropCycleState.RUNNING
+                if not self.protection_plan_service:
+                    self._initialize_services(self.context.start_date)
+            else:
+                self._crop_cycle_state = CropCycleState.SCHEDULED

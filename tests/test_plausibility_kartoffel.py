@@ -154,8 +154,8 @@ class TestFixtureBaseline:
         assert len(simulation["events"]) == 34
 
     def test_domain_event_count_matches_baseline(self, simulation):
-        """Baseline: 1795 Domain Events."""
-        assert len(simulation["domain_events"]) == 1795
+        """Baseline: 1626 Domain Events (170 duplicate HarvestCompleted removed)."""
+        assert len(simulation["domain_events"]) == 1626
 
     def test_fixture_is_deterministic(self, simulation):
         """Zweite Ausführung mit gleichem Seed liefert gleiche Event-Anzahl."""
@@ -285,11 +285,6 @@ class TestDomainEventChecks:
             f"Erwartet genau 1 CropCycleStarted, got {len(started)}."
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Befund B13, Issue #57 – HarvestCompleted wird nach Ernte "
-        "täglich erneut emittiert (170× statt 1×).",
-    )
     def test_harvest_completed_emitted_once_per_cycle(self, simulation):
         """Genau 1× HarvestCompleted je Zyklus (deckt B13 ab)."""
         completed = [
