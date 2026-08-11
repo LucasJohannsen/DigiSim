@@ -54,9 +54,10 @@ _START_DATE = datetime.datetime(2026, 1, 1)
 def simulation() -> dict[str, Any]:
     """Module-scoped FastForward-Simulation (deterministisch, kein Netzwerk).
 
-    Reproduziert die Referenz-Baseline
-    ``export/fast_forward/audit_baseline_990001_760days.json`` (Seed 42,
-    34 Integration Events + 1795 Domain Events).
+    Reproduziert die Referenz-Baseline (Seed 42, Feld 990001, 760 Tage).
+    Nach Fix von B2 (Issue #58) läuft die Saison im Startjahr (2026 statt
+    2027); die Baseline-Zahlen haben sich entsprechend verschoben:
+    27 Integration Events + 1606 Domain Events (inkl. +1 CropCycleScheduled).
 
     Returns:
         Dict mit ``events`` (Integration Events), ``domain_events``,
@@ -121,7 +122,6 @@ XFAIL_REASONS: dict[str, str] = {
     "KAR-016": "Befund B14, Issue #57 – P-Grunddüngung erst nach dem Legen.",
     "KAR-020": "Befund B5, Issue #57 – Sikkation→Roden < 14 Tage.",
     "KAR-024": "Befund B5/B6, Issue #57 – Sikkations-Grenzen verletzt (letzte Gabe < 14 d vor Roden / nach Roden).",
-    "KAR-040": "Befund B3, Issue #57 – Beregnungsgaben < 10 mm (hart).",
 }
 
 
@@ -150,12 +150,26 @@ class TestFixtureBaseline:
     """Sichert, dass die Fixture die Referenz-Baseline reproduziert."""
 
     def test_integration_event_count_matches_baseline(self, simulation):
-        """Baseline: 34 Integration Events."""
-        assert len(simulation["events"]) == 34
+        """Baseline: 27 Integration Events (nach B2-Fix, Issue #58).
+
+        Vor dem B2-Fix (Saison im Folgejahr) waren es 34 Events. Durch die
+        Zeitachsen-Verschiebung ins Startjahr (2026) ändert sich der
+        Zufallszustand bei der Auswahl der Bodenfeuchte-Daten
+        (``MoistureDataService.find_random_coordinate_with_date`` nutzt
+        ``random``), was zu anderen Beregnungsentscheidungen und damit einer
+        anderen Event-Anzahl führt.
+        """
+        assert len(simulation["events"]) == 27
 
     def test_domain_event_count_matches_baseline(self, simulation):
-        """Baseline: 1626 Domain Events (170 duplicate HarvestCompleted removed)."""
-        assert len(simulation["domain_events"]) == 1626
+        """Baseline: 1606 Domain Events (nach B2-Fix, Issue #58).
+
+        Vor dem B2-Fix waren es 1626 Domain Events. Die Differenz (-20)
+        ergibt sich aus der Zeitachsen-Verschiebung (weniger Ticks mit
+        Events, andere Beregnungsentscheidungen) zuzüglich +1
+        CropCycleScheduled-Event.
+        """
+        assert len(simulation["domain_events"]) == 1606
 
     def test_fixture_is_deterministic(self, simulation):
         """Zweite Ausführung mit gleichem Seed liefert gleiche Event-Anzahl."""
@@ -295,16 +309,11 @@ class TestDomainEventChecks:
             f"Erwartet genau 1 HarvestCompleted, got {len(completed)}."
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="Befund B2, Issue #57 – Legetermin wird in start_year+1 "
-        "geplant (hier 2027 statt 2026).",
-    )
     def test_planting_year_matches_start_year(self, simulation):
         """Lege-Event muss im Startjahr der Simulation liegen (B2).
 
-        Nach Fix von B2 liegt der Legetermin im Startjahr (2026-04/05),
-        nicht mehr in ``start_year+1``.
+        Nach Fix von B2 (Issue #58) liegt der Legetermin im Startjahr
+        (2026-04/05), nicht mehr in ``start_year+1``.
         """
         planting = [
             e for e in simulation["events"] if e.worktype == 26

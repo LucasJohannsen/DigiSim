@@ -110,6 +110,46 @@ def create_daily_tick_completed(
     )
 
 
+def create_crop_cycle_scheduled(
+    field_id: str,
+    date: datetime,
+    planned_planting_date: datetime,
+    crop_type: str
+) -> DomainEvent:
+    """
+    Create a CropCycleScheduled event.
+
+    Emitted when the planting date for a crop cycle has been determined
+    (planned, not yet executed). Makes the scheduling decision traceable
+    (Befund B2, Issue #58).
+
+    Args:
+        field_id: ID of the field
+        date: Date when the scheduling decision was made (typically the
+            simulation start date)
+        planned_planting_date: The planned planting date for this cycle
+        crop_type: Type of crop being planted
+
+    Returns:
+        DomainEvent with type 'CropCycleScheduled'
+    """
+    return DomainEvent(
+        event_id=str(uuid.uuid4()),
+        event_type='CropCycleScheduled',
+        timestamp=datetime.now(),
+        field_id=field_id,
+        payload={
+            'date': date.isoformat() if isinstance(date, datetime) else str(date),
+            'planned_planting_date': (
+                planned_planting_date.isoformat()
+                if isinstance(planned_planting_date, datetime)
+                else str(planned_planting_date)
+            ),
+            'crop_type': crop_type
+        }
+    )
+
+
 def create_crop_cycle_started(
     field_id: str,
     date: datetime,
@@ -117,14 +157,14 @@ def create_crop_cycle_started(
 ) -> DomainEvent:
     """
     Create a CropCycleStarted event.
-    
+
     Emitted when a new crop cycle begins (typically at planting).
-    
+
     Args:
         field_id: ID of the field
         date: Date when the crop cycle started
         crop_type: Type of crop being planted
-        
+
     Returns:
         DomainEvent with type 'CropCycleStarted'
     """
@@ -306,3 +346,17 @@ def create_operation_applied(
             'integration_event_id': integration_event_id
         }
     )
+
+
+__all__ = [
+    "DomainEvent",
+    "create_daily_tick_started",
+    "create_daily_tick_completed",
+    "create_crop_cycle_scheduled",
+    "create_crop_cycle_started",
+    "create_harvest_completed",
+    "create_operation_considered",
+    "create_operation_approved",
+    "create_operation_rejected",
+    "create_operation_applied",
+]
