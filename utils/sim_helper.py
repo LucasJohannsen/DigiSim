@@ -1,3 +1,4 @@
+import calendar
 import random
 from datetime import datetime, timedelta
 import json
@@ -19,6 +20,85 @@ def get_random_date(start_month, end_month, year):
 
     # Return the random date
     return start_date + timedelta(days=random_days) + timedelta(hours=random.randint(0, 23), minutes=random.randint(0, 59), seconds=random.randint(0, 59))
+
+
+def resolve_planting_year(
+    start_date: datetime,
+    planting_period_months: tuple[int, int],
+    lead_time_days: int,
+) -> int:
+    """Determine the year in which the planting date should be scheduled.
+
+    Rule (Befund B2, Issue #58): The earliest admissible planting date is
+    ``start_date + lead_time_days`` (so that soil-preparation operations have
+    enough lead time). If this earliest date still lies before the end of the
+    planting window in the start year, the planting is scheduled in the
+    **start year**; otherwise in the **following year**.
+
+    Args:
+        start_date: Simulation start date.
+        planting_period_months: ``(start_month, end_month)`` of the planting
+            window (e.g. ``(4, 5)`` for April–May).
+        lead_time_days: Maximum lead time required by the soil-preparation
+            operations (absolute value of the largest
+            ``min_days_to_target`` in the ``soil_preparation`` phase).
+
+    Returns:
+        The year (``int``) in which the planting date should be scheduled.
+    """
+    earliest = start_date + timedelta(days=lead_time_days)
+    end_month = planting_period_months[1]
+    last_day_of_end_month = calendar.monthrange(start_date.year, end_month)[1]
+    window_end_start_year = datetime(start_date.year, end_month, last_day_of_end_month)
+    if earliest <= window_end_start_year:
+        return start_date.year
+    return start_date.year + 1
+
+
+def get_random_planting_date(
+    start_date: datetime,
+    planting_period_months: tuple[int, int],
+    lead_time_days: int,
+) -> datetime:
+    """Random planting date within the reachable planting window.
+
+    Determines the planting year via :func:`resolve_planting_year` and then
+    draws a random date inside the intersection of the planting window and
+    ``[start_date + lead_time_days, ∞)``. The date is never earlier than
+    ``start_date + lead_time_days`` (Befund B2, Issue #58).
+
+    Args:
+        start_date: Simulation start date.
+        planting_period_months: ``(start_month, end_month)`` of the planting
+            window.
+        lead_time_days: Maximum lead time of soil-preparation operations.
+
+    Returns:
+        A random :class:`datetime.datetime` within the constrained planting
+        window.
+    """
+    year = resolve_planting_year(start_date, planting_period_months, lead_time_days)
+    start_month, end_month = planting_period_months
+
+    window_start = datetime(year, start_month, 1)
+    earliest = start_date + timedelta(days=lead_time_days)
+    if earliest > window_start:
+        window_start = earliest
+
+    last_day = calendar.monthrange(year, end_month)[1]
+    window_end = datetime(year, end_month, last_day)
+
+    delta_days = (window_end - window_start).days
+    if delta_days < 0:
+        # Defensive fallback: should not happen if resolve_planting_year is
+        # correct, but guards against degenerate inputs.
+        delta_days = 0
+    random_days = random.randint(0, delta_days)
+    return window_start + timedelta(days=random_days) + timedelta(
+        hours=random.randint(0, 23),
+        minutes=random.randint(0, 59),
+        seconds=random.randint(0, 59),
+    )
 
 def get_random_date_in_range(min_days_offset, max_days_offset, target_date) -> datetime:
     

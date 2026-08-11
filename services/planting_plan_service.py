@@ -9,8 +9,12 @@ from models.planting_plan import (
     FieldOperationEvent,
     FieldOperationPhases
 )
+from models.domain_events import create_crop_cycle_scheduled
 import models.sim_context as sim_context
 from utils import sim_helper
+
+
+_DEFAULT_LEAD_TIME_DAYS = 30
 
 
 class PlantingPlanService:
@@ -45,16 +49,58 @@ class PlantingPlanService:
             return
         print(f"Loaded planting plan for crop type: {self.planting_plan.crop_type}, variety: {self.planting_plan.variety}")
 
-        self.planned_planting_date = sim_helper.get_random_date(
-            self.planting_plan.planting_period_months[0],
-            self.planting_plan.planting_period_months[1],
-            self.start_date.year+1
+        lead_time_days = self._compute_lead_time_days()
+
+        self.planned_planting_date = sim_helper.get_random_planting_date(
+            self.start_date,
+            self.planting_plan.planting_period_months,
+            lead_time_days,
         )
 
         print(f"Planned planting date: {self.planned_planting_date.strftime('%Y-%m-%d')}")
 
+        # Publish CropCycleScheduled so the scheduling decision is traceable
+        # (Styleguide: fachliches Ereignis zuerst benennen).
+        if self.event_bus is not None:
+            self.event_bus.publish(
+                create_crop_cycle_scheduled(
+                    field_id=str(self.context.field_id),
+                    date=self.start_date,
+                    planned_planting_date=self.planned_planting_date,
+                    crop_type=self.context.crop_type,
+                )
+            )
+
         # Set the planting date for the first phase
         self.configure_planting_timeline(FieldOperationPhases.SOIL_PREPARATION, target_date=self.planned_planting_date)
+
+    def _compute_lead_time_days(self) -> int:
+        """Maximum lead time of the soil-preparation operations.
+
+        ``lead_time_days`` is the absolute value of the largest
+        ``min_days_to_target`` in the ``soil_preparation`` phase (i.e. the
+        furthest an operation is scheduled before the planting target date).
+        Fallback: :data:`_DEFAULT_LEAD_TIME_DAYS` if the phase or its
+        operations cannot be determined.
+
+        Returns:
+            Lead time in days (always non-negative).
+        """
+        phase = next(
+            (p for p in self.planting_plan.phases
+             if p.phase_name == FieldOperationPhases.SOIL_PREPARATION.value),
+            None,
+        )
+        if not phase or not phase.operations:
+            return _DEFAULT_LEAD_TIME_DAYS
+        offsets = [
+            abs(op.min_days_to_target)
+            for op in phase.operations
+            if op.min_days_to_target is not None
+        ]
+        if not offsets:
+            return _DEFAULT_LEAD_TIME_DAYS
+        return max(offsets)
 
     def update_planned_operations_startdates(self, phase_name: str, target_date: datetime):
         """

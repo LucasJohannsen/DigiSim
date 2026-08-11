@@ -79,22 +79,30 @@ class TestIrrigationCandidatePipeline:
     def test_irrigation_events_appear_in_tick_output_when_needed(self, sim_context, mock_moisture_data_dry):
         """Irrigation events should appear in tick output when conditions require it"""
         runner = CalendarDrivenRunner(sim_context)
-        
+
         with patch('scheduler.calendar_driven_runner.MoistureDataService') as MockMoistureService:
             mock_ms = Mock()
             mock_ms.get_moisture_data.return_value = mock_moisture_data_dry
             MockMoistureService.return_value = mock_ms
-            
+
             # Manually initialize services
             test_date = sim_context.start_date + datetime.timedelta(days=60)
             runner._initialize_services(test_date)
-            
-            # Now tick during dry conditions - should generate irrigation event
-            events = runner.tick(test_date)
-            
+
+            # Isolate irrigation behavior: suppress planting candidates so that
+            # only irrigation competes in the DecisionManager. After the B2 fix
+            # (Issue #58), planting is scheduled in the start year, so soil-prep
+            # ops would otherwise be due on this date and win priority over
+            # irrigation (which is the correct behavior, but not what this test
+            # isolates).
+            with patch.object(
+                runner.planting_plan_service, 'get_next_operations', return_value=[]
+            ):
+                events = runner.tick(test_date)
+
             # Check if any irrigation events were generated
             irrigation_events = [e for e in events if e.worktype == 15]
-            
+
             # Should have at least one irrigation event (conditions are dry)
             assert len(irrigation_events) > 0
             assert irrigation_events[0].worktype_text == 'Bewässerung'
