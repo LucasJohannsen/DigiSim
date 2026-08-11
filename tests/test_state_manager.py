@@ -1,12 +1,10 @@
 import datetime
 import json
-from pathlib import Path
-from unittest.mock import Mock, patch
 import pytest
 
+from events.domain_event_bus import DomainEventBus
 from models.sim_context import SimContext
-from models.planting_plan import FieldOperation
-from scheduler.calendar_driven_runner import CalendarDrivenRunner
+from scheduler.calendar_driven_runner import CalendarDrivenRunner, CropCycleState
 from utils.state_manager import StateManager, FieldStateSnapshot
 
 
@@ -45,6 +43,7 @@ def test_save_creates_json_file(tmp_path, basic_context):
     assert "context" in data
     assert "planting_operations" in data
     assert "protection_operations" in data
+    assert "crop_cycle_state" in data
 
 
 def test_load_returns_none_for_unknown_field(tmp_path):
@@ -81,7 +80,7 @@ def test_apply_snapshot_prevents_re_execution(basic_context):
     Test 4 (Integration): apply_state_snapshot() verhindert Re-Execution
     """
     runner = CalendarDrivenRunner(basic_context)
-    events_first = runner.tick(datetime.date(2024, 11, 1))
+    _ = runner.tick(datetime.date(2024, 11, 1))
     
     snapshot = runner.get_state_snapshot(last_tick_date=datetime.date(2024, 11, 1))
     
@@ -155,6 +154,7 @@ def test_get_state_snapshot_captures_current_state(basic_context):
     assert snapshot.last_tick_date == datetime.date(2024, 10, 15)
     assert snapshot.context.field_id == 42
     assert len(snapshot.planting_ops) > 0
+    assert snapshot.crop_cycle_state is not None
 
 
 def test_apply_snapshot_restores_protection_ops(basic_context):
@@ -188,3 +188,65 @@ def test_apply_snapshot_restores_protection_ops(basic_context):
     
     second_op = runner.protection_plan_service.operations[1]
     assert second_op.actual_date is None, "Second protection op should not have actual_date"
+
+
+def test_state_snapshot_prevents_duplicate_harvest_completed(tmp_path, basic_context):
+    """Snapshot with completed cycle prevents re-emitting HarvestCompleted after restart."""
+    state_manager = StateManager(str(tmp_path))
+
+    runner = CalendarDrivenRunner(basic_context, event_bus=DomainEventBus())
+    runner._crop_cycle_state = CropCycleState.COMPLETED
+    state_manager.save(runner, tick_date=datetime.date(2024, 11, 1))
+
+    snapshot = state_manager.load(42)
+    assert snapshot.crop_cycle_state == CropCycleState.COMPLETED.value
+
+    runner2 = CalendarDrivenRunner(basic_context, event_bus=DomainEventBus())
+    runner2.apply_state_snapshot(snapshot)
+    assert runner2._crop_cycle_state == CropCycleState.COMPLETED
+
+    runner2.tick(datetime.date(2024, 11, 2))
+    harvest_events = [
+        e for e in runner2.event_bus.get_history()
+        if e.event_type == "HarvestCompleted"
+    ]
+    assert len(harvest_events) == 0, (
+        f"Expected no HarvestCompleted after restart, got {len(harvest_events)}"
+    )
+
+
+def test_apply_state_snapshot_restores_crop_cycle_state(basic_context):
+    """apply_state_snapshot() restores an explicit crop_cycle_state value."""
+    snapshot = FieldStateSnapshot(
+        field_id=42,
+        last_tick_date=datetime.date(2025, 6, 1),
+        context=basic_context,
+        planting_ops=[
+            {"phase": "soil_preparation", "sequence": 1, "actual_date": "2024-10-05T08:30:00"}
+        ],
+        protection_ops=[],
+        crop_cycle_state=CropCycleState.RUNNING.value
+    )
+
+    runner = CalendarDrivenRunner(basic_context)
+    runner.apply_state_snapshot(snapshot)
+
+    assert runner._crop_cycle_state == CropCycleState.RUNNING
+
+
+def test_apply_state_snapshot_without_crop_cycle_state_is_backward_compatible(basic_context):
+    """Snapshots without crop_cycle_state load without error and derive a valid state."""
+    snapshot = FieldStateSnapshot(
+        field_id=42,
+        last_tick_date=datetime.date(2025, 6, 1),
+        context=basic_context,
+        planting_ops=[
+            {"phase": "soil_preparation", "sequence": 1, "actual_date": "2024-10-05T08:30:00"}
+        ],
+        protection_ops=[]
+    )
+
+    runner = CalendarDrivenRunner(basic_context)
+    runner.apply_state_snapshot(snapshot)
+
+    assert isinstance(runner._crop_cycle_state, CropCycleState)

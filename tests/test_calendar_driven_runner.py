@@ -2,14 +2,14 @@ import datetime
 from unittest.mock import Mock, patch
 import pytest
 
+from events.domain_event_bus import DomainEventBus
 from models.sim_context import SimContext
 from models.planting_plan import (
     FieldOperation,
     FieldOperationEvent,
-    FieldOperationStatus,
-    FieldOperationPhases
+    FieldOperationStatus
 )
-from scheduler.calendar_driven_runner import CalendarDrivenRunner
+from scheduler.calendar_driven_runner import CalendarDrivenRunner, CropCycleState
 
 
 @pytest.fixture
@@ -118,7 +118,7 @@ def test_tick_idempotent_for_completed_operations(basic_context, mock_planting_p
     """
     test_date = datetime.date(2024, 10, 15)
     
-    completed_operation = FieldOperation(
+    _ = FieldOperation(
         sequence=1,
         operation="Pflügen",
         worktype=1,
@@ -316,3 +316,32 @@ def test_tick_all_low_prio_ops_execute_when_no_high_prio(basic_context, mock_pla
     assert len(events) == 2
     assert events[0].worktype == 14
     assert events[1].worktype == 15
+
+
+def test_harvest_completed_emitted_only_once(basic_context, mock_planting_plan_service):
+    """
+    Test: HarvestCompleted wird genau einmal emittiert, auch wenn Harvest-Phase
+    in mehreren aufeinanderfolgenden Ticks als abgeschlossen gemeldet wird (Issue #60).
+    """
+    mock_planting_plan_service.get_next_operations.return_value = []
+    mock_planting_plan_service.get_phase_status = Mock(
+        return_value=FieldOperationStatus.COMPLETED
+    )
+    mock_planting_plan_service.active_phase = None
+
+    with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
+        runner = CalendarDrivenRunner(basic_context, event_bus=DomainEventBus())
+        # Simulate that the cycle is already running (crop management started earlier)
+        runner._crop_cycle_state = CropCycleState.RUNNING
+
+        runner.tick(datetime.date(2024, 10, 15))
+        runner.tick(datetime.date(2024, 10, 16))
+        runner.tick(datetime.date(2024, 10, 17))
+
+        harvest_events = [
+            e for e in runner.event_bus.get_history()
+            if e.event_type == 'HarvestCompleted'
+        ]
+        assert len(harvest_events) == 1, (
+            f"Expected exactly one HarvestCompleted event, got {len(harvest_events)}"
+        )

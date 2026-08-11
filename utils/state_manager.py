@@ -1,6 +1,6 @@
 import datetime
 import json
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -18,6 +18,7 @@ class FieldStateSnapshot:
     planting_ops: list[dict]
     protection_ops: list[dict]
     irrigation_state: dict | None = None  # Contains: irrigation, updated_moisture arrays
+    crop_cycle_state: str | None = None  # scheduled / running / completed
 
 
 class StateManager:
@@ -45,7 +46,8 @@ class StateManager:
             },
             "planting_operations": snapshot.planting_ops,
             "protection_operations": snapshot.protection_ops,
-            "irrigation_state": snapshot.irrigation_state
+            "irrigation_state": snapshot.irrigation_state,
+            "crop_cycle_state": snapshot.crop_cycle_state
         }
         
         with open(state_file, 'w') as f:
@@ -82,7 +84,8 @@ class StateManager:
             context=context,
             planting_ops=data.get("planting_operations", []),
             protection_ops=data.get("protection_operations", []),
-            irrigation_state=data.get("irrigation_state")
+            irrigation_state=data.get("irrigation_state"),
+            crop_cycle_state=data.get("crop_cycle_state")
         )
     
     def get_all_field_ids(self) -> list[int]:
