@@ -59,6 +59,21 @@
                         "application_category": 34,
                         "application_amount": 0.6,
                         "application_unit": 3
+                    },
+                    {
+                        "sequence": 5,
+                        "operation": "P Düngung",
+                        "min_days_to_target": -5,
+                        "max_days_to_target": -1,
+                        "duration_per_ha": 0.4,
+                        "working_width": 15,
+                        "fuel_consumption": 0.95,
+                        "worktype": 23,
+                        "application_type": "mineral fertilizer",
+                        "application_name": "Superphosphat",
+                        "application_category": 34,
+                        "application_amount": 0.5,
+                        "application_unit": 3
                     }
                 ]
             }
@@ -116,21 +131,6 @@
                     },
                     {
                         "sequence": 2,
-                        "operation": "P Düngung",
-                        "min_days_to_target": 13,
-                        "max_days_to_target": 13,
-                        "duration_per_ha": 0.4,
-                        "working_width": 15,
-                        "fuel_consumption": 0.95,
-                        "worktype": 23,                        
-                        "application_type": "mineral fertilizer",
-                        "application_name": "Superphosphat",
-                        "application_category": 34,
-                        "application_amount": 0.5,
-                        "application_unit": 3
-                    },
-                    {
-                        "sequence": 3,
                         "operation": "Häufeln",
                         "min_days_to_target": 14,
                         "max_days_to_target": 21,
@@ -149,8 +149,8 @@
                     {
                         "sequence": 1,
                         "operation": "Herbizid",
-                        "min_days_to_target": -5,
-                        "max_days_to_target": -3,
+                        "min_days_to_target": -21,
+                        "max_days_to_target": -14,
                         "duration_per_ha": 0.2,
                         "working_width": 18,
                         "fuel_consumption": 1.03,
