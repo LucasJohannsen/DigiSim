@@ -359,4 +359,36 @@ __all__ = [
     "create_operation_approved",
     "create_operation_rejected",
     "create_operation_applied",
+    "create_protection_operations_pruned",
 ]
+
+
+def create_protection_operations_pruned(
+    field_id: str,
+    date: datetime,
+    planned_count: int,
+    pruned_count: int,
+    pruned_after_harvest: int,
+    pruned_sikkation_too_late: int,
+) -> DomainEvent:
+    """Create a ProtectionOperationsPruned event.
+
+    Emitted once at the end of ProtectionPlanService.plan_protections()
+    when one or more protection operations were pruned (not planned) because
+    they would have violated KAR-005 or KAR-024.
+
+    Only emitted when pruned_count > 0 (gewaehlter Ansatz, Issue #67).
+    """
+    return DomainEvent(
+        event_id=str(uuid.uuid4()),
+        event_type='ProtectionOperationsPruned',
+        timestamp=datetime.now(),
+        field_id=field_id,
+        payload={
+            'date': date.isoformat() if isinstance(date, datetime) else str(date),
+            'planned_count': planned_count,
+            'pruned_count': pruned_count,
+            'pruned_after_harvest': pruned_after_harvest,
+            'pruned_sikkation_too_late': pruned_sikkation_too_late,
+        }
+    )
