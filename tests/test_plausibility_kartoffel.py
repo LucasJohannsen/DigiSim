@@ -63,8 +63,10 @@ def simulation() -> dict[str, Any]:
     damit neuen Baseline-Zahlen führt.
     Nach P2-2 (Issue #66) wird die Intra-Tages-Sequenz via Zeit-Cursor
     sichergestellt; der veränderte Zufallsverbrauch verschiebt eine
-    Beregnungs-Entscheidung (+1 Event):
-    30 Integration Events + 1615 Domain Events (vor P2-2: 29 / 1610).
+    Beregnungs-Entscheidung (+1 Event): 30 Integration / 1615 Domain Events.
+    Nach P2-3 (Issue #67) werden Protection-Termine am Pflanzdatum verankert
+    und am Erntetermin beschnitten (4 Ops verworfen, +1 ProtectionOperationsPruned
+    Event); neue Baseline: 29 Integration / 1613 Domain Events.
 
     Returns:
         Dict mit ``events`` (Integration Events), ``domain_events``,
@@ -125,10 +127,13 @@ def rules() -> list[dict[str, Any]]:
 # Test grün erwartet → xfail(strict=True) schlägt fehl → Marker entfernen.
 XFAIL_REASONS: dict[str, str] = {
     # KAR-003 (Befund B7) wurde durch P2-2 (Issue #66) gefixt: Intra-Tages-
-    # Sequenz via zustandsbehaftetem Zeit-Cursor in PlantingPlanService und
-    # ProtectionPlanService. Marker entfernt.
-    "KAR-005": "Befund B6, Issue #57 – Pflanzenschutz/Sikkation nach dem Roden.",
-    "KAR-024": "Befund B5/B6, Issue #57 – Sikkations-Grenzen verletzt (letzte Gabe < 14 d vor Roden / nach Roden). Wird laut Konzept erst nach P2-3 (Protection-Plan-Beschneidung) vollständig grün; Marker bleibt auch bei zufälligem XPASS erhalten (mit PO klären).",
+    # Sequenz via zustandsbehaftetem Zeit-Cursor. Marker entfernt.
+    # KAR-005 (Befund B6) durch P2-3 (Issue #67) gefixt: Protection-Plan am
+    # Pflanzdatum verankert und am Erntetermin beschnitten → Marker entfernt.
+    # KAR-024: P2-3 fixt den Sikkation-nach-Ernte-Aspekt, aber der
+    # Quickdown-Abstand (69 d außerhalb [4,7]) bleibt bestehen – separater
+    # Befund, erst durch P2-4 (Regel-Engine, Issue #68) vollständig lösbar.
+    "KAR-024": "Befund B5/B6, Issue #57 – Quickdown-Abstand 69 d außerhalb [4,7] (Sikkation-nach-Ernte durch P2-3 gefixt, Abstands-Verletzung bleibt).",
     # Neu durch P2-1 (Issue #65): Die Verschiebung von Sikkation und P-Düngung
     # verändert den Zufallszustand an den Beregnungs-Entscheidungspunkten, was
     # zu Beregnungs-Einzelgaben < 10 mm führt (KAR-040 hartes Fenster 10–40 mm).
@@ -163,23 +168,23 @@ class TestFixtureBaseline:
     """Sichert, dass die Fixture die Referenz-Baseline reproduziert."""
 
     def test_integration_event_count_matches_baseline(self, simulation):
-        """Baseline: 30 Integration Events (nach P2-2-Fix, Issue #66).
+        """Baseline: 29 Integration Events (nach P2-3-Fix, Issue #67).
 
-        Vor P2-2 (P2-1-Fix, Issue #65) waren es 29 Events. P2-2 führt die
-        sequenzkonforme Uhrzeitvergabe via Zeit-Cursor ein, was den
-        Zufallsverbrauch verschiebt und zu +1 Beregnungs-Event führt.
+        Vor P2-3 (P2-2-Fix, Issue #66) waren es 30 Events. P2-3 verankert
+        Protection-Termine am Pflanzdatum und beschneidet 4 post-harvest
+        Operationen. Durch den veränderten Zufallsverbrauch verschiebt sich
+        eine Beregnungs-Entscheidung (-1 Event).
         """
-        assert len(simulation["events"]) == 30
+        assert len(simulation["events"]) == 29
 
     def test_domain_event_count_matches_baseline(self, simulation):
-        """Baseline: 1615 Domain Events (nach P2-2-Fix, Issue #66).
+        """Baseline: 1613 Domain Events (nach P2-3-Fix, Issue #67).
 
-        Vor P2-2 (P2-1-Fix, Issue #65) waren es 1610 Domain Events. P2-2
-        verschiebt den Zufallsverbrauch durch den Zeit-Cursor, was zu +5
-        Domain Events führt (1 zusätzlicher Beregnungs-Event × 5 Domain
-        Events: Considered/Approved/Applied + Tick-Started/Tick-Completed).
+        Vor P2-3 (P2-2-Fix, Issue #66) waren es 1615 Domain Events. P2-3 fügt
+        +1 ProtectionOperationsPruned hinzu, aber die verschobene
+        Beregnungs-Entscheidung entfernt -3 Domain Events. Netto: -2.
         """
-        assert len(simulation["domain_events"]) == 1615
+        assert len(simulation["domain_events"]) == 1613
 
     def test_fixture_is_deterministic(self, simulation):
         """Zweite Ausführung mit gleichem Seed liefert gleiche Event-Anzahl."""

@@ -6,7 +6,6 @@ import contextlib
 import datetime
 import io
 import random
-from typing import Any
 from unittest.mock import patch
 
 import numpy as np
@@ -163,7 +162,8 @@ _N_DAYS = 760
 
 @pytest.fixture(scope="module")
 def ff_sim():
-    random.seed(_SEED); np.random.seed(_SEED)
+    random.seed(_SEED)
+    np.random.seed(_SEED)
     ctx = SimContext(field_size=20.0, soil_type="sandy_loam", start_date=datetime.datetime(2026,1,1), crop_type="Potato", variety="Belana", field_id=990001, field_name="Audit Field", fuel_variation=0.1)
     bus = DomainEventBus()
     runner = FastForwardRunner(context=ctx, n_days=_N_DAYS, output_target="stdout", event_bus=bus)
