@@ -1,5 +1,5 @@
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 from typing import Optional
 
 from services.planting_plan_loader import PlantingPlanLoader
@@ -32,6 +32,13 @@ class PlantingPlanService:
 
         self.active_phase = None
         self.planned_planting_date: datetime = None  # Planned date for planting operations
+
+        # Intra-Tages-Sequenz-Cursor (Befund B7, Issue #66 / P2-2):
+        # Pro Kalendertag wird der zuletzt vergebene Event-Zeitpunkt
+        # gespeichert, damit aufeinanderfolgende Einzel-Calls von
+        # get_events_for_ops() für dasselbe Datum strikt monoton steigende
+        # Zeitstempel erhalten. Der Cursor wirkt NICHT über Tagesgrenzen.
+        self._last_assigned_time: dict[datetime.date, datetime] = {}
 
         self.initialize_planting_plan()
 
@@ -238,26 +245,39 @@ class PlantingPlanService:
     
 
     def get_events_for_ops(self, operations: list[FieldOperation], date:datetime) -> list[FieldOperationEvent]:
-        
-        # get active phase 
+
+        # get active phase
         events = []
+
+        # Intra-Tages-Sequenz-Cursor (Befund B7, Issue #66 / P2-2):
+        # date wird vom CalendarDrivenRunner als datetime übergeben; der
+        # Cursor-Key ist das Kalenderdatum, damit der Zustand nicht über
+        # Tagesgrenzen wirkt.
+        date_key = date.date() if isinstance(date, datetime) else date
 
         for operation in operations:
             # get the variation factor for fuel consumption (individual per operation)
             fuel_variation_factor = random.uniform(1 - self.context.fuel_variation, 1 + self.context.fuel_variation)
             # Process the operation
-            
+
             # Update the actual date of the operation
             operation.actual_date = date
             print(f"    {operation.operation}: {operation.actual_date.strftime('%Y-%m-%d %H:%M:%S')}")
 
             event = FieldOperationEvent()
 
-            # add a random time between 6:00 and 17:00 to the actual date and cast as datetime
-            operation.actual_datetime = datetime.combine(
-                operation.actual_date,
-                (datetime.min + timedelta(seconds=random.randint(0,11*60*60) + 6*60*60)).time() # 6:00 bis 17:00 Uhr
+            # Sequenzkonforme Uhrzeitvergabe via zustandsbehaftetem Zeit-Cursor
+            # (Befund B7, Issue #66 / P2-2): Der Cursor speichert den zuletzt
+            # vergebenen Zeitpunkt pro Kalendertag. Bei jedem Call wird die
+            # Uhrzeit im Restfenster [cursor, 17:00] gezogen und strikt nach
+            # dem Cursor platziert -> Intra-Tages-Sequenz bleibt erhalten.
+            last_dt = self._last_assigned_time.get(date_key)
+            min_start = last_dt.time() if last_dt is not None else time(6, 0)
+            operation.actual_datetime = sim_helper.assign_sequential_time(
+                date, min_start=min_start
             )
+            self._last_assigned_time[date_key] = operation.actual_datetime
+
             event.start_date = operation.actual_datetime.strftime('%Y-%m-%d %H:%M:%S')
             event.end_date = (operation.actual_datetime + timedelta(hours=operation.duration_per_ha * self.context.field_size)).strftime('%Y-%m-%d %H:%M:%S')
             event.area = self.context.field_size
