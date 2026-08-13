@@ -1,6 +1,6 @@
 import calendar
 import random
-from datetime import datetime, timedelta
+from datetime import datetime, time, timedelta
 import json
 
 from models.planting_plan import PlantingPlan, FieldOperation
@@ -149,3 +149,52 @@ def sanitize_filename(filename: str) -> str:
     sanitized = ''.join(c for c in filename if c.isalnum() or c in ALLOWED_FILENAME_CHARS).rstrip()
     sanitized = sanitized.replace(' ', '_')
     return sanitized[:MAX_FILENAME_LENGTH]
+
+def assign_sequential_time(
+    date: datetime,
+    min_start: time = time(6, 0),
+    max_end: time = time(17, 0),
+) -> datetime:
+    """Ziehe einen zufälligen Zeitpunkt am ``date`` im Fenster ``[min_start, max_end]``.
+
+    Wird von ``PlantingPlanService`` / ``ProtectionPlanService`` genutzt, um pro
+    Tag **strikt monoton steigende** Zeitpunkte zu vergeben (Befund B7,
+    Issue #66 / P2-2). Der Aufrufer verwaltet den Cursor ``min_start`` aus dem
+    zuletzt vergebenen Zeitpunkt desselben Tages.
+
+    Garantie: Der Rückgabewert liegt **strikt nach** ``min_start`` (mindestens
+    1 Sekunde später), sofern das Restfenster >= 1 Minute ist. Dadurch bleibt
+    die Intra-Tages-Sequenz bei aufeinanderfolgenden Einzel-Calls erhalten
+    (``CalendarDrivenRunner.tick()`` ruft ``get_events_for_ops`` pro Operation
+    einzeln auf).
+
+    Faellt das Restfenster auf < 1 Minute zusammen (z. B. > 11 Operationen am
+    selben Tag, praktisch nicht erreichbar bei Kartoffel-Saison mit max. ~5
+    Ops/Tag), wird ``min_start + 1 Minute`` zurueckgegeben - deterministischer
+    Randfall statt Exception. In diesem Fall kann der Rueckgabewert ``max_end``
+    ueberschreiten (dokumentierter Edge-Case, KAR-045 nicht verschlechtert da
+    nur bei Cursor-Erschoepfung).
+
+    Args:
+        date: Das Kalenderdatum (``datetime`` oder ``date``), auf dem der
+            Zeitpunkt liegt.
+        min_start: Fruehester zulaessiger Zeitpunkt (inklusive). Default 06:00.
+        max_end: Spaetester zulaessiger Zeitpunkt (inklusive). Default 17:00.
+
+    Returns:
+        Ein ``datetime`` am ``date`` mit Uhrzeit strikt nach ``min_start`` und
+        <= ``max_end`` (ausser im dokumentierten Randfall).
+    """
+    earliest = datetime.combine(date, min_start)
+    latest = datetime.combine(date, max_end)
+    window_seconds = int((latest - earliest).total_seconds())
+
+    if window_seconds < 60:
+        # Deterministischer Randfall: Fenster erschöpft, kein Platz für
+        # Zufallsstreuung. min_start + 1 Minute bleibt monoton.
+        return earliest + timedelta(minutes=1)
+
+    # Strikt nach min_start: offset ∈ [1, window_seconds] garantiert
+    # Monotonie bei aufeinanderfolgenden Calls für dasselbe Datum.
+    offset = random.randint(1, window_seconds)
+    return earliest + timedelta(seconds=offset)
