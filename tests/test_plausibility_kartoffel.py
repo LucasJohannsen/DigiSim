@@ -60,8 +60,11 @@ def simulation() -> dict[str, Any]:
     auf -21/-14 d vor Ernte) und P-Düngung (nach soil_preparation, -5/-1 d
     vor Legen); dadurch ändert sich der Zufallszustand an den
     Beregnungs-Entscheidungspunkten, was zu anderen Beregnungs-Events und
-    damit neuen Baseline-Zahlen führt:
-    29 Integration Events + 1610 Domain Events (vor P2-1: 27 / 1606).
+    damit neuen Baseline-Zahlen führt.
+    Nach P2-2 (Issue #66) wird die Intra-Tages-Sequenz via Zeit-Cursor
+    sichergestellt; der veränderte Zufallsverbrauch verschiebt eine
+    Beregnungs-Entscheidung (+1 Event):
+    30 Integration Events + 1615 Domain Events (vor P2-2: 29 / 1610).
 
     Returns:
         Dict mit ``events`` (Integration Events), ``domain_events``,
@@ -121,7 +124,9 @@ def rules() -> list[dict[str, Any]]:
 # xfail-Regeln mit Befund-Begründung. Nach Fix des jeweiligen Befunds wird der
 # Test grün erwartet → xfail(strict=True) schlägt fehl → Marker entfernen.
 XFAIL_REASONS: dict[str, str] = {
-    "KAR-003": "Befund B7, Issue #57 – Intra-Tages-Sequenz invertiert (Pflanzguttransport nach Legen).",
+    # KAR-003 (Befund B7) wurde durch P2-2 (Issue #66) gefixt: Intra-Tages-
+    # Sequenz via zustandsbehaftetem Zeit-Cursor in PlantingPlanService und
+    # ProtectionPlanService. Marker entfernt.
     "KAR-005": "Befund B6, Issue #57 – Pflanzenschutz/Sikkation nach dem Roden.",
     "KAR-024": "Befund B5/B6, Issue #57 – Sikkations-Grenzen verletzt (letzte Gabe < 14 d vor Roden / nach Roden). Wird laut Konzept erst nach P2-3 (Protection-Plan-Beschneidung) vollständig grün; Marker bleibt auch bei zufälligem XPASS erhalten (mit PO klären).",
     # Neu durch P2-1 (Issue #65): Die Verschiebung von Sikkation und P-Düngung
@@ -158,23 +163,23 @@ class TestFixtureBaseline:
     """Sichert, dass die Fixture die Referenz-Baseline reproduziert."""
 
     def test_integration_event_count_matches_baseline(self, simulation):
-        """Baseline: 29 Integration Events (nach P2-1-Fix, Issue #65).
+        """Baseline: 30 Integration Events (nach P2-2-Fix, Issue #66).
 
-        Vor P2-1 (B2-Fix, Issue #58) waren es 27 Events. Durch die
-        Verschiebung der Sikkation (-21/-14 d) und P-Düngung (nach
-        soil_preparation) ändert sich der Zufallszustand an den
-        Beregnungs-Entscheidungspunkten, was zu +2 Beregnungs-Events führt.
+        Vor P2-2 (P2-1-Fix, Issue #65) waren es 29 Events. P2-2 führt die
+        sequenzkonforme Uhrzeitvergabe via Zeit-Cursor ein, was den
+        Zufallsverbrauch verschiebt und zu +1 Beregnungs-Event führt.
         """
-        assert len(simulation["events"]) == 29
+        assert len(simulation["events"]) == 30
 
     def test_domain_event_count_matches_baseline(self, simulation):
-        """Baseline: 1610 Domain Events (nach P2-1-Fix, Issue #65).
+        """Baseline: 1615 Domain Events (nach P2-2-Fix, Issue #66).
 
-        Vor P2-1 (B2-Fix, Issue #58) waren es 1606 Domain Events. Die
-        Differenz (+4) ergibt sich aus den zusätzlichen Beregnungs-Events
-        durch den veränderten Zufallszustand nach der Konfig-Verschiebung.
+        Vor P2-2 (P2-1-Fix, Issue #65) waren es 1610 Domain Events. P2-2
+        verschiebt den Zufallsverbrauch durch den Zeit-Cursor, was zu +5
+        Domain Events führt (1 zusätzlicher Beregnungs-Event × 5 Domain
+        Events: Considered/Approved/Applied + Tick-Started/Tick-Completed).
         """
-        assert len(simulation["domain_events"]) == 1610
+        assert len(simulation["domain_events"]) == 1615
 
     def test_fixture_is_deterministic(self, simulation):
         """Zweite Ausführung mit gleichem Seed liefert gleiche Event-Anzahl."""
