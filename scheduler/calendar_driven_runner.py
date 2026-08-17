@@ -214,16 +214,35 @@ class CalendarDrivenRunner:
             self.planting_plan_service.active_phase.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
         )
 
+    def _compute_harvest_date(self) -> datetime.datetime:
+        """Erntetermin = Pflanzdatum + grow_duration (P2-3, Befund B6).
+
+        Konsistent mit PlantingPlanService.update_phase_status() (Z. 193),
+        der harvest_date = actual_planting_date + grow_duration berechnet.
+        Hier wird der geplante Pflanztermin verwendet, da der
+        Protection-Plan vor dem Legen geplant wird.
+        """
+        return (
+            self.planting_plan_service.planned_planting_date
+            + datetime.timedelta(
+                days=self.planting_plan_service.planting_plan.grow_duration
+            )
+        )
+
     def _initialize_services(self, current_date: datetime.date) -> None:
+        # P2-3 (Befund B6): Protection-Termine am Pflanzdatum verankern
+        # (nicht am Crop-Management-Start) und am Erntetermin beschneiden.
         self.protection_plan_service = ProtectionPlanService(
             context=self.context,
-            start_date=current_date,
-            planting_plan=self.planting_plan_service.planting_plan
+            start_date=self.planting_plan_service.planned_planting_date,
+            planting_plan=self.planting_plan_service.planting_plan,
+            harvest_date=self._compute_harvest_date(),
+            event_bus=self.event_bus,
         )
-        
+
         # Extract year from current simulation date
         simulation_year = current_date.year if isinstance(current_date, datetime.datetime) else current_date.year
-        
+
         ms = MoistureDataService(context=self.context, min_moisture_level=200)
         self.irrigation_service = IrrigationSimulator(
             context=self.context,

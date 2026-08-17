@@ -1,6 +1,6 @@
 import random
 from datetime import datetime, time, timedelta
-from typing import Tuple
+from typing import Optional, Tuple
 
 from services.planting_plan_loader import PlantingPlanLoader
 from models.planting_plan import (
@@ -12,18 +12,37 @@ from models.planting_plan import (
     FieldOperationPhases,
     PlantingPlan
 )
+from models.domain_events import create_protection_operations_pruned
 import models.sim_context as sim_context
 from models.worktypes import WorkType
 from utils import sim_helper
 
 
+# Sikkationsgaben (Kat. 26) muessen >= 14 Tage vor dem Roden liegen (KAR-020/KAR-024).
+SIKKATION_MIN_DAYS_BEFORE_HARVEST = 14  # KAR-020 / KAR-024
+
+# Application-Category fuer Sikkationsgaben (Herbizid, z. B. Quickdown/Shark).
+SIKKATION_CATEGORY = 26
+
+
 class ProtectionPlanService:
 
-    def __init__(self, context: sim_context.SimContext, start_date:datetime, planting_plan:PlantingPlan=None):
+    def __init__(
+        self,
+        context: sim_context.SimContext,
+        start_date: datetime,
+        planting_plan: PlantingPlan = None,
+        harvest_date: Optional[datetime] = None,
+        event_bus: Optional[object] = None,
+    ):
         self.context = context
 
-        self.start_date = start_date  # Planned date for planting operations
+        self.start_date = start_date  # Anker fuer Protection-Termine (Pflanzdatum, P2-3)
         self.planting_plan = planting_plan
+        # Erntetermin = Pflanzdatum + grow_duration (P2-3, Befund B6). None
+        # deaktiviert die Beschneidung (Abwaertskompatibilitaet).
+        self.harvest_date = harvest_date
+        self.event_bus = event_bus
 
         self.operations = []
 
@@ -37,10 +56,15 @@ class ProtectionPlanService:
 
         self.plan_protections()
 
-  
+
     def plan_protections(self):
         """
         Plan the protection operations for the planting plan.
+
+        Protection-Termine werden relativ zum Pflanzdatum (self.start_date)
+        geplant. Operationen nach dem Erntetermin (KAR-005) und Sikkationen
+        < 14 d vor Ernte (KAR-024) werden verworfen und als Domain Event
+        protokolliert.
         """
         if not self.planting_plan or not self.planting_plan.protection_plans:
             print("No protection plans available in the planting plan.")
@@ -55,12 +79,9 @@ class ProtectionPlanService:
         # read categories from config
         protection_categories = sim_helper.get_protection_categories()
 
-        # Iterate through each protection plan and apply protections
-
         # pick random protection plan
         protection_plan = random.choice(self.planting_plan.protection_plans)
         print(f"Selected protection plan: {protection_plan.name}")
-
 
         # Schadensereignis
         target_date_diff = protection_plan.days_to_target
@@ -68,24 +89,57 @@ class ProtectionPlanService:
 
         print(f"Planned protection date: {protection_target_date.strftime('%Y-%m-%d')}")
 
+        # Zaehler fuer die Beschneidungs-Protokollierung (P2-3, Befund B6).
+        planned_count = 0
+        pruned_after_harvest = 0
+        pruned_sikkation_too_late = 0
+
         # erstelle die Schutzoperationen
         for protection in protection_plan.protections:
             protection_operation_date = protection_target_date + timedelta(days=protection.day)
 
+            # P2-3 (Befund B6): Beschneide am Erntetermin (KAR-005).
+            # >= (nicht >), da eine Operation am Erntetag selbst nicht mehr
+            # ausgefuehrt werden darf.
+            if self.harvest_date is not None and protection_operation_date >= self.harvest_date:
+                planned_count += 1
+                pruned_after_harvest += 1
+                print(
+                    f"Pruned protection operation (after harvest): "
+                    f"{protection.name} on {protection_operation_date.strftime('%Y-%m-%d')}"
+                )
+                continue
+
+            # Sikkationen (Kat. 26) muessen >= 14 d vor dem Roden liegen (KAR-024).
+            if (
+                self.harvest_date is not None
+                and protection.type == SIKKATION_CATEGORY
+                and (self.harvest_date - protection_operation_date).days
+                < SIKKATION_MIN_DAYS_BEFORE_HARVEST
+            ):
+                planned_count += 1
+                pruned_sikkation_too_late += 1
+                print(
+                    f"Pruned sikkation (< {SIKKATION_MIN_DAYS_BEFORE_HARVEST} d before harvest): "
+                    f"{protection.name} on {protection_operation_date.strftime('%Y-%m-%d')}"
+                )
+                continue
+
+            planned_count += 1
+
             # Calculate the sum if protection.amount contains '+'
-            # Sonderfall Spritzmischung -> Mengenangaben wie "1.5+0.5" müssen zu 2.0 addiert werden         
             application_amount = sum(float(x) for x in protection.amount.split('+'))
 
             #get the category from the protection categories
             category_item = next((c for c in protection_categories if c['id'] == protection.type), None)
             application_type_text = category_item['category'] if category_item else "unknown"
- 
+
             spritz_operation = FieldOperation(
                 operation="Spritzen",
                 worktype=WorkType.SPRITZEN,
                 duration_per_ha=default_duration,
                 working_width=default_width,
-                fuel_consumption=default_fuel,  
+                fuel_consumption=default_fuel,
                 planned_date=protection_operation_date,
                 application_type=application_type_text,
                 application_category=protection.type,
@@ -94,9 +148,22 @@ class ProtectionPlanService:
                 application_unit=2
             )
 
-            #print(f"Planned protection operation: {spritz_operation.operation} on {spritz_operation.planned_date.strftime('%Y-%m-%d')}")
-            
             self.operations.append(spritz_operation)
+
+        # Beschneidung als fachliches Ereignis protokollieren (Styleguide).
+        # Nur emittieren, wenn Operationen verworfen wurden (Issue #67).
+        pruned_count = pruned_after_harvest + pruned_sikkation_too_late
+        if pruned_count > 0 and self.event_bus is not None:
+            self.event_bus.publish(
+                create_protection_operations_pruned(
+                    field_id=str(self.context.field_id),
+                    date=self.start_date,
+                    planned_count=planned_count,
+                    pruned_count=pruned_count,
+                    pruned_after_harvest=pruned_after_harvest,
+                    pruned_sikkation_too_late=pruned_sikkation_too_late,
+                )
+            )
 
     def get_next_operations(self, date: datetime) -> list[FieldOperation]:
         """
@@ -112,11 +179,10 @@ class ProtectionPlanService:
             if operation.planned_date <= date and not operation.actual_date:
                 next_operations.append(operation)
         if not next_operations:
-            #print("No next operations found for the protection plan.")
             return []
 
         return next_operations
-    
+
 
     def get_events_for_ops(self, operations: list[FieldOperation], date:datetime) -> list[FieldOperationEvent]:
 
@@ -173,5 +239,5 @@ class ProtectionPlanService:
             event.fuel = round(event.fuel * fuel_variation_factor, 2)
 
             events.append(event)
-        
+
         return events
