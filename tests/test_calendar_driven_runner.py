@@ -345,3 +345,98 @@ def test_harvest_completed_emitted_only_once(basic_context, mock_planting_plan_s
         assert len(harvest_events) == 1, (
             f"Expected exactly one HarvestCompleted event, got {len(harvest_events)}"
         )
+
+
+def test_harvest_completed_date_matches_last_harvest_op(
+    basic_context, mock_planting_plan_service
+):
+    """HarvestCompleted.date == Datum des Ticks der letzten Harvest-Op (Issue #69).
+
+    Vor dem Fix wurde die Harvest-Completed-Prüfung am Tick-Anfang
+    durchgeführt. Da die Phase erst *nach* Ausführung der letzten Op
+    „completed" wird, erkannte der Folgetick (X+1) den Abschluss und
+    emittierte HarvestCompleted mit date=X+1.
+
+    Nach dem Fix erfolgt die Prüfung *nach* der Op-Ausführung im selben
+    Tick → HarvestCompleted.date == Tag X.
+    """
+    test_date = datetime.date(2024, 10, 15)
+    next_date = datetime.date(2024, 10, 16)
+
+    mock_op = FieldOperation(
+        sequence=3,
+        operation="Lagerung",
+        worktype=58,
+        duration_per_ha=0.1,
+        working_width=0,
+        fuel_consumption=0,
+        planned_date=test_date,
+        actual_date=None,
+    )
+    mock_event = FieldOperationEvent(
+        field=1,
+        worktype=58,
+        start_date="2024-10-15 08:00:00",
+        end_date="2024-10-15 09:00:00",
+        area=10.0,
+        fuel=0.0,
+        worktype_text="Lagerung",
+    )
+
+    op_executed = [False]
+    ops_returned = [False]
+
+    def phase_status_side_effect(phase):
+        if op_executed[0]:
+            return FieldOperationStatus.COMPLETED
+        return FieldOperationStatus.IN_PROGRESS
+
+    def events_for_ops_side_effect(ops, date):
+        op_executed[0] = True
+        return [mock_event]
+
+    def get_next_ops_side_effect(date):
+        if not ops_returned[0]:
+            ops_returned[0] = True
+            return [mock_op]
+        return []
+
+    mock_planting_plan_service.get_next_operations.side_effect = (
+        get_next_ops_side_effect
+    )
+    mock_planting_plan_service.get_events_for_ops.side_effect = (
+        events_for_ops_side_effect
+    )
+    mock_planting_plan_service.get_phase_status = Mock(
+        side_effect=phase_status_side_effect
+    )
+    mock_planting_plan_service.active_phase = None
+
+    with patch(
+        'scheduler.calendar_driven_runner.PlantingPlanService',
+        return_value=mock_planting_plan_service,
+    ):
+        runner = CalendarDrivenRunner(
+            basic_context, event_bus=DomainEventBus()
+        )
+        runner._crop_cycle_state = CropCycleState.RUNNING
+
+        runner.tick(test_date)
+        runner.tick(next_date)
+
+        harvest_events = [
+            e for e in runner.event_bus.get_history()
+            if e.event_type == 'HarvestCompleted'
+        ]
+        assert len(harvest_events) == 1, (
+            f"Expected exactly one HarvestCompleted event, "
+            f"got {len(harvest_events)}"
+        )
+        # HarvestCompleted.date == Datum der letzten Harvest-Op (Oct 15),
+        # NICHT der Folgetag (Oct 16).
+        expected_date = datetime.datetime(2024, 10, 15, 0, 0).isoformat()
+        actual_date = harvest_events[0].payload['date']
+        assert actual_date == expected_date, (
+            f"HarvestCompleted.date {actual_date} != {expected_date} "
+            f"(Datum der letzten Harvest-Op, nicht Folgetag)"
+        )
