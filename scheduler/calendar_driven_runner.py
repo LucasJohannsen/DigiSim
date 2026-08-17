@@ -8,7 +8,8 @@ from services.planting_plan_service import PlantingPlanService
 from services.protection_plan_service import ProtectionPlanService
 from services.irrigation_service import IrrigationSimulator
 from services.moisture_service import MoistureDataService
-from scheduler.decision_manager import DecisionManager, WorkTypePriorityStrategy
+from scheduler.decision_manager import CycleContext, DecisionManager, WorkTypePriorityStrategy
+from scheduler.guard_rule_loader import GuardRuleLoader
 from utils.event_logger import EventLogger
 from utils.logger import get_logger
 from events.domain_event_bus import DomainEventBus
@@ -39,9 +40,13 @@ class CalendarDrivenRunner:
         self.context = context
         self.event_logger = EventLogger()
         self.event_bus = event_bus if event_bus is not None else DomainEventBus()
+        # RuleGuard als Sicherheitsnetz (P2-4, Issue #68). Fail-open:
+        # bei Konfigurationsfehlern wird ein leerer Guard geladen.
+        rule_guard = GuardRuleLoader.load_default()
         self.decision_manager = DecisionManager(
             strategy=WorkTypePriorityStrategy(),
-            event_bus=self.event_bus
+            event_bus=self.event_bus,
+            rule_guard=rule_guard,
         )
         
         self.planting_plan_service = PlantingPlanService(
@@ -140,10 +145,12 @@ class CalendarDrivenRunner:
         all_candidate_ops = planting_ops + protection_ops + irrigation_candidates
         
         # DecisionManager decides which operations to execute
+        cycle_context = self._build_cycle_context()
         selected_ops = self.decision_manager.decide(
             all_candidate_ops,
             field_id=str(self.context.field_id),
-            date=date
+            date=date,
+            cycle_context=cycle_context,
         ) or []
         
         # Execute selected operations
@@ -227,6 +234,63 @@ class CalendarDrivenRunner:
             + datetime.timedelta(
                 days=self.planting_plan_service.planting_plan.grow_duration
             )
+        )
+
+    def _build_cycle_context(self) -> CycleContext:
+        """Baut den CycleContext für die Guard-Prüfung (P2-4, Issue #68).
+
+        Sammelt Zyklus-Daten aus den Services, ohne direkte Service-
+        Abhängigkeiten in den Guard einzuführen (Event-Driven-Core).
+        ``last_siccation_date``/``siccation_count`` aus bereits
+        ausgeführten Protection-Operationen (``actual_date is not None``
+        + ``application_category == 26``).
+        """
+        planting_date = self.planting_plan_service.planned_planting_date
+        harvest_date = None
+        if planting_date is not None:
+            try:
+                harvest_date = self._compute_harvest_date()
+            except (TypeError, AttributeError):
+                harvest_date = None
+
+        harvest_completed = self._crop_cycle_state == CropCycleState.COMPLETED
+
+        # Sikkationsgaben (Kat. 26) aus Protection-Operationen.
+        last_siccation_date: datetime.datetime | None = None
+        siccation_count = 0
+        if self.protection_plan_service:
+            for op in self.protection_plan_service.operations:
+                if op.actual_date is not None and op.application_category == 26:
+                    siccation_count += 1
+                    if (
+                        last_siccation_date is None
+                        or op.actual_date > last_siccation_date
+                    ):
+                        last_siccation_date = op.actual_date
+
+        # Letzte Ernte-Operation aus der Harvesting-Phase.
+        last_harvest_op_date: datetime.datetime | None = None
+        try:
+            phases = self.planting_plan_service.planting_plan.phases  # type: ignore[attr-defined]
+            for phase in phases:
+                if phase.phase_name == FieldOperationPhases.HARVESTING.value:
+                    for op in phase.operations:
+                        if op.actual_date is not None:
+                            if (
+                                last_harvest_op_date is None
+                                or op.actual_date > last_harvest_op_date
+                            ):
+                                last_harvest_op_date = op.actual_date
+        except (AttributeError, TypeError):
+            pass
+
+        return CycleContext(
+            planting_date=planting_date,
+            harvest_date=harvest_date,
+            harvest_completed=harvest_completed,
+            last_siccation_date=last_siccation_date,
+            siccation_count_this_cycle=siccation_count,
+            last_harvest_op_date=last_harvest_op_date,
         )
 
     def _initialize_services(self, current_date: datetime.date) -> None:
