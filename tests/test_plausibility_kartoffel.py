@@ -315,13 +315,38 @@ class TestDomainEventChecks:
         )
 
     def test_harvest_completed_emitted_once_per_cycle(self, simulation):
-        """Genau 1× HarvestCompleted je Zyklus (deckt B13 ab)."""
+        """Genau 1× HarvestCompleted je Zyklus (deckt B13 ab).
+
+        Nach Issue #69 wird HarvestCompleted am Tag der letzten Harvest-Op
+        emittiert, nicht am Folgetag. Die Datum-Assertion vergleicht das
+        ``HarvestCompleted``-Datum mit dem letzten ``OperationApplied``-
+        Event der Harvest-Phase (worktypes 14/27/58 = Herbizid/Roden/
+        Lagerung).
+        """
         completed = [
             e for e in simulation["domain_events"]
             if e.event_type == "HarvestCompleted"
         ]
         assert len(completed) == 1, (
             f"Erwartet genau 1 HarvestCompleted, got {len(completed)}."
+        )
+
+        # AK 1 (Issue #69): HarvestCompleted.date == Datum der letzten
+        # Harvest-Operation. Vor dem Fix wurde das Event erst am Folgetag
+        # erkannt und mit date=X+1 emittiert.
+        harvest_worktypes = {14, 27, 58}  # Herbizid, Roden, Lagerung
+        harvest_op_events = [
+            e for e in simulation["domain_events"]
+            if e.event_type == "OperationApplied"
+            and e.payload.get("worktype") in harvest_worktypes
+        ]
+        assert harvest_op_events, "Keine Harvest-OperationApplied-Events."
+        last_harvest_op = max(
+            harvest_op_events, key=lambda e: e.payload["date"]
+        )
+        assert completed[0].payload["date"] == last_harvest_op.payload["date"], (
+            f"HarvestCompleted.date {completed[0].payload['date']} != "
+            f"letzter Harvest-Op {last_harvest_op.payload['date']}"
         )
 
     def test_planting_year_matches_start_year(self, simulation):
