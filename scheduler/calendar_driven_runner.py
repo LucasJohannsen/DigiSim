@@ -35,7 +35,8 @@ class CalendarDrivenRunner:
     def __init__(
         self,
         context: SimContext,
-        event_bus: Optional[DomainEventBus] = None
+        event_bus: Optional[DomainEventBus] = None,
+        skip_scheduling_event: bool = False
     ) -> None:
         self.context = context
         self.event_logger = EventLogger()
@@ -52,7 +53,8 @@ class CalendarDrivenRunner:
         self.planting_plan_service = PlantingPlanService(
             context=self.context,
             start_date=self.context.start_date,
-            event_bus=self.event_bus
+            event_bus=self.event_bus,
+            skip_scheduling_event=skip_scheduling_event
         )
         
         self.protection_plan_service: ProtectionPlanService = None
@@ -354,10 +356,20 @@ class CalendarDrivenRunner:
             planting_ops=planting_ops,
             protection_ops=protection_ops,
             irrigation_state=irrigation_state,
-            crop_cycle_state=self._crop_cycle_state.value
+            crop_cycle_state=self._crop_cycle_state.value,
+            planned_planting_date=self.planting_plan_service.planned_planting_date
         )
 
     def apply_state_snapshot(self, snapshot) -> None:
+        # P2-5 B (Issue #70): planned_planting_date restaurieren, bevor Ops
+        # wiederhergestellt werden. Bei skip_scheduling_event=True wurde der
+        # Termin beim Constructor nicht gewürfelt. Ist das Feld im Snapshot
+        # nicht vorhanden (alter Snapshot), würfelt set_planned_planting_date
+        # neu + emittiert CropCycleScheduled (Bestandsschutz).
+        self.planting_plan_service.set_planned_planting_date(
+            snapshot.planned_planting_date
+        )
+
         for op_data in snapshot.planting_ops:
             phase_name = op_data["phase"]
             sequence = op_data["sequence"]

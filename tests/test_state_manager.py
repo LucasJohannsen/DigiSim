@@ -250,3 +250,97 @@ def test_apply_state_snapshot_without_crop_cycle_state_is_backward_compatible(ba
     runner.apply_state_snapshot(snapshot)
 
     assert isinstance(runner._crop_cycle_state, CropCycleState)
+
+
+# ---------------------------------------------------------------------------
+# P2-5 B: planned_planting_date persistence (Issue #70)
+# ---------------------------------------------------------------------------
+
+def test_planned_planting_date_roundtrip(tmp_path, basic_context):
+    """AK 1+2: planned_planting_date wird serialisiert und beim Restore
+    unverändert zurückgeliefert (nicht neu gewürfelt)."""
+    state_manager = StateManager(str(tmp_path))
+
+    runner = CalendarDrivenRunner(basic_context)
+    original_date = runner.planting_plan_service.planned_planting_date
+    assert original_date is not None
+
+    state_manager.save(runner, tick_date=datetime.date(2024, 10, 15))
+
+    # JSON enthält das Feld als ISO-String
+    state_file = tmp_path / "field_42.json"
+    with open(state_file, "r") as f:
+        data = json.load(f)
+    assert "planned_planting_date" in data
+    assert data["planned_planting_date"] == original_date.isoformat()
+
+    snapshot = state_manager.load(42)
+    assert snapshot is not None
+    assert snapshot.planned_planting_date == original_date
+
+
+def test_restore_does_not_emit_duplicate_crop_cycle_scheduled(tmp_path, basic_context):
+    """AK 3: Nach Restore (skip_scheduling_event=True) wird kein zusätzliches
+    CropCycleScheduled emittiert – insgesamt == 1 (nur vom ersten Runner)."""
+    state_manager = StateManager(str(tmp_path))
+
+    bus1 = DomainEventBus()
+    runner1 = CalendarDrivenRunner(basic_context, event_bus=bus1)
+    original_date = runner1.planting_plan_service.planned_planting_date
+    state_manager.save(runner1, tick_date=datetime.date(2024, 10, 15))
+
+    snapshot = state_manager.load(42)
+    assert snapshot is not None
+    assert snapshot.planned_planting_date == original_date
+
+    # Restore mit skip_scheduling_event=True → kein Neu-Würfeln, keine Emission
+    bus2 = DomainEventBus()
+    runner2 = CalendarDrivenRunner(
+        basic_context, event_bus=bus2, skip_scheduling_event=True
+    )
+    runner2.apply_state_snapshot(snapshot)
+
+    scheduled_events = bus2.get_events_by_type("CropCycleScheduled")
+    assert len(scheduled_events) == 0, (
+        f"Expected 0 CropCycleScheduled after restore, got {len(scheduled_events)}"
+    )
+    assert runner2.planting_plan_service.planned_planting_date == original_date
+
+
+def test_restore_without_planned_planting_date_is_backward_compatible(basic_context):
+    """AK 5: Alter Snapshot ohne planned_planting_date lädt fehlerfrei und
+    würfelt neu + emittiert (Bestandsschutz)."""
+    snapshot = FieldStateSnapshot(
+        field_id=42,
+        last_tick_date=datetime.date(2025, 6, 1),
+        context=basic_context,
+        planting_ops=[
+            {"phase": "soil_preparation", "sequence": 1, "actual_date": "2024-10-05T08:30:00"}
+        ],
+        protection_ops=[],
+        # planned_planting_date bewusst weggelassen (alter Snapshot)
+    )
+
+    bus = DomainEventBus()
+    runner = CalendarDrivenRunner(
+        basic_context, event_bus=bus, skip_scheduling_event=True
+    )
+    runner.apply_state_snapshot(snapshot)
+
+    # Bei fehlendem Datum muss neu gewürfelt + emittiert werden
+    assert runner.planting_plan_service.planned_planting_date is not None
+    scheduled = bus.get_events_by_type("CropCycleScheduled")
+    assert len(scheduled) == 1, (
+        f"Expected 1 CropCycleScheduled for backward-compat restore, got {len(scheduled)}"
+    )
+
+
+def test_fresh_start_rolls_and_emits_crop_cycle_scheduled(basic_context):
+    """AK 4: Fresh-Start (skip_scheduling_event=False, Default) würfelt und
+    emittiert CropCycleScheduled unverändert."""
+    bus = DomainEventBus()
+    runner = CalendarDrivenRunner(basic_context, event_bus=bus)
+
+    assert runner.planting_plan_service.planned_planting_date is not None
+    scheduled = bus.get_events_by_type("CropCycleScheduled")
+    assert len(scheduled) == 1

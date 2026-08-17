@@ -35,7 +35,7 @@ async def test_daily_tick_processes_all_fields(tmp_path, multiple_contexts):
             mock_runner.context = ctx
             mock_runners[ctx.field_id] = mock_runner
         
-        MockRunner.side_effect = lambda ctx: mock_runners[ctx.field_id]
+        MockRunner.side_effect = lambda ctx, **kwargs: mock_runners[ctx.field_id]
         
         scheduler = TickScheduler(multiple_contexts, state_dir=str(tmp_path))
         await scheduler.daily_tick()
@@ -57,7 +57,7 @@ async def test_field_error_does_not_stop_others(tmp_path, multiple_contexts):
             mock_runner.context = ctx
             mock_runners[ctx.field_id] = mock_runner
         
-        MockRunner.side_effect = lambda ctx: mock_runners[ctx.field_id]
+        MockRunner.side_effect = lambda ctx, **kwargs: mock_runners[ctx.field_id]
         
         scheduler = TickScheduler(multiple_contexts, state_dir=str(tmp_path))
         await scheduler.daily_tick()
@@ -106,7 +106,7 @@ async def test_max_concurrent_fields_limits_parallelism(tmp_path):
             mock_runner.context = ctx
             mock_runners[ctx.field_id] = mock_runner
         
-        MockRunner.side_effect = lambda ctx: mock_runners[ctx.field_id]
+        MockRunner.side_effect = lambda ctx, **kwargs: mock_runners[ctx.field_id]
         
         scheduler = TickScheduler(contexts, state_dir=str(tmp_path), max_concurrent_fields=5)
         await scheduler.daily_tick()
@@ -154,7 +154,7 @@ async def test_tick_summary_logs_success_count(tmp_path, multiple_contexts, capl
                 mock_runner.context = ctx
                 mock_runners[ctx.field_id] = mock_runner
             
-            MockRunner.side_effect = lambda ctx: mock_runners[ctx.field_id]
+            MockRunner.side_effect = lambda ctx, **kwargs: mock_runners[ctx.field_id]
             
             scheduler = TickScheduler(multiple_contexts, state_dir=str(tmp_path))
             await scheduler.daily_tick()

@@ -19,6 +19,7 @@ class FieldStateSnapshot:
     protection_ops: list[dict]
     irrigation_state: dict | None = None  # Contains: irrigation, updated_moisture arrays
     crop_cycle_state: str | None = None  # scheduled / running / completed
+    planned_planting_date: datetime.datetime | None = None  # P2-5 B (Issue #70)
 
 
 class StateManager:
@@ -47,7 +48,11 @@ class StateManager:
             "planting_operations": snapshot.planting_ops,
             "protection_operations": snapshot.protection_ops,
             "irrigation_state": snapshot.irrigation_state,
-            "crop_cycle_state": snapshot.crop_cycle_state
+            "crop_cycle_state": snapshot.crop_cycle_state,
+            "planned_planting_date": (
+                snapshot.planned_planting_date.isoformat()
+                if snapshot.planned_planting_date else None
+            )
         }
         
         with open(state_file, 'w') as f:
@@ -77,7 +82,13 @@ class StateManager:
         last_tick_date = None
         if data.get("last_tick_date"):
             last_tick_date = datetime.date.fromisoformat(data["last_tick_date"])
-        
+
+        planned_planting_date = None
+        if data.get("planned_planting_date"):
+            planned_planting_date = datetime.datetime.fromisoformat(
+                data["planned_planting_date"]
+            )
+
         return FieldStateSnapshot(
             field_id=data["field_id"],
             last_tick_date=last_tick_date,
@@ -85,7 +96,8 @@ class StateManager:
             planting_ops=data.get("planting_operations", []),
             protection_ops=data.get("protection_operations", []),
             irrigation_state=data.get("irrigation_state"),
-            crop_cycle_state=data.get("crop_cycle_state")
+            crop_cycle_state=data.get("crop_cycle_state"),
+            planned_planting_date=planned_planting_date
         )
     
     def get_all_field_ids(self) -> list[int]:
