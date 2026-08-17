@@ -90,24 +90,6 @@ class CalendarDrivenRunner:
         if isinstance(date, datetime.date) and not isinstance(date, datetime.datetime):
             date = datetime.datetime.combine(date, datetime.time())
 
-        # State transition: RUNNING -> COMPLETED on first completed harvest
-        if self._crop_cycle_state == CropCycleState.RUNNING:
-            if self._is_phase_completed(FieldOperationPhases.HARVESTING):
-                harvest_completed_event = create_harvest_completed(
-                    field_id=str(self.context.field_id),
-                    date=date,
-                    yield_estimate=None
-                )
-                self.event_bus.publish(harvest_completed_event)
-                self._crop_cycle_state = CropCycleState.COMPLETED
-                if self.irrigation_service or self.protection_plan_service:
-                    self._reset_services()
-                logger.debug(
-                    "Harvest completed",
-                    field_id=self.context.field_id,
-                    date=date
-                )
-
         if self._should_initialize_services():
             self._initialize_services(date)
 
@@ -189,6 +171,34 @@ class CalendarDrivenRunner:
                 )
             )
         
+        # State transition: RUNNING -> COMPLETED after last harvest op (Issue #69).
+        # Die Prüfung erfolgt NACH der Op-Ausführung, damit HarvestCompleted
+        # im selben Tick emittiert wird wie die letzte Harvest-Operation
+        # (date=X, nicht X+1). Vor P2-5 A stand die Prüfung am Tick-Anfang
+        # und erkannte den Abschluss erst im Folgetick.
+        #
+        # update_phase_status() aktualisiert phase.status auf COMPLETED,
+        # sobald alle Ops der aktiven Phase ein actual_date haben. Da die
+        # letzte Op in diesem Tick gerade erst ausgeführt wurde, ist der
+        # Status noch IN_PROGRESS – der Refresh ist zwingend erforderlich.
+        if self._crop_cycle_state == CropCycleState.RUNNING:
+            self.planting_plan_service.update_phase_status(date)
+            if self._is_phase_completed(FieldOperationPhases.HARVESTING):
+                harvest_completed_event = create_harvest_completed(
+                    field_id=str(self.context.field_id),
+                    date=date,
+                    yield_estimate=None
+                )
+                self.event_bus.publish(harvest_completed_event)
+                self._crop_cycle_state = CropCycleState.COMPLETED
+                if self.irrigation_service or self.protection_plan_service:
+                    self._reset_services()
+                logger.debug(
+                    "Harvest completed",
+                    field_id=self.context.field_id,
+                    date=date
+                )
+
         # Emit DailyTickCompleted event
         self.event_bus.publish(
             create_daily_tick_completed(
