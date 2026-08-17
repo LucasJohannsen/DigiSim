@@ -1,0 +1,28 @@
+{
+  "crop": "Potato",
+  "version": "1.0",
+  "source_rulewerk": "documentation/fachregeln/kartoffel_regeln.json",
+  "description": "Guard-Regeln fuer den DecisionManager (MS5 P2-4, Issue #68). Sicherheitsnetz fuer B5 (KAR-020/024) und B6 (KAR-005). Jede Guard-Regel referenziert eine rule_id aus kartoffel_regeln.json (Rueckverfolgbarkeit).",
+  "guards": [
+    {
+      "rule_id": "KAR-024",
+      "check_type": "no_siccation_after_harvest",
+      "description": "keine Sikkation nach Roden",
+      "worktype": 14,
+      "application_category": 26
+    },
+    {
+      "rule_id": "KAR-020",
+      "check_type": "min_gap_before_harvest_op",
+      "description": "Sikkation → Roden: mindestens 14 Tage Wartezeit",
+      "to_worktype": 27,
+      "min_days": 14
+    },
+    {
+      "rule_id": "KAR-005",
+      "check_type": "no_worktype_after_harvest",
+      "description": "keine Bestandesmaßnahme nach Roden",
+      "worktypes": [13, 14, 15, 23, 29]
+    }
+  ]
+}
