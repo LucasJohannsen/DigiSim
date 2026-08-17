@@ -1,6 +1,6 @@
 import datetime
 from enum import Enum
-from typing import List, Optional
+from typing import Callable, List, Optional
 
 from models.sim_context import SimContext
 from models.planting_plan import FieldOperationEvent, FieldOperationPhases, FieldOperationStatus
@@ -21,6 +21,12 @@ from models.domain_events import (
     create_operation_applied
 )
 
+# Type alias für die optionale Moisture-Service-Factory (P2-5 C, Issue #71).
+# Erlaubt Tests, einen synthetischen Moisture-Service zu injizieren, ohne
+# den Runner-Constructor von einer Service-Instanz abhängig zu machen
+# (Event-Driven-Core: Factory wird erst in _initialize_services aufgerufen).
+MoistureServiceFactory = Callable[[], MoistureDataService]
+
 logger = get_logger("calendar_driven_runner")
 
 
@@ -36,7 +42,8 @@ class CalendarDrivenRunner:
         self,
         context: SimContext,
         event_bus: Optional[DomainEventBus] = None,
-        skip_scheduling_event: bool = False
+        skip_scheduling_event: bool = False,
+        moisture_service_factory: Optional[MoistureServiceFactory] = None
     ) -> None:
         self.context = context
         self.event_logger = EventLogger()
@@ -49,17 +56,22 @@ class CalendarDrivenRunner:
             event_bus=self.event_bus,
             rule_guard=rule_guard,
         )
-        
+
         self.planting_plan_service = PlantingPlanService(
             context=self.context,
             start_date=self.context.start_date,
             event_bus=self.event_bus,
             skip_scheduling_event=skip_scheduling_event
         )
-        
+
         self.protection_plan_service: ProtectionPlanService = None
         self.irrigation_service: IrrigationSimulator = None
         self._crop_cycle_state = CropCycleState.SCHEDULED
+        # P2-5 C (Issue #71): Optionale Factory für den Moisture-Service.
+        # Falls gesetzt, wird sie in _initialize_services() statt der
+        # Hart-Instanziierung von MoistureDataService verwendet. Ohne
+        # Factory verhält sich der Runner unverändert (Abwärtskompatibilität).
+        self._moisture_service_factory = moisture_service_factory
 
     def tick(self, date: datetime.date) -> List[FieldOperationEvent]:
         """
@@ -319,7 +331,13 @@ class CalendarDrivenRunner:
         # Extract year from current simulation date
         simulation_year = current_date.year if isinstance(current_date, datetime.datetime) else current_date.year
 
-        ms = MoistureDataService(context=self.context, min_moisture_level=200)
+        # P2-5 C (Issue #71): Nutze die injizierte Factory, falls gesetzt
+        # (z. B. DryMoistureDataService-Stub in der Plausibilitätssuite);
+        # sonst Hart-Instanziierung wie bisher (Abwärtskompatibilität).
+        if self._moisture_service_factory is not None:
+            ms = self._moisture_service_factory()
+        else:
+            ms = MoistureDataService(context=self.context, min_moisture_level=200)
         self.irrigation_service = IrrigationSimulator(
             context=self.context,
             moisture_data=ms.get_moisture_data(year=simulation_year, depth_range='0-10')

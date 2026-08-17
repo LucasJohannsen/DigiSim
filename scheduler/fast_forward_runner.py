@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from models.sim_context import SimContext
 from models.planting_plan import FieldOperationEvent
-from scheduler.calendar_driven_runner import CalendarDrivenRunner
+from scheduler.calendar_driven_runner import CalendarDrivenRunner, MoistureServiceFactory
 from events.domain_event_bus import DomainEventBus
 from utils.event_logger import EventLogger
 from utils.logger import get_logger
@@ -41,11 +41,12 @@ class FastForwardRunner:
         output_target: str = "json",
         output_path: Optional[str] = None,
         event_bus: Optional[DomainEventBus] = None,
-        flush_interval: int = 30
+        flush_interval: int = 30,
+        moisture_service_factory: Optional[MoistureServiceFactory] = None
     ) -> None:
         """
         Initialize fast-forward runner.
-        
+
         Args:
             context: Simulation context with field configuration
             n_days: Number of days to simulate
@@ -53,6 +54,11 @@ class FastForwardRunner:
             output_path: Optional custom output path for JSON export
             event_bus: Optional event bus for domain events
             flush_interval: Flush events to disk every N days (memory management)
+            moisture_service_factory: Optional factory for the moisture service
+                (P2-5 C, Issue #71). Falls gesetzt, wird sie an den
+                ``CalendarDrivenRunner`` durchgereicht und dort statt der
+                Hart-Instanziierung verwendet. Ohne Factory verhält sich der
+                Runner unverändert (Abwärtskompatibilität).
         """
         self.context = context
         self.n_days = n_days
@@ -60,10 +66,11 @@ class FastForwardRunner:
         self.output_path = output_path
         self.event_bus = event_bus if event_bus is not None else DomainEventBus()
         self.flush_interval = flush_interval
-        
+
         self.calendar_runner = CalendarDrivenRunner(
             context=self.context,
-            event_bus=self.event_bus
+            event_bus=self.event_bus,
+            moisture_service_factory=moisture_service_factory
         )
         
         self.all_events: List[FieldOperationEvent] = []
