@@ -4,9 +4,17 @@ Tests for DecisionManager priority logic with irrigation (Issue #40)
 Verifies that WorkTypePriorityStrategy correctly handles irrigation candidates
 and that priority rules are fully encapsulated in the strategy class.
 """
+import datetime
+
 import pytest
+from events.domain_event_bus import DomainEventBus
 from models.planting_plan import FieldOperationEvent
-from scheduler.decision_manager import DecisionManager, WorkTypePriorityStrategy
+from scheduler.decision_manager import (
+    CycleContext,
+    DecisionManager,
+    RuleGuard,
+    WorkTypePriorityStrategy,
+)
 from models.worktypes import WorkType, LOW_PRIORITY_WORKTYPES
 
 
@@ -303,3 +311,178 @@ class TestEdgeCases:
         assert len(result) == 1
         assert unknown_op in result
         assert irrigation_op not in result
+
+
+# ---------------------------------------------------------------------------
+# Guard-Integration (MS5 P2-4, Issue #68)
+# ---------------------------------------------------------------------------
+
+
+class _MockGuardOp:
+    """Mock-Operation mit worktype und application_category für Guard-Tests."""
+
+    def __init__(
+        self,
+        worktype: int,
+        application_category: int | None = None,
+        name: str = "GuardMockOp",
+    ) -> None:
+        self.worktype = worktype
+        self.application_category = application_category
+        self.worktype_text = name
+        self.operation = name
+
+
+def _cycle_ctx(
+    harvest_completed: bool = False,
+    last_siccation_date: datetime.datetime | None = None,
+) -> CycleContext:
+    return CycleContext(
+        planting_date=None,
+        harvest_date=None,
+        harvest_completed=harvest_completed,
+        last_siccation_date=last_siccation_date,
+        siccation_count_this_cycle=0,
+        last_harvest_op_date=None,
+    )
+
+
+class TestDecisionManagerGuardIntegration:
+    """DecisionManager mit RuleGuard + CycleContext (P2-4, Issue #68)."""
+
+    @pytest.fixture
+    def guard(self) -> RuleGuard:
+        from scheduler.guard_rule_loader import GuardRuleLoader
+        return GuardRuleLoader.load_default()
+
+    @pytest.fixture
+    def guarded_manager(self, guard: RuleGuard) -> DecisionManager:
+        bus = DomainEventBus()
+        return DecisionManager(
+            strategy=WorkTypePriorityStrategy(),
+            event_bus=bus,
+            rule_guard=guard,
+        )
+
+    def test_cycle_context_none_no_regression(self, guarded_manager):
+        """cycle_context=None → decide() verhält sich wie bisher (AK 1)."""
+        planting_op = create_mock_operation(WorkType.PFLANZEN, "Planting")
+        irrigation_op = create_mock_operation(WorkType.BEREGNEN, "Irrigation")
+
+        result = guarded_manager.decide(
+            [planting_op, irrigation_op],
+            field_id="990001",
+            date=datetime.datetime(2027, 5, 1),
+            cycle_context=None,
+        )
+
+        assert len(result) == 1
+        assert planting_op in result
+        assert irrigation_op not in result
+
+    def test_guard_rejects_worktype_after_harvest(self, guarded_manager):
+        """harvest_completed=True → wt=15 wird vom Guard abgelehnt (AK 2)."""
+        op = _MockGuardOp(worktype=15)
+        ctx = _cycle_ctx(harvest_completed=True)
+
+        result = guarded_manager.decide(
+            [op],
+            field_id="990001",
+            date=datetime.datetime(2027, 9, 1),
+            cycle_context=ctx,
+        )
+
+        assert result == [] or result is None
+        # OperationRejected-Event mit KAR-005 in reason
+        rejected = [
+            e for e in guarded_manager.event_bus.get_history()
+            if e.event_type == "OperationRejected"
+        ]
+        assert len(rejected) == 1
+        assert "KAR-005" in rejected[0].payload["reason"]
+
+    def test_guard_rejects_roden_within_14_days(self, guarded_manager):
+        """last_siccation + <14 d → wt=27 wird abgelehnt (AK 3)."""
+        op = _MockGuardOp(worktype=27)
+        ctx = _cycle_ctx(
+            harvest_completed=False,
+            last_siccation_date=datetime.datetime(2027, 8, 5),
+        )
+
+        result = guarded_manager.decide(
+            [op],
+            field_id="990001",
+            date=datetime.datetime(2027, 8, 10),
+            cycle_context=ctx,
+        )
+
+        assert result == [] or result is None
+        rejected = [
+            e for e in guarded_manager.event_bus.get_history()
+            if e.event_type == "OperationRejected"
+        ]
+        assert len(rejected) == 1
+        assert "KAR-020" in rejected[0].payload["reason"]
+
+    def test_guard_rejects_sikkation_after_harvest(self, guarded_manager):
+        """harvest_completed=True, wt=14 Kat.26 → KAR-024 (AK 4)."""
+        op = _MockGuardOp(worktype=14, application_category=26)
+        ctx = _cycle_ctx(harvest_completed=True)
+
+        result = guarded_manager.decide(
+            [op],
+            field_id="990001",
+            date=datetime.datetime(2027, 9, 1),
+            cycle_context=ctx,
+        )
+
+        assert result == [] or result is None
+        rejected = [
+            e for e in guarded_manager.event_bus.get_history()
+            if e.event_type == "OperationRejected"
+        ]
+        assert len(rejected) == 1
+        # KAR-024 prüft Kat.26; KAR-005 prüft wt=14 → KAR-005 greift zuerst
+        # (Reihenfolge KAR-005 < KAR-024). Beide sind gültig.
+        assert "KAR-" in rejected[0].payload["reason"]
+
+    def test_guard_passes_valid_operation(self, guarded_manager):
+        """harvest_completed=False, wt=26 (Legen) → wird durchgelassen."""
+        op = _MockGuardOp(worktype=26)
+        ctx = _cycle_ctx(harvest_completed=False)
+
+        result = guarded_manager.decide(
+            [op],
+            field_id="990001",
+            date=datetime.datetime(2027, 5, 1),
+            cycle_context=ctx,
+        )
+
+        assert result is not None
+        assert len(result) == 1
+        approved = [
+            e for e in guarded_manager.event_bus.get_history()
+            if e.event_type == "OperationApproved"
+        ]
+        assert len(approved) == 1
+
+    def test_no_rule_guard_no_filtering(self):
+        """DecisionManager ohne rule_guard → keine Guard-Filterung (AK 1)."""
+        bus = DomainEventBus()
+        manager = DecisionManager(
+            strategy=WorkTypePriorityStrategy(),
+            event_bus=bus,
+        )
+        op = _MockGuardOp(worktype=14, application_category=26)
+        ctx = _cycle_ctx(harvest_completed=True)
+
+        result = manager.decide(
+            [op],
+            field_id="990001",
+            date=datetime.datetime(2027, 9, 1),
+            cycle_context=ctx,
+        )
+
+        # Ohne Guard wird wt=14 (low-priority) selektiert (einzige Op)
+        assert result is not None
+        assert len(result) == 1

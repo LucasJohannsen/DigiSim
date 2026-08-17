@@ -345,6 +345,39 @@ class TestDomainEventChecks:
 
 
 # ---------------------------------------------------------------------------
+# Guard-Sicherheitsnetz (MS5 P2-4, Issue #68)
+# ---------------------------------------------------------------------------
+
+
+class TestGuardSafetyNet:
+    """Prüft, dass der Guard im FF-Lauf 0 Kandidaten ablehnt (AK 7).
+
+    Nach P2-1 (Config-Korrektur) und P2-3 (Protection-Plan-Beschneidung)
+    ist die Quelle korrekt – der Guard als Sicherheitsnetz greift nicht
+    und verändert die Baseline nicht. Guard-abgelehnte Operationen
+    würden als ``OperationRejected`` mit Regel-ID (``KAR-xxx:``) in der
+    ``reason`` erscheinen.
+    """
+
+    def test_no_guard_rejections_in_ff_run(self, simulation):
+        """Guard lehnt 0 Kandidaten ab (Quellen-Korrektur greift, AK 7).
+
+        ``OperationRejected``-Events mit ``KAR-``-Präfix in der reason
+        wären Guard-Ablehnungen. Nach P2-1+P2-3 darf es keine geben.
+        """
+        guard_rejections = [
+            e for e in simulation["domain_events"]
+            if e.event_type == "OperationRejected"
+            and "KAR-" in str(e.payload.get("reason", ""))
+        ]
+        assert guard_rejections == [], (
+            f"Guard lehnte {len(guard_rejections)} Kandidaten ab – "
+            "Quellen-Korrektur sollte greifen. Gründe: "
+            + "; ".join(e.payload["reason"] for e in guard_rejections[:5])
+        )
+
+
+# ---------------------------------------------------------------------------
 # Wetter-Regeln: explizite Skip-Dokumentation (KAR-030 … KAR-035)
 # ---------------------------------------------------------------------------
 
