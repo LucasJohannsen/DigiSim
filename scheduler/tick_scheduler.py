@@ -36,8 +36,14 @@ class TickScheduler:
         
         self.runners = {}
         for context in contexts:
-            runner = CalendarDrivenRunner(context)
+            # P2-5 B (Issue #70): Snapshot VOR Runner-Konstruktion laden,
+            # damit skip_scheduling_event beim Restore bekannt ist und kein
+            # zweites CropCycleScheduled + neuer Legetermin gewürfelt wird.
             snapshot = self.state_manager.load(context.field_id)
+            skip_scheduling = snapshot is not None
+            runner = CalendarDrivenRunner(
+                context, skip_scheduling_event=skip_scheduling
+            )
             if snapshot:
                 runner.apply_state_snapshot(snapshot)
                 logger.info("State restored", field_id=context.field_id, last_tick_date=str(snapshot.last_tick_date))

@@ -23,14 +23,15 @@ class PlantingPlanService:
         self,
         context: sim_context.SimContext,
         start_date: datetime,
-        event_bus: Optional[object] = None
+        event_bus: Optional[object] = None,
+        skip_scheduling_event: bool = False
     ):
         self.context = context
         self.start_date = start_date
         self.event_bus = event_bus
-        self.planting_plan = None
 
         self.active_phase = None
+        self.planting_plan = None
         self.planned_planting_date: datetime = None  # Planned date for planting operations
 
         # Intra-Tages-Sequenz-Cursor (Befund B7, Issue #66 / P2-2):
@@ -40,11 +41,18 @@ class PlantingPlanService:
         # Zeitstempel erhalten. Der Cursor wirkt NICHT über Tagesgrenzen.
         self._last_assigned_time: dict[datetime.date, datetime] = {}
 
-        self.initialize_planting_plan()
+        self.initialize_planting_plan(
+            skip_scheduling_event=skip_scheduling_event
+        )
 
-    def initialize_planting_plan(self):
+    def initialize_planting_plan(self, skip_scheduling_event=False):
         """
         Initialize the planting plan by loading it from the PlantingPlanLoader.
+
+        When *skip_scheduling_event* is ``True`` (Restore-Pfad, P2-5 B /
+        Issue #70), wird der Legetermin **nicht** neu gewürfelt und kein
+        ``CropCycleScheduled`` emittiert. Der restaurierte Termin wird
+        nachträglich via :meth:`set_planned_planting_date` gesetzt.
         """
         self.planting_plan = PlantingPlanLoader(
             crop_type=self.context.crop_type,
@@ -55,6 +63,24 @@ class PlantingPlanService:
             print("No planting plan found. Exiting simulation.")
             return
         print(f"Loaded planting plan for crop type: {self.planting_plan.crop_type}, variety: {self.planting_plan.variety}")
+
+        if skip_scheduling_event:
+            # Restore-Pfad: Termin + Timeline werden via
+            # set_planned_planting_date() durch apply_state_snapshot gesetzt.
+            return
+
+        self._schedule_planting_date()
+
+    def _schedule_planting_date(self):
+        """Würfelt den Legetermin, emittiert ``CropCycleScheduled`` und
+        konfiguriert die ``SOIL_PREPARATION``-Timeline.
+
+        Wird beim Fresh-Start aus :meth:`initialize_planting_plan` und beim
+        Bestandsschutz-Restore (alter Snapshot ohne ``planned_planting_date``)
+        aus :meth:`set_planned_planting_date` aufgerufen.
+        """
+        if not self.planting_plan:
+            return
 
         lead_time_days = self._compute_lead_time_days()
 
@@ -80,6 +106,25 @@ class PlantingPlanService:
 
         # Set the planting date for the first phase
         self.configure_planting_timeline(FieldOperationPhases.SOIL_PREPARATION, target_date=self.planned_planting_date)
+
+    def set_planned_planting_date(self, planned_planting_date: datetime | None) -> None:
+        """Setzt den restaurierten Legetermin und re-konfiguriert die
+        ``SOIL_PREPARATION``-Phase (P2-5 B, Issue #70).
+
+        Ist *planned_planting_date* ``None`` (Bestandsschutz: alter Snapshot
+        ohne das Feld), wird der Termin neu gewürfelt und
+        ``CropCycleScheduled`` emittiert.
+        """
+        if planned_planting_date is None:
+            # Abwärtskompatibilität: altes Snapshot ohne planned_planting_date
+            self._schedule_planting_date()
+            return
+
+        self.planned_planting_date = planned_planting_date
+        self.configure_planting_timeline(
+            FieldOperationPhases.SOIL_PREPARATION,
+            target_date=planned_planting_date,
+        )
 
     def _compute_lead_time_days(self) -> int:
         """Maximum lead time of the soil-preparation operations.
