@@ -8,7 +8,7 @@ Beregnungs-Events mehr.
 
 Konzept: Issue #71 (Sub-Issue C von P2-5 Backlog-Sammelkonzept).
 
-Die bestehende ``simulation``-Fixture (29/1613) bleibt unangetastet.
+Die bestehende ``simulation``-Fixture (27/1649 nach P3-2) bleibt unangetastet.
 """
 
 from __future__ import annotations

@@ -1,8 +1,8 @@
 {
   "crop": "Potato",
-  "version": "1.0",
+  "version": "2.0",
   "source_rulewerk": "documentation/fachregeln/kartoffel_regeln.json",
-  "description": "Guard-Regeln fuer den DecisionManager (MS5 P2-4, Issue #68). Sicherheitsnetz fuer B5 (KAR-020/024) und B6 (KAR-005). Jede Guard-Regel referenziert eine rule_id aus kartoffel_regeln.json (Rueckverfolgbarkeit).",
+  "description": "Guard-Regeln fuer den DecisionManager (MS5 P2-4, Issue #68; MS6 P3-2, Issue #80). Sicherheitsnetz fuer B5 (KAR-020/024), B6 (KAR-005) und B8 (KAR-030/031/032/035 Wetter-/Boden-Guards). Jede Guard-Regel referenziert eine rule_id aus kartoffel_regeln.json (Rueckverfolgbarkeit). Wetter-Guards sind deaktiviert, wenn current_weather/weather_forecast None ist (kein WeatherService aktiv).",
   "guards": [
     {
       "rule_id": "KAR-024",
@@ -23,6 +23,39 @@
       "check_type": "no_worktype_after_harvest",
       "description": "keine Bestandesmaßnahme nach Roden",
       "worktypes": [13, 14, 15, 23, 29]
+    },
+    {
+      "rule_id": "KAR-030",
+      "check_type": "weather_condition",
+      "description": "Kein Spritzen bei Regen oder Wind > 5 m/s",
+      "worktype": 14,
+      "max_precipitation_mm_day": 5,
+      "max_wind_ms": 5
+    },
+    {
+      "rule_id": "KAR-035",
+      "check_type": "weather_condition",
+      "description": "Keine Sikkation bei Hitzestress",
+      "worktype": 14,
+      "application_category": 26,
+      "max_temperature_c": 30,
+      "max_precipitation_mm_day": 1
+    },
+    {
+      "rule_id": "KAR-032",
+      "check_type": "soil_condition",
+      "description": "Keine Bodenbearbeitung auf nassem Boden",
+      "worktypes": [5, 6, 7, 26, 28],
+      "max_soil_moisture_pct_nfk": 90,
+      "max_previous_day_precipitation_mm": 10
+    },
+    {
+      "rule_id": "KAR-031",
+      "check_type": "forecast_condition",
+      "description": "Keine Beregnung bei prognostiziertem Niederschlag",
+      "worktype": 15,
+      "forecast_days": 4,
+      "max_cumulative_precipitation_mm": 10
     }
   ]
 }

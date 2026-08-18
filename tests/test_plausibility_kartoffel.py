@@ -67,6 +67,12 @@ def simulation() -> dict[str, Any]:
     Nach P2-3 (Issue #67) werden Protection-Termine am Pflanzdatum verankert
     und am Erntetermin beschnitten (4 Ops verworfen, +1 ProtectionOperationsPruned
     Event); neue Baseline: 29 Integration / 1613 Domain Events.
+    Nach P3-2 (Issue #80) werden Wetter-Guards (KAR-030/031/032/035) aktiv.
+    Der Runner instanziiert seit P3-1 immer einen WeatherService (Synthetic-
+    Fallback), sodass current_weather befüllt ist und die Wetter-Guards
+    greifen: 21 Spritz-/Beregnungs-Operationen werden bei Regen/Wind/
+    Regenprognose abgelehnt. Neue Baseline: 27 Integration / 1649 Domain
+    Events (-2 ausgeführte Ops, +36 Rejection-/Metadaten-Events).
 
     Returns:
         Dict mit ``events`` (Integration Events), ``domain_events``,
@@ -168,23 +174,25 @@ class TestFixtureBaseline:
     """Sichert, dass die Fixture die Referenz-Baseline reproduziert."""
 
     def test_integration_event_count_matches_baseline(self, simulation):
-        """Baseline: 29 Integration Events (nach P2-3-Fix, Issue #67).
+        """Baseline: 27 Integration Events (nach P3-2, Issue #80).
 
-        Vor P2-3 (P2-2-Fix, Issue #66) waren es 30 Events. P2-3 verankert
-        Protection-Termine am Pflanzdatum und beschneidet 4 post-harvest
-        Operationen. Durch den veränderten Zufallsverbrauch verschiebt sich
-        eine Beregnungs-Entscheidung (-1 Event).
+        Vor P3-2 (P2-3-Fix, Issue #67) waren es 29 Events. P3-2 aktiviert
+        Wetter-Guards (KAR-030/031/032/035): 2 Spritz-Operationen bei
+        Regen/Wind werden vom Guard abgelehnt und nicht ausgeführt → -2
+        Integration Events.
         """
-        assert len(simulation["events"]) == 29
+        assert len(simulation["events"]) == 27
 
     def test_domain_event_count_matches_baseline(self, simulation):
-        """Baseline: 1613 Domain Events (nach P2-3-Fix, Issue #67).
+        """Baseline: 1649 Domain Events (nach P3-2, Issue #80).
 
-        Vor P2-3 (P2-2-Fix, Issue #66) waren es 1615 Domain Events. P2-3 fügt
-        +1 ProtectionOperationsPruned hinzu, aber die verschobene
-        Beregnungs-Entscheidung entfernt -3 Domain Events. Netto: -2.
+        Vor P3-2 (P2-3-Fix, Issue #67) waren es 1613 Domain Events. P3-2
+        aktiviert Wetter-Guards: 21 Operationen werden als OperationRejected
+        (mit KAR-Regel-ID) emittiert statt als OperationApproved. Die 2
+        nicht ausgeführten Ops erzeugen keine Downstream-Events. Netto:
+        +36 Domain Events.
         """
-        assert len(simulation["domain_events"]) == 1613
+        assert len(simulation["domain_events"]) == 1649
 
     def test_fixture_is_deterministic(self, simulation):
         """Zweite Ausführung mit gleichem Seed liefert gleiche Event-Anzahl."""
@@ -375,30 +383,46 @@ class TestDomainEventChecks:
 
 
 class TestGuardSafetyNet:
-    """Prüft, dass der Guard im FF-Lauf 0 Kandidaten ablehnt (AK 7).
+    """Prüft, dass der Guard im FF-Lauf Wetter-Verstöße ablehnt (P3-2).
 
-    Nach P2-1 (Config-Korrektur) und P2-3 (Protection-Plan-Beschneidung)
-    ist die Quelle korrekt – der Guard als Sicherheitsnetz greift nicht
-    und verändert die Baseline nicht. Guard-abgelehnte Operationen
-    würden als ``OperationRejected`` mit Regel-ID (``KAR-xxx:``) in der
-    ``reason`` erscheinen.
+    Vor P3-2 (P2-4) lehnte der Guard 0 Kandidaten ab – die Quelle war
+    korrigiert und der Guard war reines Sicherheitsnetz. Seit P3-2
+    (Issue #80) sind Wetter-Guards (KAR-030/031/032/035) aktiv: Der
+    Runner instanziiert seit P3-1 immer einen WeatherService (Synthetic-
+    Fallback), sodass current_weather befüllt ist. Spritz-Operationen bei
+    Regen/Wind und Beregnung bei Regenprognose werden nun vom Guard
+    abgelehnt – dies ist das gewünschte fachliche Verhalten (Befund B8).
+
+    Guard-abgelehnte Operationen erscheinen als ``OperationRejected`` mit
+    ``KAR-``-Präfix in der ``reason``.
     """
 
-    def test_no_guard_rejections_in_ff_run(self, simulation):
-        """Guard lehnt 0 Kandidaten ab (Quellen-Korrektur greift, AK 7).
+    def test_guard_rejects_weather_violations(self, simulation):
+        """Guard lehnt Wetter-Verstöße ab (KAR-030/031, Befund B8).
 
-        ``OperationRejected``-Events mit ``KAR-``-Präfix in der reason
-        wären Guard-Ablehnungen. Nach P2-1+P2-3 darf es keine geben.
+        Erwartet 21 Guard-Rejections (10× KAR-030 Spritzen bei Regen/Wind,
+        11× KAR-031 Beregnung bei Regenprognose). Dies bestätigt, dass die
+        Wetter-Guards fachlich greifen.
         """
         guard_rejections = [
             e for e in simulation["domain_events"]
             if e.event_type == "OperationRejected"
             and "KAR-" in str(e.payload.get("reason", ""))
         ]
-        assert guard_rejections == [], (
-            f"Guard lehnte {len(guard_rejections)} Kandidaten ab – "
-            "Quellen-Korrektur sollte greifen. Gründe: "
-            + "; ".join(e.payload["reason"] for e in guard_rejections[:5])
+        assert len(guard_rejections) == 21, (
+            f"Erwartet 21 Guard-Rejections (Wetter-Guards), got "
+            f"{len(guard_rejections)}. Gründe: "
+            + "; ".join(
+                e.payload["reason"] for e in guard_rejections[:5]
+            )
+        )
+        # Alle Rejections müssen von Wetter-Guards stammen (KAR-030/031)
+        rule_ids = {
+            e.payload["reason"].split(":")[0]
+            for e in guard_rejections
+        }
+        assert rule_ids <= {"KAR-030", "KAR-031", "KAR-032", "KAR-035"}, (
+            f"Unerwartete Guard-Regel-IDs: {rule_ids}"
         )
 
 
