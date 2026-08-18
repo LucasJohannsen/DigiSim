@@ -77,12 +77,21 @@ class FieldOperation:
     actual_date: datetime = None  # Actual date when the operation was performed
     status = FieldOperationStatus.NOT_STARTED  # Status of the operation
 
-    application_type: str = None  
-    category: str = None  
+    application_type: str = None
+    category: str = None
     application_name: str = None
-    application_category: str = None  
+    application_category: str = None
     application_amount: float = 0
     application_unit: str = None
+
+    # P3-4 (Issue #82): Fälligkeitskonzept für terminkritische Operationen.
+    # due_date = planned_date + due_window_days (wird im ProtectionPlanService
+    # berechnet). is_critical markiert terminkritische Maßnahmen (z. B.
+    # Fungizide), die bei Überschreitung des Fälligkeitsfensters auch bei
+    # High-Prio-Konkurrenz ausgeführt werden.
+    due_date: datetime = None
+    due_window_days: int = 7
+    is_critical: bool = False
 
 @dataclass
 class FieldOperationCycle:
@@ -122,11 +131,14 @@ class ApplicationCategory:
 
 @dataclass
 class Protection:
-    
+
     day: int = 0
     type: int = 0
     name: str = None
     amount: str = None
+    # P3-4 (Issue #82): Fälligkeits-Metadaten aus der Konfiguration.
+    is_critical: bool = False
+    due_window_days: int = 7
 
 @dataclass
 class ProtectionPlan:

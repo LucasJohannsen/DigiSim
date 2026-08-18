@@ -79,6 +79,11 @@ def simulation() -> dict[str, Any]:
     werden weniger Beregnungs-Kandidaten erzeugt (2 statt 3 ausgeführte
     Beregnungen, -6 KAR-031 Guard-Rejections). Neue Baseline: 26 Integration
     / 1634 Domain Events (-1 ausgeführte Op, -15 Domain Events).
+    Nach P3-4 (Issue #82) aktiviert DeadlineAwarePriorityStrategy:
+    überfällige kritische Fungizid-Spritzungen werden bei High-Prio-
+    Konkurrenz ausgeführt statt unterdrückt → +2 ausgeführte Spritz-
+    Operationen, +2 KAR-030 Guard-Rejections (17 statt 15). Neue
+    Baseline: 26 Integration / 1646 Domain Events (+12 Domain Events).
 
     Returns:
         Dict mit ``events`` (Integration Events), ``domain_events``,
@@ -177,24 +182,26 @@ class TestFixtureBaseline:
     """Sichert, dass die Fixture die Referenz-Baseline reproduziert."""
 
     def test_integration_event_count_matches_baseline(self, simulation):
-        """Baseline: 26 Integration Events (nach P3-3, Issue #81).
+        """Baseline: 26 Integration Events (nach P3-4, Issue #82).
 
-        Vor P3-3 (P3-2, Issue #80) waren es 27 Events. P3-3 stellt die
-        Beregnungsmengen auf feste Zielgabe 20-30 mm mit Post-Irrigation-Block
-        (10 Tage) und saisonalem Limit (170 mm) um. Dadurch werden weniger
-        Beregnungs-Kandidaten erzeugt und ausgeführt (2 statt 3 Beregnungen)
-        → -1 Integration Event.
+        Vor P3-4 (P3-3, Issue #81) waren es 26 Events. P3-4 aktiviert
+        DeadlineAwarePriorityStrategy: überfällige kritische Fungizide
+        werden bei High-Prio-Konkurrenz ausgeführt. Die zusätzlichen
+        Spritz-Kandidaten werden teils vom Wetter-Guard abgelehnt (KAR-030),
+        teils ausgeführt → netto 0 Änderung bei Integration Events.
         """
         assert len(simulation["events"]) == 26
 
     def test_domain_event_count_matches_baseline(self, simulation):
-        """Baseline: 1634 Domain Events (nach P3-3, Issue #81).
+        """Baseline: 1646 Domain Events (nach P3-4, Issue #82).
 
-        Vor P3-3 (P3-2, Issue #80) waren es 1649 Domain Events. P3-3 reduziert
-        die Beregnungs-Kandidaten (Post-Block + saisonales Limit): -1 ausgeführte
-        Beregnung und -6 KAR-031 Guard-Rejections → netto -15 Domain Events.
+        Vor P3-4 (P3-3, Issue #81) waren es 1634 Domain Events. P3-4
+        aktiviert DeadlineAwarePriorityStrategy: überfällige kritische
+        Fungizid-Spritzungen werden bei High-Prio-Konkurrenz ausgeführt
+        statt unterdrückt → +2 ausgeführte Spritz-Operationen, +2 KAR-030
+        Guard-Rejections (17 statt 15) → netto +12 Domain Events.
         """
-        assert len(simulation["domain_events"]) == 1634
+        assert len(simulation["domain_events"]) == 1646
 
     def test_fixture_is_deterministic(self, simulation):
         """Zweite Ausführung mit gleichem Seed liefert gleiche Event-Anzahl."""
@@ -405,20 +412,21 @@ class TestGuardSafetyNet:
     def test_guard_rejects_weather_violations(self, simulation):
         """Guard lehnt Wetter-Verstöße ab (KAR-030/031, Befund B8).
 
-        Erwartet 15 Guard-Rejections (10× KAR-030 Spritzen bei Regen/Wind,
-        5× KAR-031 Beregnung bei Regenprognose). Vor P3-3 (Issue #81) waren
-        es 21 Rejections (10× KAR-030 + 11× KAR-031). P3-3 reduziert die
-        Beregnungs-Kandidaten durch Post-Irrigation-Block (10 Tage) und
-        saisonales Limit (170 mm), sodass 6 weniger KAR-031-Rejections
-        auftreten. Dies bestätigt, dass die Wetter-Guards fachlich greifen.
+        Erwartet 17 Guard-Rejections (12× KAR-030 Spritzen bei Regen/Wind,
+        5× KAR-031 Beregnung bei Regenprognose). Vor P3-4 (Issue #82) waren
+        es 15 Rejections (10× KAR-030 + 5× KAR-031). P3-4 aktiviert
+        DeadlineAwarePriorityStrategy: überfällige kritische Fungizide
+        werden bei High-Prio-Konkurrenz ausgeführt → +2 KAR-030-Rejections
+        (mehr Spritz-Kandidaten, die bei Regen/Wind vom Guard abgelehnt
+        werden). Dies bestätigt, dass die Wetter-Guards fachlich greifen.
         """
         guard_rejections = [
             e for e in simulation["domain_events"]
             if e.event_type == "OperationRejected"
             and "KAR-" in str(e.payload.get("reason", ""))
         ]
-        assert len(guard_rejections) == 15, (
-            f"Erwartet 15 Guard-Rejections (Wetter-Guards), got "
+        assert len(guard_rejections) == 17, (
+            f"Erwartet 17 Guard-Rejections (Wetter-Guards), got "
             f"{len(guard_rejections)}. Gründe: "
             + "; ".join(
                 e.payload["reason"] for e in guard_rejections[:5]
