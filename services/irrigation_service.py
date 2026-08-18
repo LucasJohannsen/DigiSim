@@ -1,7 +1,9 @@
-import numpy as np
+import logging
 import datetime
 import json
 import os
+
+import numpy as np
 
 from typing import List
 
@@ -9,8 +11,12 @@ from models.planting_plan import FieldOperationEvent
 from utils import sim_helper
 from models.sim_context import SimContext
 
+__all__ = ["IrrigationSimulator"]
+
 MIN_MOISTURE_LEVEL = 50  # fallback if not in context
 EXPORT_BASE_DIR = os.path.join(os.path.dirname(__file__), '../export')
+
+logger = logging.getLogger(__name__)
 
 
 class IrrigationSimulator:
@@ -21,9 +27,22 @@ class IrrigationSimulator:
     - get_candidate_operations(): Generates candidate operations without side-effects
     - apply_irrigation(): Applies side-effects (moisture updates) after decision confirmation
     - trigger_irrigation(): Legacy method combining both (for backward compatibility)
+
+    P3-3 (Issue #81): Feste Zielgabe (20-30 mm) statt Defizit-basiert,
+    Post-Irrigation-Block (10 Tage) und saisonales Limit (170 mm).
     """
 
-    def __init__(self, context: SimContext, moisture_data: dict):
+    def __init__(
+        self,
+        context: SimContext,
+        moisture_data: dict,
+        target_application_mm: float = 25.0,
+        target_tolerance_pct: float = 0.2,
+        min_application_mm: float = 10.0,
+        max_application_mm: float = 40.0,
+        seasonal_max_mm: float = 170.0,
+        post_irrigation_block_days: int = 10,
+    ):
         self.context = context
         self.moisture_data = moisture_data
         self.min_moisture_level = getattr(context, 'min_moisture_level', MIN_MOISTURE_LEVEL)
@@ -32,6 +51,15 @@ class IrrigationSimulator:
         self.irrigation = np.zeros_like(self.moisture)
         # Track updated moisture after irrigation
         self.updated_moisture = self.moisture.copy()
+        # P3-3 (Issue #81): Beregnungsmengen-Parameter
+        self.target_application_mm = target_application_mm
+        self.target_tolerance_pct = target_tolerance_pct
+        self.min_application_mm = min_application_mm
+        self.max_application_mm = max_application_mm
+        self.seasonal_max_mm = seasonal_max_mm
+        self.post_irrigation_block_days = post_irrigation_block_days
+        self.seasonal_sum_mm: float = 0.0
+        self._last_irrigation_date: datetime.date | None = None
 
     def get_status_for_day(self, date: datetime.date) -> dict:
         """
@@ -134,31 +162,59 @@ class IrrigationSimulator:
         applied separately via apply_irrigation() after the DecisionManager confirms
         the operation.
 
+        P3-3 (Issue #81): Feste Zielgabe (20-30 mm) statt Defizit-basiert.
+        Post-Irrigation-Block (10 Tage) und saisonales Limit (170 mm) verhindern
+        zu häufige / zu hohe Beregnung.
+
         Args:
             date: Simulation date to evaluate
 
         Returns:
             List of FieldOperationEvent candidates (empty if no irrigation needed)
-
-        Note:
-            This is part of the unified decision pipeline (Issue #38).
-            Does NOT modify self.irrigation or self.updated_moisture arrays.
         """
+        # 1. Saisonsummen-Limit: keine weiteren Beregnungen, wenn Obergrenze erreicht
+        if self.seasonal_sum_mm >= self.seasonal_max_mm:
+            return []
+
+        # 2. Post-Irrigation-Block: 10 Tage nach letzter Beregnung keine neue
+        if self._last_irrigation_date is not None:
+            block_until = self._last_irrigation_date + datetime.timedelta(
+                days=self.post_irrigation_block_days
+            )
+            if date < block_until:
+                return []
+
         try:
             status = self.get_status_for_day(date)
         except IndexError:
             return []
 
-        MIN_IRRIGATION_NEEDED = 5  # in % nFK
-
         if not status["needs_irrigation"]:
             return []
 
-        if status["irrigation_needed"] < MIN_IRRIGATION_NEEDED:
-            return []
+        # NEUE LOGIK (P3-3): Feste Zielgabe statt Defizit-basiert
+        base_amount = self.target_application_mm
+        random_factor = np.random.uniform(
+            1.0 - self.target_tolerance_pct,
+            1.0 + self.target_tolerance_pct,
+        )
+        irrigation_amount = base_amount * random_factor
 
-        # Calculate irrigation amount with randomization
-        irrigation_amount = status["irrigation_needed"] * np.random.uniform(0.8, 1.2)
+        # Begrenzung auf KAR-040-Grenzen (Clamping)
+        irrigation_amount = max(self.min_application_mm, irrigation_amount)
+        irrigation_amount = min(self.max_application_mm, irrigation_amount)
+
+        # Saisonsummen-Begrenzung: nicht über 170 mm kippen
+        remaining_budget = self.seasonal_max_mm - self.seasonal_sum_mm
+        if irrigation_amount > remaining_budget:
+            if remaining_budget >= self.min_application_mm:
+                irrigation_amount = remaining_budget
+            else:
+                return []  # Budget erschöpft
+
+        # Schwellwertprüfung NACH der Randomisierung (redundante Sicherheitsprüfung)
+        if irrigation_amount < self.min_application_mm:
+            return []
 
         # Create candidate event (no side-effects yet)
         event = self._create_irrigation_event(date, irrigation_amount)
@@ -195,6 +251,17 @@ class IrrigationSimulator:
         for d in range(day + 1, len(self.updated_moisture)):
             self.updated_moisture[d] = max(self.updated_moisture[d], self.updated_moisture[d-1])
 
+        # P3-3 (Issue #81): Saisonale Summe und Post-Irrigation-Block tracken
+        self.seasonal_sum_mm += irrigation_amount
+        self._last_irrigation_date = date
+
+        if self.seasonal_sum_mm >= self.seasonal_max_mm:
+            logger.info(
+                "Saisonale Beregnungssumme %s mm erreicht Obergrenze %s mm – "
+                "keine weiteren Beregnungen",
+                self.seasonal_sum_mm, self.seasonal_max_mm,
+            )
+
     def trigger_irrigation(self, date: datetime.date, irrigation_amount: float = None) -> FieldOperationEvent:
         """
         Trigger irrigation for the given date and return the event.
@@ -202,9 +269,13 @@ class IrrigationSimulator:
         Legacy method that combines candidate generation and side-effect application.
         Kept for backward compatibility with existing code.
 
+        P3-3 (Issue #81): Verwendet dieselbe Mengenlogik wie get_candidate_operations()
+        (feste Zielgabe, Post-Block, saisonales Limit), statt die Logik zu duplizieren.
+
         Args:
             date: Simulation date of the irrigation operation
-            irrigation_amount: Amount of irrigation in mm (if None, calculated from status)
+            irrigation_amount: Amount of irrigation in mm (if None, calculated via
+                get_candidate_operations)
 
         Returns:
             FieldOperationEvent or None if irrigation not needed
@@ -213,24 +284,17 @@ class IrrigationSimulator:
             For new code, prefer using get_candidate_operations() + apply_irrigation().
         """
         if irrigation_amount is None:
-            # Calculate how much irrigation is needed
-            try:
-                status = self.get_status_for_day(date)
-            except IndexError:
+            # Use the unified candidate logic (P3-3: feste Zielgabe, Block, Limit)
+            candidates = self.get_candidate_operations(date)
+            if not candidates:
                 return None
+            event = candidates[0]
+            self.apply_irrigation(date=date, irrigation_amount=event.application_amount)
+            return event
 
-            MIN_IRRIGATION_NEEDED = 5
-            if not status["needs_irrigation"] or status["irrigation_needed"] < MIN_IRRIGATION_NEEDED:
-                return None
-
-            irrigation_amount = status["irrigation_needed"] * np.random.uniform(0.8, 1.2)
-
-        # Create event
+        # Explicit amount: create event and apply side-effects directly
         event = self._create_irrigation_event(date, irrigation_amount)
-
-        # Apply side-effects
-        self.apply_irrigation(date, irrigation_amount)
-
+        self.apply_irrigation(date=date, irrigation_amount=irrigation_amount)
         return event
 
     def export_moisture_data(self):
@@ -268,16 +332,26 @@ class IrrigationSimulator:
         """
         Return the current state of the irrigation simulator for persistence.
         Converts numpy arrays to lists for JSON serialization.
+
+        P3-3 (Issue #81): inkl. seasonal_sum_mm und _last_irrigation_date.
         """
         return {
             "irrigation": self.irrigation.tolist(),
-            "updated_moisture": self.updated_moisture.tolist()
+            "updated_moisture": self.updated_moisture.tolist(),
+            "seasonal_sum_mm": self.seasonal_sum_mm,
+            "last_irrigation_date": (
+                self._last_irrigation_date.isoformat()
+                if self._last_irrigation_date is not None
+                else None
+            ),
         }
     
     def apply_state(self, state: dict) -> None:
         """
         Restore the irrigation simulator state from a saved snapshot.
         Converts lists back to numpy arrays.
+
+        P3-3 (Issue #81): inkl. seasonal_sum_mm und _last_irrigation_date.
         """
         if state:
             self.irrigation = np.array(state.get("irrigation", []), dtype=float)
@@ -288,3 +362,11 @@ class IrrigationSimulator:
                 self.irrigation = np.zeros_like(self.moisture)
             if len(self.updated_moisture) != len(self.moisture):
                 self.updated_moisture = self.moisture.copy()
+
+            # P3-3: Restore seasonal sum and last irrigation date
+            self.seasonal_sum_mm = float(state.get("seasonal_sum_mm", 0.0))
+            last_date_str = state.get("last_irrigation_date")
+            if last_date_str:
+                self._last_irrigation_date = datetime.date.fromisoformat(last_date_str)
+            else:
+                self._last_irrigation_date = None

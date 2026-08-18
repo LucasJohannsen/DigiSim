@@ -353,3 +353,241 @@ class TestDecisionPipelineIntegration:
         # Side-effects should be applied
         assert simulator.irrigation[day] > 0
         assert simulator.updated_moisture[day] > moisture_data_dry["moisture_data"][day]
+
+
+# ---------------------------------------------------------------------------
+# P3-3 (Issue #81): Beregnungsmengen fachlich korrigieren (Befund B3)
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def moisture_data_very_dry():
+    """Moisture data so dry that irrigation is still needed after a 25 mm gift."""
+    dates = [datetime.date(2022, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
+    moisture_values = [10.0] * 365  # Well below threshold of 50
+
+    return {
+        "coords": [52.0, 13.0],
+        "dates": dates,
+        "moisture_data": moisture_values,
+    }
+
+
+class TestTargetApplicationAmount:
+    """P3-3 AK 1-3: Feste Zielgabe 20-30 mm mit Clamping auf [10, 40] mm."""
+
+    def test_typical_application_in_target_range(self, sim_context, moisture_data_dry):
+        """AK 2: Typische Gabe liegt im Bereich [20, 30] mm (KAR-040 soft)."""
+        simulator = IrrigationSimulator(sim_context, moisture_data_dry)
+        np.random.seed(42)
+
+        # Sample multiple candidates across different days
+        amounts = []
+        for offset in range(0, 200, 11):
+            date = datetime.date(2022, 1, 1) + datetime.timedelta(days=offset)
+            candidates = simulator.get_candidate_operations(date)
+            if candidates:
+                amounts.append(candidates[0].application_amount)
+
+        assert amounts, "Expected at least one irrigation candidate"
+        for amt in amounts:
+            assert 20.0 <= amt <= 30.0, (
+                f"Typical application {amt} mm outside target range [20, 30] mm"
+            )
+
+    def test_no_application_below_min(self, sim_context, moisture_data_dry):
+        """AK 3 / AK 1: Keine Gabe < 10 mm (Clamping auf min_application_mm)."""
+        # Use a tiny target so the raw amount would be below min → clamping kicks in
+        simulator = IrrigationSimulator(
+            sim_context,
+            moisture_data_dry,
+            target_application_mm=5.0,
+            target_tolerance_pct=0.0,
+        )
+        np.random.seed(42)
+
+        candidates = simulator.get_candidate_operations(datetime.date(2022, 4, 10))
+        assert len(candidates) == 1
+        assert candidates[0].application_amount >= 10.0, (
+            f"Application {candidates[0].application_amount} mm below min 10 mm"
+        )
+        assert candidates[0].application_amount == 10.0
+
+    def test_no_application_above_max(self, sim_context, moisture_data_dry):
+        """AK 1: Keine Gabe > 40 mm (Clamping auf max_application_mm)."""
+        # Use a huge target so the raw amount would exceed max → clamping kicks in
+        simulator = IrrigationSimulator(
+            sim_context,
+            moisture_data_dry,
+            target_application_mm=50.0,
+            target_tolerance_pct=0.0,
+        )
+        np.random.seed(42)
+
+        candidates = simulator.get_candidate_operations(datetime.date(2022, 4, 10))
+        assert len(candidates) == 1
+        assert candidates[0].application_amount <= 40.0, (
+            f"Application {candidates[0].application_amount} mm above max 40 mm"
+        )
+        assert candidates[0].application_amount == 40.0
+
+    def test_all_applications_within_hard_limits(self, sim_context, moisture_data_dry):
+        """AK 1: Alle Gaben im harten Bereich [10, 40] mm (KAR-040 hart)."""
+        simulator = IrrigationSimulator(sim_context, moisture_data_dry)
+        np.random.seed(123)
+
+        for offset in range(0, 300, 7):
+            date = datetime.date(2022, 1, 1) + datetime.timedelta(days=offset)
+            candidates = simulator.get_candidate_operations(date)
+            for c in candidates:
+                assert 10.0 <= c.application_amount <= 40.0
+
+
+class TestPostIrrigationBlock:
+    """P3-3 AK 5: Post-Irrigation-Block (10 Tage nach Beregnung)."""
+
+    def test_no_candidates_for_10_days_after_irrigation(
+        self, sim_context, moisture_data_very_dry
+    ):
+        """Nach apply_irrigation() werden für 10 Tage keine Kandidaten erzeugt."""
+        simulator = IrrigationSimulator(sim_context, moisture_data_very_dry)
+        np.random.seed(42)
+
+        irrigation_date = datetime.date(2022, 4, 10)
+        simulator.apply_irrigation(irrigation_date, irrigation_amount=25.0)
+
+        # Days 1-9 after irrigation: blocked
+        for delta in range(1, 10):
+            check_date = irrigation_date + datetime.timedelta(days=delta)
+            candidates = simulator.get_candidate_operations(check_date)
+            assert candidates == [], (
+                f"Day +{delta}: expected no candidates (post-irrigation block), "
+                f"got {len(candidates)}"
+            )
+
+    def test_candidate_allowed_on_day_10_after_irrigation(
+        self, sim_context, moisture_data_very_dry
+    ):
+        """Am 10. Tag nach Beregnung ist der Block aufgehoben."""
+        simulator = IrrigationSimulator(sim_context, moisture_data_very_dry)
+        np.random.seed(42)
+
+        irrigation_date = datetime.date(2022, 4, 10)
+        simulator.apply_irrigation(irrigation_date, irrigation_amount=25.0)
+
+        # Day +10: block expired (block_until = irrigation_date + 10)
+        check_date = irrigation_date + datetime.timedelta(days=10)
+        candidates = simulator.get_candidate_operations(check_date)
+        assert len(candidates) == 1, (
+            f"Day +10: expected candidate (block expired), got {len(candidates)}"
+        )
+
+
+class TestSeasonalLimit:
+    """P3-3 AK 4: Saisonale Obergrenze 170 mm (hard-stop)."""
+
+    def test_no_candidates_after_seasonal_max_reached(
+        self, sim_context, moisture_data_very_dry
+    ):
+        """AK 4: Nach Erreichen von 170 mm keine weiteren Kandidaten."""
+        simulator = IrrigationSimulator(sim_context, moisture_data_very_dry)
+        simulator.seasonal_sum_mm = 170.0
+
+        candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 15))
+        assert candidates == [], (
+            "Expected no candidates after seasonal max (170 mm) reached"
+        )
+
+    def test_candidates_when_below_seasonal_max(
+        self, sim_context, moisture_data_very_dry
+    ):
+        """Unter 170 mm werden noch Kandidaten erzeugt."""
+        simulator = IrrigationSimulator(sim_context, moisture_data_very_dry)
+        simulator.seasonal_sum_mm = 100.0
+        np.random.seed(42)
+
+        candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 15))
+        assert len(candidates) == 1
+
+    def test_last_gift_capped_to_remaining_budget(
+        self, sim_context, moisture_data_very_dry
+    ):
+        """AK 4/f: Letzte Gabe wird auf Restbudget begrenzt (>= min)."""
+        simulator = IrrigationSimulator(sim_context, moisture_data_very_dry)
+        # Remaining budget = 170 - 155 = 15 mm (>= min 10)
+        simulator.seasonal_sum_mm = 155.0
+        np.random.seed(42)
+
+        candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 15))
+        assert len(candidates) == 1
+        assert candidates[0].application_amount == 15.0, (
+            f"Expected last gift capped to remaining budget 15 mm, "
+            f"got {candidates[0].application_amount}"
+        )
+
+    def test_no_candidates_when_remaining_budget_below_min(
+        self, sim_context, moisture_data_very_dry
+    ):
+        """Restbudget < min_application_mm → keine weitere Gabe."""
+        simulator = IrrigationSimulator(sim_context, moisture_data_very_dry)
+        # Remaining budget = 170 - 165 = 5 mm (< min 10)
+        simulator.seasonal_sum_mm = 165.0
+        np.random.seed(42)
+
+        candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 15))
+        assert candidates == [], (
+            "Expected no candidates when remaining budget (5 mm) < min (10 mm)"
+        )
+
+
+class TestSeasonalSumTracking:
+    """P3-3: apply_irrigation trackt saisonale Summe und letzte Beregnung."""
+
+    def test_apply_irrigation_updates_seasonal_sum(self, sim_context, moisture_data_dry):
+        """apply_irrigation addiert zur saisonalen Summe."""
+        simulator = IrrigationSimulator(sim_context, moisture_data_dry)
+
+        assert simulator.seasonal_sum_mm == 0.0
+        simulator.apply_irrigation(datetime.date(2022, 4, 10), irrigation_amount=25.0)
+        assert simulator.seasonal_sum_mm == 25.0
+
+        simulator.apply_irrigation(datetime.date(2022, 4, 25), irrigation_amount=20.0)
+        assert simulator.seasonal_sum_mm == 45.0
+
+    def test_apply_irrigation_records_last_date(self, sim_context, moisture_data_dry):
+        """apply_irrigation speichert das Datum der letzten Beregnung."""
+        simulator = IrrigationSimulator(sim_context, moisture_data_dry)
+
+        assert simulator._last_irrigation_date is None
+        d1 = datetime.date(2022, 4, 10)
+        simulator.apply_irrigation(d1, irrigation_amount=25.0)
+        assert simulator._last_irrigation_date == d1
+
+        d2 = datetime.date(2022, 4, 25)
+        simulator.apply_irrigation(d2, irrigation_amount=20.0)
+        assert simulator._last_irrigation_date == d2
+
+
+class TestStatePersistenceP33:
+    """P3-3 AK 7: State-Persistenz inkl. seasonal_sum_mm und _last_irrigation_date."""
+
+    def test_get_state_includes_seasonal_fields(self, sim_context, moisture_data_dry):
+        simulator = IrrigationSimulator(sim_context, moisture_data_dry)
+        simulator.apply_irrigation(datetime.date(2022, 4, 10), irrigation_amount=25.0)
+
+        state = simulator.get_state()
+        assert state["seasonal_sum_mm"] == 25.0
+        assert state["last_irrigation_date"] == "2022-04-10"
+
+    def test_apply_state_restores_seasonal_fields(self, sim_context, moisture_data_dry):
+        sim1 = IrrigationSimulator(sim_context, moisture_data_dry)
+        sim1.apply_irrigation(datetime.date(2022, 4, 10), irrigation_amount=25.0)
+        sim1.apply_irrigation(datetime.date(2022, 4, 25), irrigation_amount=20.0)
+
+        state = sim1.get_state()
+
+        sim2 = IrrigationSimulator(sim_context, moisture_data_dry)
+        sim2.apply_state(state)
+
+        assert sim2.seasonal_sum_mm == 45.0
+        assert sim2._last_irrigation_date == datetime.date(2022, 4, 25)
