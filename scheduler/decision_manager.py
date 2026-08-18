@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from typing import List, Protocol, Any, Optional, runtime_checkable
 from models.worktypes import LOW_PRIORITY_WORKTYPES
@@ -7,6 +9,7 @@ from models.domain_events import (
     create_operation_approved,
     create_operation_rejected
 )
+from services.weather_service import WeatherData
 import datetime
 
 __all__ = [
@@ -44,6 +47,10 @@ class CycleContext:
         last_siccation_date: Datum der letzten Sikkation (Kat. 26) im Zyklus.
         siccation_count_this_cycle: Anzahl Sikkationsgaben im Zyklus.
         last_harvest_op_date: Datum der letzten ausgeführten Ernte-Operation.
+        current_weather: Aktuelle Wetterdaten für den Tick (P3-1, Issue #79).
+            None, wenn kein WeatherService aktiv ist (Abwärtskompatibilität).
+        weather_forecast: Wetterprognose ab dem Tick (P3-1, Issue #79).
+            None, wenn kein WeatherService aktiv ist.
     """
 
     planting_date: datetime.datetime | None = None
@@ -52,6 +59,8 @@ class CycleContext:
     last_siccation_date: datetime.datetime | None = None
     siccation_count_this_cycle: int = 0
     last_harvest_op_date: datetime.datetime | None = None
+    current_weather: WeatherData | None = None
+    weather_forecast: list[WeatherData] | None = None
 
 
 # ---------------------------------------------------------------------------

@@ -78,44 +78,50 @@ def test_calendar_driven_runner_uses_different_years(sim_context):
 
 
 def test_moisture_service_fallback_on_unavailable_year(sim_context):
-    """Test that MoistureDataService falls back to default year when requested year is unavailable"""
+    """Test that MoistureDataService falls back to latest available year when requested year is unavailable.
+    
+    P3-1 (Issue #79): Fallback ist dynamisch (jüngstes verfügbares Jahr),
+    nicht mehr hart YEAR=2022.
+    """
     ms = MoistureDataService(sim_context)
     
-    # Mock get_moisture_file to fail on first call (year 2050), succeed on second (fallback to 2022)
+    # Mock get_moisture_file to fail on first call (year 2050), succeed on second (fallback)
     with patch.object(ms, 'get_moisture_file') as mock_get_file:
         # First call fails (year 2050 not available)
-        # Second call succeeds (fallback to 2022)
+        # Second call succeeds (fallback to latest available year)
         mock_get_file.side_effect = [
             Exception("File not found"),  # First call fails
-            "path/to/2022_file.nc"  # Second call succeeds
+            "path/to/fallback_file.nc"  # Second call succeeds
         ]
-        
-        # Mock netCDF4.Dataset
-        with patch('services.moisture_service.netCDF4.Dataset') as mock_dataset:
-            mock_nc = MagicMock()
-            mock_nc.variables = {
-                'x': MagicMock(__getitem__=lambda self, i: 1000.0),
-                'y': MagicMock(__getitem__=lambda self, i: 2000.0),
-                'paws': MagicMock(
-                    __getitem__=lambda self, idx: MagicMock(mask=MagicMock(all=lambda: False)),
-                    _FillValue=-999
-                )
-            }
-            mock_dataset.return_value = mock_nc
-            
-            with patch.object(ms, 'find_random_coordinate_with_date') as mock_find:
-                mock_find.return_value = {
-                    'x': 1000.0,
-                    'y': 2000.0,
-                    'moisture_data': [60.0] * 365
+
+        # Mock _find_latest_available_year to return a deterministic value
+        with patch.object(ms, '_find_latest_available_year', return_value=2024):
+            # Mock netCDF4.Dataset
+            with patch('services.moisture_service.netCDF4.Dataset') as mock_dataset:
+                mock_nc = MagicMock()
+                mock_nc.variables = {
+                    'x': MagicMock(__getitem__=lambda self, i: 1000.0),
+                    'y': MagicMock(__getitem__=lambda self, i: 2000.0),
+                    'paws': MagicMock(
+                        __getitem__=lambda self, idx: MagicMock(mask=MagicMock(all=lambda: False)),
+                        _FillValue=-999
+                    )
                 }
-                
-                # Request year 2050 (not available)
-                result = ms.get_moisture_data(year=2050, depth_range='0-10')
-                
-                # Should have fallen back to 2022
-                assert len(result['dates']) == 365
-                assert result['dates'][0].year == 2022
+                mock_dataset.return_value = mock_nc
+
+                with patch.object(ms, 'find_random_coordinate_with_date') as mock_find:
+                    mock_find.return_value = {
+                        'x': 1000.0,
+                        'y': 2000.0,
+                        'moisture_data': [60.0] * 365
+                    }
+
+                    # Request year 2050 (not available)
+                    result = ms.get_moisture_data(year=2050, depth_range='0-10')
+
+                    # Should have fallen back to 2024 (mocked latest available year)
+                    assert len(result['dates']) == 365
+                    assert result['dates'][0].year == 2024
 
 
 def test_moisture_service_uses_provided_year_when_available(sim_context):

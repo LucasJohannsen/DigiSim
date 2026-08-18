@@ -14,8 +14,4 @@ class SimContext:
     field_id: int
     field_name: str
     fuel_variation: float
-
-    
-
-
-    
+    field_coords: tuple[float, float] | None = None
