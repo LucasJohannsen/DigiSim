@@ -13,11 +13,14 @@ import os
 from typing import Any, Protocol, runtime_checkable
 
 from scheduler.decision_manager import (
+    ForecastConditionGuard,
     GuardRule,
     MinGapBeforeHarvestOpRule,
     NoSiccationAfterHarvestRule,
     NoWorktypeAfterHarvestRule,
     RuleGuard,
+    SoilConditionGuard,
+    WeatherConditionGuard,
 )
 from utils.logger import get_logger
 
@@ -44,6 +47,9 @@ _CHECK_TYPE_MAP: dict[str, _GuardRuleFactory] = {
     "no_worktype_after_harvest": NoWorktypeAfterHarvestRule,
     "min_gap_before_harvest_op": MinGapBeforeHarvestOpRule,
     "no_siccation_after_harvest": NoSiccationAfterHarvestRule,
+    "weather_condition": WeatherConditionGuard,
+    "soil_condition": SoilConditionGuard,
+    "forecast_condition": ForecastConditionGuard,
 }
 
 

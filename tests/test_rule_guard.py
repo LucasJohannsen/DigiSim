@@ -68,13 +68,21 @@ def guard() -> RuleGuard:
 class TestGuardRuleLoader:
     """Guard-Regeln werden aus config/decision_guards_potato.json geladen."""
 
-    def test_loads_three_guard_rules(self, guard: RuleGuard) -> None:
-        """Genau 3 Guard-Regeln (KAR-005, KAR-020, KAR-024)."""
+    def test_loads_seven_guard_rules(self, guard: RuleGuard) -> None:
+        """Genau 7 Guard-Regeln (3 bestehend + 4 Wetter-Guards ab P3-2).
+
+        Bestehend: KAR-005, KAR-020, KAR-024.
+        Neu (P3-2, Issue #80): KAR-030, KAR-031, KAR-032, KAR-035.
+        """
         rule_ids = [r.rule_id for r in guard.rules]
         assert "KAR-005" in rule_ids
         assert "KAR-020" in rule_ids
         assert "KAR-024" in rule_ids
-        assert len(guard.rules) == 3
+        assert "KAR-030" in rule_ids
+        assert "KAR-031" in rule_ids
+        assert "KAR-032" in rule_ids
+        assert "KAR-035" in rule_ids
+        assert len(guard.rules) == 7
 
     def test_fail_open_on_missing_file(self, tmp_path) -> None:
         """Nicht ladbare Konfig → Guard deaktiviert (leere Regel-Liste)."""

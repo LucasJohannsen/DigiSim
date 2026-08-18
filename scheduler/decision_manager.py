@@ -22,6 +22,9 @@ __all__ = [
     "NoWorktypeAfterHarvestRule",
     "MinGapBeforeHarvestOpRule",
     "NoSiccationAfterHarvestRule",
+    "WeatherConditionGuard",
+    "SoilConditionGuard",
+    "ForecastConditionGuard",
 ]
 
 
@@ -208,6 +211,253 @@ class NoSiccationAfterHarvestRule:
         cat = getattr(operation, "application_category", None)
         if cat == self.application_category:
             return f"{self.rule_id}: {self.description}"
+        return None
+
+
+# ---------------------------------------------------------------------------
+# Wetter-Guard-Regeln (MS6 P3-2, Issue #80)
+# ---------------------------------------------------------------------------
+
+
+class WeatherConditionGuard:
+    """KAR-030 / KAR-035: Wetterbedingungen für Spritzoperationen.
+
+    Prüft Niederschlag, Wind und (optional) Temperatur für einen
+    konkreten ``worktype``. Über ``application_category`` kann die Prüfung
+    auf eine Teilmenge der Operationen eingeschränkt werden (z. B. nur
+    Sikkation, Kat. 26).
+
+    Deaktiviert (``check`` → None), wenn ``cycle_context`` None oder
+    ``current_weather`` None ist (Abwärtskompatibilität ohne P3-1).
+    """
+
+    def __init__(
+        self,
+        rule_id: str,
+        description: str,
+        worktype: int,
+        application_category: int | None = None,
+        max_precipitation_mm_day: float = 5.0,
+        max_wind_ms: float = 5.0,
+        max_temperature_c: float | None = None,
+    ) -> None:
+        self.rule_id = rule_id
+        self.description = description
+        self.worktype = worktype
+        self.application_category = application_category
+        self.max_precipitation_mm_day = max_precipitation_mm_day
+        self.max_wind_ms = max_wind_ms
+        self.max_temperature_c = max_temperature_c
+
+    @classmethod
+    def from_config(cls, entry: dict[str, Any]) -> "WeatherConditionGuard":
+        return cls(
+            rule_id=entry["rule_id"],
+            description=entry["description"],
+            worktype=entry["worktype"],
+            application_category=entry.get("application_category"),
+            max_precipitation_mm_day=float(
+                entry.get("max_precipitation_mm_day", 5.0)
+            ),
+            max_wind_ms=float(entry.get("max_wind_ms", 5.0)),
+            max_temperature_c=(
+                float(entry["max_temperature_c"])
+                if entry.get("max_temperature_c") is not None
+                else None
+            ),
+        )
+
+    def check(
+        self,
+        operation: Any,
+        cycle_context: CycleContext | None,
+        date: datetime.datetime,
+    ) -> str | None:
+        if cycle_context is None or cycle_context.current_weather is None:
+            return None  # Guard deaktiviert ohne Wetterdaten
+
+        wt = getattr(operation, "worktype", None)
+        if wt != self.worktype:
+            return None
+
+        if self.application_category is not None:
+            cat = getattr(operation, "application_category", None)
+            if cat != self.application_category:
+                return None
+
+        weather = cycle_context.current_weather
+
+        if weather.precipitation_mm > self.max_precipitation_mm_day:
+            return (
+                f"{self.rule_id}: {self.description} "
+                f"(Niederschlag {weather.precipitation_mm} mm > "
+                f"{self.max_precipitation_mm_day} mm)"
+            )
+
+        if weather.wind_speed_ms > self.max_wind_ms:
+            return (
+                f"{self.rule_id}: {self.description} "
+                f"(Wind {weather.wind_speed_ms} m/s > "
+                f"{self.max_wind_ms} m/s)"
+            )
+
+        if (
+            self.max_temperature_c is not None
+            and weather.temperature_max_c > self.max_temperature_c
+        ):
+            return (
+                f"{self.rule_id}: {self.description} "
+                f"(Temperatur {weather.temperature_max_c}°C > "
+                f"{self.max_temperature_c}°C)"
+            )
+
+        return None
+
+
+class SoilConditionGuard:
+    """KAR-032: Bodenfeuchte-/Niederschlag-Guard für Bodenbearbeitung.
+
+    Lehnt Bodenbearbeitung (``worktypes``) ab, wenn die Bodenfeuchte
+    > ``max_soil_moisture_pct_nfk`` oder der Tagesniederschlag
+    > ``max_previous_day_precipitation_mm`` ist.
+
+    .. note::
+        **Vereinfachung (MVP):** ``WeatherData`` enthält nur den aktuellen
+        Tag, keine History. Daher wird ``current_weather.precipitation_mm``
+        als Näherung für den Vortagesniederschlag verwendet. Eine echte
+        Vortages-Prüfung benötigt eine WeatherService-History und ist ein
+        Folge-Issue.
+
+    Deaktiviert (``check`` → None), wenn ``cycle_context`` None oder
+    ``current_weather`` None ist.
+    """
+
+    def __init__(
+        self,
+        rule_id: str,
+        description: str,
+        worktypes: list[int],
+        max_soil_moisture_pct_nfk: float = 90.0,
+        max_previous_day_precipitation_mm: float = 10.0,
+    ) -> None:
+        self.rule_id = rule_id
+        self.description = description
+        self.worktypes = worktypes
+        self.max_soil_moisture_pct_nfk = max_soil_moisture_pct_nfk
+        self.max_previous_day_precipitation_mm = (
+            max_previous_day_precipitation_mm
+        )
+
+    @classmethod
+    def from_config(cls, entry: dict[str, Any]) -> "SoilConditionGuard":
+        return cls(
+            rule_id=entry["rule_id"],
+            description=entry["description"],
+            worktypes=list(entry["worktypes"]),
+            max_soil_moisture_pct_nfk=float(
+                entry.get("max_soil_moisture_pct_nfk", 90.0)
+            ),
+            max_previous_day_precipitation_mm=float(
+                entry.get("max_previous_day_precipitation_mm", 10.0)
+            ),
+        )
+
+    def check(
+        self,
+        operation: Any,
+        cycle_context: CycleContext | None,
+        date: datetime.datetime,
+    ) -> str | None:
+        if cycle_context is None or cycle_context.current_weather is None:
+            return None
+
+        wt = getattr(operation, "worktype", None)
+        if wt not in self.worktypes:
+            return None
+
+        weather = cycle_context.current_weather
+
+        if weather.soil_moisture_pct_nfk > self.max_soil_moisture_pct_nfk:
+            return (
+                f"{self.rule_id}: {self.description} "
+                f"(Bodenfeuchte {weather.soil_moisture_pct_nfk}% nFK > "
+                f"{self.max_soil_moisture_pct_nfk}% nFK)"
+            )
+
+        # MVP-Vereinfachung: Tagesniederschlag als Näherung für
+        # Vortagesniederschlag (keine History verfügbar).
+        if weather.precipitation_mm > self.max_previous_day_precipitation_mm:
+            return (
+                f"{self.rule_id}: {self.description} "
+                f"(Niederschlag {weather.precipitation_mm} mm > "
+                f"{self.max_previous_day_precipitation_mm} mm)"
+            )
+
+        return None
+
+
+class ForecastConditionGuard:
+    """KAR-031: Prognose-Guard für Beregnung.
+
+    Lehnt Beregnung (``worktype``) ab, wenn der kumulative
+    Prognose-Niederschlag über ``forecast_days`` Tage
+    > ``max_cumulative_precipitation_mm`` ist.
+
+    Deaktiviert (``check`` → None), wenn ``cycle_context`` None oder
+    ``weather_forecast`` None ist.
+    """
+
+    def __init__(
+        self,
+        rule_id: str,
+        description: str,
+        worktype: int,
+        forecast_days: int = 4,
+        max_cumulative_precipitation_mm: float = 10.0,
+    ) -> None:
+        self.rule_id = rule_id
+        self.description = description
+        self.worktype = worktype
+        self.forecast_days = forecast_days
+        self.max_cumulative_precipitation_mm = max_cumulative_precipitation_mm
+
+    @classmethod
+    def from_config(cls, entry: dict[str, Any]) -> "ForecastConditionGuard":
+        return cls(
+            rule_id=entry["rule_id"],
+            description=entry["description"],
+            worktype=entry["worktype"],
+            forecast_days=int(entry.get("forecast_days", 4)),
+            max_cumulative_precipitation_mm=float(
+                entry.get("max_cumulative_precipitation_mm", 10.0)
+            ),
+        )
+
+    def check(
+        self,
+        operation: Any,
+        cycle_context: CycleContext | None,
+        date: datetime.datetime,
+    ) -> str | None:
+        if cycle_context is None or cycle_context.weather_forecast is None:
+            return None
+
+        wt = getattr(operation, "worktype", None)
+        if wt != self.worktype:
+            return None
+
+        forecast = cycle_context.weather_forecast[: self.forecast_days]
+        cumulative_precip = sum(
+            day.precipitation_mm for day in forecast
+        )
+
+        if cumulative_precip > self.max_cumulative_precipitation_mm:
+            return (
+                f"{self.rule_id}: {self.description} "
+                f"(Prognose-Niederschlag {cumulative_precip} mm > "
+                f"{self.max_cumulative_precipitation_mm} mm)"
+            )
+
         return None
 
 
