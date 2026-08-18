@@ -73,6 +73,12 @@ def simulation() -> dict[str, Any]:
     greifen: 21 Spritz-/Beregnungs-Operationen werden bei Regen/Wind/
     Regenprognose abgelehnt. Neue Baseline: 27 Integration / 1649 Domain
     Events (-2 ausgeführte Ops, +36 Rejection-/Metadaten-Events).
+    Nach P3-3 (Issue #81) werden Beregnungsmengen von Defizit-basiert auf
+    feste Zielgabe 20-30 mm (Clamping [10, 40] mm) umgestellt, plus
+    Post-Irrigation-Block (10 Tage) und saisonales Limit (170 mm). Dadurch
+    werden weniger Beregnungs-Kandidaten erzeugt (2 statt 3 ausgeführte
+    Beregnungen, -6 KAR-031 Guard-Rejections). Neue Baseline: 26 Integration
+    / 1634 Domain Events (-1 ausgeführte Op, -15 Domain Events).
 
     Returns:
         Dict mit ``events`` (Integration Events), ``domain_events``,
@@ -136,16 +142,13 @@ XFAIL_REASONS: dict[str, str] = {
     # Sequenz via zustandsbehaftetem Zeit-Cursor. Marker entfernt.
     # KAR-005 (Befund B6) durch P2-3 (Issue #67) gefixt: Protection-Plan am
     # Pflanzdatum verankert und am Erntetermin beschnitten → Marker entfernt.
+    # KAR-040 (Befund B15/B3) wurde durch P3-3 (Issue #81) gefixt: Feste
+    # Zielgabe 20-30 mm mit Clamping auf [10, 40] mm statt Defizit-basiert.
+    # Marker entfernt.
     # KAR-024: P2-3 fixt den Sikkation-nach-Ernte-Aspekt, aber der
     # Quickdown-Abstand (69 d außerhalb [4,7]) bleibt bestehen – separater
     # Befund, erst durch P2-4 (Regel-Engine, Issue #68) vollständig lösbar.
     "KAR-024": "Befund B5/B6, Issue #57 – Quickdown-Abstand 69 d außerhalb [4,7] (Sikkation-nach-Ernte durch P2-3 gefixt, Abstands-Verletzung bleibt).",
-    # Neu durch P2-1 (Issue #65): Die Verschiebung von Sikkation und P-Düngung
-    # verändert den Zufallszustand an den Beregnungs-Entscheidungspunkten, was
-    # zu Beregnungs-Einzelgaben < 10 mm führt (KAR-040 hartes Fenster 10–40 mm).
-    # Dies ist ein Sekundäreffekt der Konfigurationsänderung, keine Abschwächung
-    # der Regel – im PR als neuer Befund (B15) für den PO vermerkt.
-    "KAR-040": "Befund B15 (neu durch P2-1, Issue #65) – Beregnungs-Einzelgaben < 10 mm durch veränderten Zufallszustand nach Konfig-Verschiebung; Regel wird nicht abgeshwächt, Ursache mit PO zu klären.",
 }
 
 
@@ -174,25 +177,24 @@ class TestFixtureBaseline:
     """Sichert, dass die Fixture die Referenz-Baseline reproduziert."""
 
     def test_integration_event_count_matches_baseline(self, simulation):
-        """Baseline: 27 Integration Events (nach P3-2, Issue #80).
+        """Baseline: 26 Integration Events (nach P3-3, Issue #81).
 
-        Vor P3-2 (P2-3-Fix, Issue #67) waren es 29 Events. P3-2 aktiviert
-        Wetter-Guards (KAR-030/031/032/035): 2 Spritz-Operationen bei
-        Regen/Wind werden vom Guard abgelehnt und nicht ausgeführt → -2
-        Integration Events.
+        Vor P3-3 (P3-2, Issue #80) waren es 27 Events. P3-3 stellt die
+        Beregnungsmengen auf feste Zielgabe 20-30 mm mit Post-Irrigation-Block
+        (10 Tage) und saisonalem Limit (170 mm) um. Dadurch werden weniger
+        Beregnungs-Kandidaten erzeugt und ausgeführt (2 statt 3 Beregnungen)
+        → -1 Integration Event.
         """
-        assert len(simulation["events"]) == 27
+        assert len(simulation["events"]) == 26
 
     def test_domain_event_count_matches_baseline(self, simulation):
-        """Baseline: 1649 Domain Events (nach P3-2, Issue #80).
+        """Baseline: 1634 Domain Events (nach P3-3, Issue #81).
 
-        Vor P3-2 (P2-3-Fix, Issue #67) waren es 1613 Domain Events. P3-2
-        aktiviert Wetter-Guards: 21 Operationen werden als OperationRejected
-        (mit KAR-Regel-ID) emittiert statt als OperationApproved. Die 2
-        nicht ausgeführten Ops erzeugen keine Downstream-Events. Netto:
-        +36 Domain Events.
+        Vor P3-3 (P3-2, Issue #80) waren es 1649 Domain Events. P3-3 reduziert
+        die Beregnungs-Kandidaten (Post-Block + saisonales Limit): -1 ausgeführte
+        Beregnung und -6 KAR-031 Guard-Rejections → netto -15 Domain Events.
         """
-        assert len(simulation["domain_events"]) == 1649
+        assert len(simulation["domain_events"]) == 1634
 
     def test_fixture_is_deterministic(self, simulation):
         """Zweite Ausführung mit gleichem Seed liefert gleiche Event-Anzahl."""
@@ -392,6 +394,9 @@ class TestGuardSafetyNet:
     Fallback), sodass current_weather befüllt ist. Spritz-Operationen bei
     Regen/Wind und Beregnung bei Regenprognose werden nun vom Guard
     abgelehnt – dies ist das gewünschte fachliche Verhalten (Befund B8).
+    Nach P3-3 (Issue #81) reduziert der Post-Irrigation-Block und das
+    saisonale Limit die Beregnungs-Kandidaten, sodass weniger KAR-031-
+    Rejections auftreten (15 statt 21).
 
     Guard-abgelehnte Operationen erscheinen als ``OperationRejected`` mit
     ``KAR-``-Präfix in der ``reason``.
@@ -400,17 +405,20 @@ class TestGuardSafetyNet:
     def test_guard_rejects_weather_violations(self, simulation):
         """Guard lehnt Wetter-Verstöße ab (KAR-030/031, Befund B8).
 
-        Erwartet 21 Guard-Rejections (10× KAR-030 Spritzen bei Regen/Wind,
-        11× KAR-031 Beregnung bei Regenprognose). Dies bestätigt, dass die
-        Wetter-Guards fachlich greifen.
+        Erwartet 15 Guard-Rejections (10× KAR-030 Spritzen bei Regen/Wind,
+        5× KAR-031 Beregnung bei Regenprognose). Vor P3-3 (Issue #81) waren
+        es 21 Rejections (10× KAR-030 + 11× KAR-031). P3-3 reduziert die
+        Beregnungs-Kandidaten durch Post-Irrigation-Block (10 Tage) und
+        saisonales Limit (170 mm), sodass 6 weniger KAR-031-Rejections
+        auftreten. Dies bestätigt, dass die Wetter-Guards fachlich greifen.
         """
         guard_rejections = [
             e for e in simulation["domain_events"]
             if e.event_type == "OperationRejected"
             and "KAR-" in str(e.payload.get("reason", ""))
         ]
-        assert len(guard_rejections) == 21, (
-            f"Erwartet 21 Guard-Rejections (Wetter-Guards), got "
+        assert len(guard_rejections) == 15, (
+            f"Erwartet 15 Guard-Rejections (Wetter-Guards), got "
             f"{len(guard_rejections)}. Gründe: "
             + "; ".join(
                 e.payload["reason"] for e in guard_rejections[:5]

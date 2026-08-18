@@ -116,9 +116,8 @@ def rules() -> list[dict[str, Any]]:
 # xfail-Mapping für die Dry-Suite
 # ---------------------------------------------------------------------------
 
-# KAR-040: B3 (Gaben zu klein) – IrrigationSimulator berechnet Gabe =
-# Defizit × Zufall, nicht Mindestgabe 20 mm. Im Dry-Szenario sind die
-# Einzelgaben < 10 mm (hartes Fenster 10–40 mm). P3-Thema.
+# KAR-040: B3 (Gaben zu klein) – wurde durch P3-3 (Issue #81) gefixt:
+# Feste Zielgabe 20-30 mm mit Clamping auf [10, 40] mm. Marker entfernt.
 # KAR-024: B5/B6 – Quickdown-Abstand außerhalb [4,7] (derselbe Befund wie
 # in der Baseline-Suite; im Dry-Szenario 66 d statt 69 d, gleiche Ursache).
 XFAIL_REASONS: dict[str, str] = {
@@ -126,12 +125,6 @@ XFAIL_REASONS: dict[str, str] = {
         "Befund B5/B6, Issue #57 – Quickdown-Abstand 66 d außerhalb [4,7] "
         "(im Dry-Szenario; gleiche Ursache wie Baseline-Suite, wo der "
         "Abstand 69 d beträgt)."
-    ),
-    "KAR-040": (
-        "Befund B3 (P3) – Beregnungs-Einzelgaben < 10 mm: "
-        "IrrigationSimulator berechnet Gabe = Defizit × Zufall, nicht "
-        "Mindestgabe 20 mm. Dry-Szenario deckt die Struktur, nicht die "
-        "Mengenfachlichkeit."
     ),
 }
 
