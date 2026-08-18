@@ -4,11 +4,11 @@
 
 Arbeitsdauern sind unplausibel lang (34,8 h am Stück, Nachtarbeit bis 07:08 Uhr). Event-Erzeugung berechnet Dauer = ha × h/ha ohne Tagesarbeitszeit-Begrenzung.
 
-Verletzte Regel: KAR-045 (soft: Arbeitsbeginn 05:00–20:00, Einzeloperation max. 18 h Dauer).
+Verletzte Regel: KAR-045 (soft: Arbeitsbeginn 05:00–22:00, Einzeloperation max. 18 h Dauer).
 
 ## Zielverhalten
 
-Operationen werden auf realistische Arbeitszeiten begrenzt (05:00–20:00, max. 18 h Dauer). Lange Operationen werden auf mehrere Tage/Schichten aufgeteilt.
+Operationen werden auf realistische Arbeitszeiten begrenzt (05:00–22:00, max. 18 h Dauer). Lange Operationen werden auf mehrere Tage/Schichten aufgeteilt.
 
 ## Lösungsdesign
 
@@ -25,7 +25,7 @@ class PlantingPlanService:
         date_key = date.date() if isinstance(date, datetime) else date
         
         WORK_START_HOUR = 5
-        WORK_END_HOUR = 20
+        WORK_END_HOUR = 22
         MAX_DURATION_HOURS = 18
         
         for operation in operations:
@@ -112,7 +112,7 @@ Erweiterung um `max_end_hour`-Parameter:
 def assign_sequential_time(
     date: datetime,
     min_start: time = time(6, 0),
-    max_end_hour: int = 20
+    max_end_hour: int = 22
 ) -> datetime:
     """Weist eine sequenzkonforme Uhrzeit zu, berücksichtigt Arbeitszeitfenster."""
     last_time = datetime.combine(date.date(), min_start)
@@ -148,7 +148,7 @@ class IrrigationSimulator:
         
         MAX_DURATION_HOURS = 18
         WORK_START_HOUR = 5
-        WORK_END_HOUR = 20
+        WORK_END_HOUR = 22
         
         if duration <= MAX_DURATION_HOURS:
             # Einzelnes Event (bestehende Logik)
@@ -156,7 +156,7 @@ class IrrigationSimulator:
         
         # Mehrtägige Aufteilung: berechne verfügbare Stunden pro Tag
         # im Arbeitsfenster [WORK_START_HOUR, WORK_END_HOUR]
-        available_hours_per_day = WORK_END_HOUR - WORK_START_HOUR  # 15 h
+        available_hours_per_day = WORK_END_HOUR - WORK_START_HOUR  # 17 h
         if available_hours_per_day > MAX_DURATION_HOURS:
             available_hours_per_day = MAX_DURATION_HOURS
         
@@ -200,7 +200,7 @@ class IrrigationSimulator:
 ## Akzeptanzkriterien
 
 1. Kein Event hat `duration` > 18 h (KAR-045)
-2. Kein Event startet vor 05:00 Uhr oder endet nach 20:00 Uhr (KAR-045)
+2. Kein Event startet vor 05:00 Uhr oder endet nach 22:00 Uhr (KAR-045)
 3. Lange Operationen (z. B. Separieren 34,8 h) werden auf mehrere Tage aufgeteilt
 4. Aufgeteilte Operationen haben proportionale application_amount/fläche
 5. Plausibilitätstest für KAR-045 wird von xfail auf aktiv umgestellt
@@ -219,4 +219,4 @@ Keine (unabhängig implementierbar)
 
 ## PO-Entscheidungen (eingearbeitet)
 
-- **Aufteilungsstrategie:** Mehrtägige Aufteilung (kein MVP-Clamp) – lange Operationen werden auf mehrere Tage aufgeteilt, jeder Tag im Arbeitsfenster [05:00, 20:00], max. 18 h/Tag. Proportionale Aufteilung von Menge und Fläche.
+- **Aufteilungsstrategie:** Mehrtägige Aufteilung (kein MVP-Clamp) – lange Operationen werden auf mehrere Tage aufgeteilt, jeder Tag im Arbeitsfenster [05:00, 22:00], max. 18 h/Tag. Proportionale Aufteilung von Menge und Fläche.
