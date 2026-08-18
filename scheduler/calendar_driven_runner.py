@@ -8,6 +8,8 @@ from services.planting_plan_service import PlantingPlanService
 from services.protection_plan_service import ProtectionPlanService
 from services.irrigation_service import IrrigationSimulator
 from services.moisture_service import MoistureDataService
+from services.weather_service import WeatherDataService
+from services.providers.dwd_weather_provider import DWDWeatherDataProvider
 from scheduler.decision_manager import CycleContext, DecisionManager, WorkTypePriorityStrategy
 from scheduler.guard_rule_loader import GuardRuleLoader
 from utils.event_logger import EventLogger
@@ -27,6 +29,11 @@ from models.domain_events import (
 # (Event-Driven-Core: Factory wird erst in _initialize_services aufgerufen).
 MoistureServiceFactory = Callable[[], MoistureDataService]
 
+# Type alias für die optionale Weather-Service-Factory (P3-1, Issue #79).
+# Analog zu moisture_service_factory: Factory wird erst in
+# _initialize_services aufgerufen, nicht im Constructor.
+WeatherServiceFactory = Callable[[], WeatherDataService]
+
 logger = get_logger("calendar_driven_runner")
 
 
@@ -43,7 +50,8 @@ class CalendarDrivenRunner:
         context: SimContext,
         event_bus: Optional[DomainEventBus] = None,
         skip_scheduling_event: bool = False,
-        moisture_service_factory: Optional[MoistureServiceFactory] = None
+        moisture_service_factory: Optional[MoistureServiceFactory] = None,
+        weather_service_factory: Optional[WeatherServiceFactory] = None
     ) -> None:
         self.context = context
         self.event_logger = EventLogger()
@@ -66,12 +74,20 @@ class CalendarDrivenRunner:
 
         self.protection_plan_service: ProtectionPlanService = None
         self.irrigation_service: IrrigationSimulator = None
+        self.weather_service: WeatherDataService | None = None
         self._crop_cycle_state = CropCycleState.SCHEDULED
         # P2-5 C (Issue #71): Optionale Factory für den Moisture-Service.
         # Falls gesetzt, wird sie in _initialize_services() statt der
         # Hart-Instanziierung von MoistureDataService verwendet. Ohne
         # Factory verhält sich der Runner unverändert (Abwärtskompatibilität).
         self._moisture_service_factory = moisture_service_factory
+        # P3-1 (Issue #79): Optionale Factory für den Weather-Service.
+        # Falls gesetzt, wird sie in _initialize_services() statt der
+        # Default-Instanziierung mit DWDWeatherDataProvider verwendet.
+        # Ohne Factory wird DWD-Provider verwendet (der auf Synthetic fällt,
+        # falls keine DWD-Daten vorhanden). Ohne Factory und ohne
+        # WeatherService bleibt weather_service=None (Abwärtskompatibilität).
+        self._weather_service_factory = weather_service_factory
 
     def tick(self, date: datetime.date) -> List[FieldOperationEvent]:
         """
@@ -141,7 +157,7 @@ class CalendarDrivenRunner:
         all_candidate_ops = planting_ops + protection_ops + irrigation_candidates
         
         # DecisionManager decides which operations to execute
-        cycle_context = self._build_cycle_context()
+        cycle_context = self._build_cycle_context(date)
         selected_ops = self.decision_manager.decide(
             all_candidate_ops,
             field_id=str(self.context.field_id),
@@ -236,6 +252,7 @@ class CalendarDrivenRunner:
     def _reset_services(self) -> None:
         self.irrigation_service = None
         self.protection_plan_service = None
+        self.weather_service = None
 
     def _should_initialize_services(self) -> bool:
         return (
@@ -260,7 +277,9 @@ class CalendarDrivenRunner:
             )
         )
 
-    def _build_cycle_context(self) -> CycleContext:
+    def _build_cycle_context(
+        self, date: datetime.datetime | None = None
+    ) -> CycleContext:
         """Baut den CycleContext für die Guard-Prüfung (P2-4, Issue #68).
 
         Sammelt Zyklus-Daten aus den Services, ohne direkte Service-
@@ -268,6 +287,11 @@ class CalendarDrivenRunner:
         ``last_siccation_date``/``siccation_count`` aus bereits
         ausgeführten Protection-Operationen (``actual_date is not None``
         + ``application_category == 26``).
+
+        P3-1 (Issue #79): Falls ``weather_service`` aktiv und ``date``
+        gegeben, werden ``current_weather`` und ``weather_forecast``
+        befüllt. Ohne WeatherService bleiben sie None (Abwärts-
+        kompatibilität, Wetter-Guards deaktiviert).
         """
         planting_date = self.planting_plan_service.planned_planting_date
         harvest_date = None
@@ -308,6 +332,27 @@ class CalendarDrivenRunner:
         except (AttributeError, TypeError):
             pass
 
+        # P3-1 (Issue #79): Wetterdaten in CycleContext füllen, falls
+        # WeatherService aktiv und Datum gegeben. Ohne WeatherService
+        # bleiben die Felder None (Wetter-Guards deaktiviert).
+        current_weather = None
+        weather_forecast: list | None = None
+        if self.weather_service is not None and date is not None:
+            weather_date = date.date() if isinstance(date, datetime.datetime) else date
+            try:
+                current_weather = self.weather_service.get_weather_for_date(
+                    weather_date
+                )
+                weather_forecast = self.weather_service.get_forecast(
+                    weather_date, 7
+                )
+            except (IndexError, ValueError) as exc:
+                logger.warning(
+                    "Weather data lookup failed",
+                    date=weather_date,
+                    error=str(exc),
+                )
+
         return CycleContext(
             planting_date=planting_date,
             harvest_date=harvest_date,
@@ -315,6 +360,8 @@ class CalendarDrivenRunner:
             last_siccation_date=last_siccation_date,
             siccation_count_this_cycle=siccation_count,
             last_harvest_op_date=last_harvest_op_date,
+            current_weather=current_weather,
+            weather_forecast=weather_forecast,
         )
 
     def _initialize_services(self, current_date: datetime.date) -> None:
@@ -342,6 +389,20 @@ class CalendarDrivenRunner:
             context=self.context,
             moisture_data=ms.get_moisture_data(year=simulation_year, depth_range='0-10')
         )
+
+        # P3-1 (Issue #79): Weather-Service initialisieren.
+        # Falls Factory gesetzt: verwende sie. Sonst: Default mit
+        # DWDWeatherDataProvider (fällt auf Synthetic zurück, falls keine
+        # DWD-Daten vorhanden).
+        if self._weather_service_factory is not None:
+            self.weather_service = self._weather_service_factory()
+        else:
+            provider = DWDWeatherDataProvider(cache_folder="dwd_data")
+            self.weather_service = WeatherDataService(
+                context=self.context,
+                provider=provider,
+                event_bus=self.event_bus
+            )
 
 
     def get_state_snapshot(self, last_tick_date: datetime.date | None = None):

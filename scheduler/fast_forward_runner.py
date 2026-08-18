@@ -4,7 +4,7 @@ from typing import List, Optional
 
 from models.sim_context import SimContext
 from models.planting_plan import FieldOperationEvent
-from scheduler.calendar_driven_runner import CalendarDrivenRunner, MoistureServiceFactory
+from scheduler.calendar_driven_runner import CalendarDrivenRunner, MoistureServiceFactory, WeatherServiceFactory
 from events.domain_event_bus import DomainEventBus
 from utils.event_logger import EventLogger
 from utils.logger import get_logger
@@ -42,7 +42,8 @@ class FastForwardRunner:
         output_path: Optional[str] = None,
         event_bus: Optional[DomainEventBus] = None,
         flush_interval: int = 30,
-        moisture_service_factory: Optional[MoistureServiceFactory] = None
+        moisture_service_factory: Optional[MoistureServiceFactory] = None,
+        weather_service_factory: Optional[WeatherServiceFactory] = None
     ) -> None:
         """
         Initialize fast-forward runner.
@@ -59,6 +60,9 @@ class FastForwardRunner:
                 ``CalendarDrivenRunner`` durchgereicht und dort statt der
                 Hart-Instanziierung verwendet. Ohne Factory verhält sich der
                 Runner unverändert (Abwärtskompatibilität).
+            weather_service_factory: Optional factory for the weather service
+                (P3-1, Issue #79). Analog moisture_service_factory: wird an
+                den ``CalendarDrivenRunner`` durchgereicht.
         """
         self.context = context
         self.n_days = n_days
@@ -70,7 +74,8 @@ class FastForwardRunner:
         self.calendar_runner = CalendarDrivenRunner(
             context=self.context,
             event_bus=self.event_bus,
-            moisture_service_factory=moisture_service_factory
+            moisture_service_factory=moisture_service_factory,
+            weather_service_factory=weather_service_factory
         )
         
         self.all_events: List[FieldOperationEvent] = []
