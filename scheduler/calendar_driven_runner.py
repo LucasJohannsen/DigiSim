@@ -10,7 +10,7 @@ from services.irrigation_service import IrrigationSimulator
 from services.moisture_service import MoistureDataService
 from services.weather_service import WeatherDataService
 from services.providers.dwd_weather_provider import DWDWeatherDataProvider
-from scheduler.decision_manager import CycleContext, DecisionManager, WorkTypePriorityStrategy
+from scheduler.decision_manager import CycleContext, DecisionManager, DeadlineAwarePriorityStrategy
 from scheduler.guard_rule_loader import GuardRuleLoader
 from utils.event_logger import EventLogger
 from utils.logger import get_logger
@@ -59,8 +59,12 @@ class CalendarDrivenRunner:
         # RuleGuard als Sicherheitsnetz (P2-4, Issue #68). Fail-open:
         # bei Konfigurationsfehlern wird ein leerer Guard geladen.
         rule_guard = GuardRuleLoader.load_default()
+        # P3-4 (Issue #82): DeadlineAwarePriorityStrategy ist Standard
+        # (kein optionaler Schalter, kein Fallback). Erweitert die
+        # WorkTypePriority-Logik um Fälligkeitsberücksichtigung für
+        # terminkritische Operationen (Fungizide).
         self.decision_manager = DecisionManager(
-            strategy=WorkTypePriorityStrategy(),
+            strategy=DeadlineAwarePriorityStrategy(),
             event_bus=self.event_bus,
             rule_guard=rule_guard,
         )

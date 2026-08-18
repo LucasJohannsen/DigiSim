@@ -145,7 +145,20 @@ class ProtectionPlanService:
                 application_category=protection.type,
                 application_name=f"{protection.name} ({protection.amount})",
                 application_amount=application_amount,
-                application_unit=2
+                application_unit=2,
+                # P3-4 (Issue #82): Fälligkeits-Metadaten aus der Konfiguration.
+                is_critical=protection.is_critical,
+                due_window_days=protection.due_window_days,
+            )
+
+            # P3-4 (Issue #82): due_date = planned_date + due_window_days.
+            # Wird nur für terminkritische Operationen benötigt, aber
+            # einheitlich berechnet (auch nicht-kritische Ops erhalten ein
+            # due_date, das von der Strategie jedoch ignoriert wird, da
+            # is_critical=False).
+            spritz_operation.due_date = (
+                protection_operation_date
+                + timedelta(days=protection.due_window_days)
             )
 
             self.operations.append(spritz_operation)

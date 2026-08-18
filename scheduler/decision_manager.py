@@ -16,6 +16,7 @@ __all__ = [
     "CycleContext",
     "DecisionStrategy",
     "WorkTypePriorityStrategy",
+    "DeadlineAwarePriorityStrategy",
     "DecisionManager",
     "RuleGuard",
     "GuardRule",
@@ -586,6 +587,102 @@ class WorkTypePriorityStrategy:
         
         # High-priority operations exist - return only those
         return filtered_operations
+
+
+class DeadlineAwarePriorityStrategy:
+    """Prioritätsstrategie mit Fälligkeitsberücksichtigung (P3-4, Issue #82).
+
+    Erweitert ``WorkTypePriorityStrategy`` um Fälligkeitslogik für
+    terminkritische Operationen (``is_critical=True``). Überfällige
+    kritische Operationen werden auch bei High-Prio-Konkurrenz
+    ausgeführt, um die Wirksamkeit von Fungizid-Spritzfolgen zu
+    sichern (KAR-021: Fungizidabstände ≥ 3 Tage, üblich 5–14 Tage).
+
+    **Drei Kategorien:**
+
+    1. **Überfällig kritisch** (``is_critical=True``, ``due_date`` gesetzt,
+       ``planned_date > due_date``): Werden **immer** ausgeführt, auch bei
+       High-Prio-Konkurrenz. Zusätzlich werden High-Prio-Ops ausgeführt,
+       aber Low-Prio-Ops unterdrückt (um Stauung zu vermeiden).
+    2. **Im-Fenster kritisch** (``is_critical=True``, ``due_date`` gesetzt,
+       ``planned_date <= due_date``): Werden wie High-Prio behandelt –
+       zusammen mit High-Prio-Ops ausgeführt, Low-Prio unterdrückt.
+    3. **Andere** (nicht kritisch oder ohne ``due_date``): Standard-Logik
+       wie ``WorkTypePriorityStrategy`` (Low-Prio bei High-Prio-Konkurrenz
+       unterdrückt).
+
+    **Aktuelles Datum:** Die Strategie kennt das Simulationsdatum nicht
+    direkt. ``op.planned_date`` wird vom Runner auf den aktuellen Tick
+    gesetzt und als Referenz für "heute" verwendet. Ist ``planned_date``
+    None, wird die Operation als nicht-überfällig behandelt.
+    """
+
+    def select_operation(self, operations: List[Any]) -> Any:
+        """Wählt Operationen nach Fälligkeits- und Prioritätslogik aus.
+
+        Args:
+            operations: Liste von Kandidaten-Operationen mit ``worktype``,
+                optional ``is_critical``, ``due_date`` und ``planned_date``.
+
+        Returns:
+            Liste der ausgewählten Operationen, oder ``None`` bei leerer
+            Eingabe.
+        """
+        if not operations:
+            return None
+
+        # Trenne in kritisch-überfällig, kritisch-im-Fenster, andere.
+        overdue_critical: list[Any] = []
+        in_window_critical: list[Any] = []
+        others: list[Any] = []
+
+        for op in operations:
+            is_critical = getattr(op, "is_critical", False)
+            due_date = getattr(op, "due_date", None)
+
+            if is_critical and due_date is not None:
+                # planned_date wird vom Runner auf den aktuellen Tick
+                # gesetzt → Referenz für "heute". Ist planned_date None,
+                # wird die Op als nicht-überfällig behandelt (Fallback).
+                today = getattr(op, "planned_date", None)
+                if today is not None and today > due_date:
+                    overdue_critical.append(op)
+                else:
+                    in_window_critical.append(op)
+            else:
+                others.append(op)
+
+        # Priorität: überfällig kritisch > im Fenster kritisch + high-prio
+        # > low-prio.
+        if overdue_critical:
+            # Überfällige kritische Ops werden IMMER ausgeführt (auch bei
+            # High-Prio-Konkurrenz). Plus alle High-Prio-Ops, aber nicht
+            # Low-Prio (um Stauung zu vermeiden).
+            high_prio = [
+                op for op in others
+                if getattr(op, "worktype", None) not in LOW_PRIORITY_WORKTYPES
+            ]
+            return overdue_critical + high_prio
+
+        # Keine überfälligen kritischen → Standard-Logik mit
+        # Im-Fenster-kritischen als High-Prio-Äquivalent.
+        high_prio = [
+            op for op in others
+            if getattr(op, "worktype", None) not in LOW_PRIORITY_WORKTYPES
+        ]
+        low_prio = [
+            op for op in others
+            if getattr(op, "worktype", None) in LOW_PRIORITY_WORKTYPES
+        ]
+
+        if high_prio or in_window_critical:
+            # High-Prio + im-Fenster-kritische ausführen, Low-Prio
+            # unterdrücken.
+            return in_window_critical + high_prio
+
+        # Nur Low-Prio → alle ausführen.
+        return low_prio
+
 
 class DecisionManager:
     def __init__(
