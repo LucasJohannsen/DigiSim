@@ -217,3 +217,9 @@ def test_build_payload_structure(mock_event, mock_context):
     assert "area" in fields
     assert "fuel" in fields
     assert "worktype_text" in fields
+    # Application-Felder (P3: Düngung/Spritzen brauchen Produktzuordnung)
+    assert "application_type" in fields
+    assert "application_category" in fields
+    assert "application_name" in fields
+    assert "application_amount" in fields
+    assert "application_unit" in fields

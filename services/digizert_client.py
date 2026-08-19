@@ -44,6 +44,11 @@ class DigiZertClient:
                 "end_date": event.end_date,
                 "area": event.area,
                 "fuel": event.fuel,
-                "worktype_text": event.worktype_text
+                "worktype_text": event.worktype_text,
+                "application_type": event.application_type,
+                "application_category": event.application_category,
+                "application_name": event.application_name,
+                "application_amount": event.application_amount,
+                "application_unit": event.application_unit,
             }
         }
