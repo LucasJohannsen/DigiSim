@@ -1,14 +1,11 @@
 import datetime
 from unittest.mock import Mock, patch
+
 import pytest
 
 from events.domain_event_bus import DomainEventBus
+from models.planting_plan import FieldOperation, FieldOperationEvent, FieldOperationStatus
 from models.sim_context import SimContext
-from models.planting_plan import (
-    FieldOperation,
-    FieldOperationEvent,
-    FieldOperationStatus
-)
 from scheduler.calendar_driven_runner import CalendarDrivenRunner, CropCycleState
 
 
@@ -22,7 +19,7 @@ def basic_context():
         start_date=datetime.datetime(2024, 10, 1),
         crop_type="Potato",
         variety="Belana",
-        fuel_variation=0.1
+        fuel_variation=0.1,
     )
 
 
@@ -39,15 +36,20 @@ def test_tick_returns_empty_list_when_no_events(basic_context, mock_planting_pla
     """
     Test 1: tick() gibt leere Liste zurück wenn kein Event für dieses Datum
     """
-    with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
+    with patch(
+        "scheduler.calendar_driven_runner.PlantingPlanService",
+        return_value=mock_planting_plan_service,
+    ):
         runner = CalendarDrivenRunner(basic_context)
-        
+
         test_date = datetime.date(2024, 10, 15)
         events = runner.tick(test_date)
-        
+
         assert isinstance(events, list)
         assert len(events) == 0
-        mock_planting_plan_service.get_next_operations.assert_called_once_with(datetime.datetime(2024, 10, 15, 0, 0))
+        mock_planting_plan_service.get_next_operations.assert_called_once_with(
+            datetime.datetime(2024, 10, 15, 0, 0)
+        )
 
 
 def test_tick_returns_events_when_operation_scheduled(basic_context, mock_planting_plan_service):
@@ -55,7 +57,7 @@ def test_tick_returns_events_when_operation_scheduled(basic_context, mock_planti
     Test 2: tick() gibt Events zurück wenn eine Operation für dieses Datum geplant ist
     """
     test_date = datetime.date(2024, 10, 15)
-    
+
     mock_operation = FieldOperation(
         sequence=1,
         operation="Pflügen",
@@ -64,9 +66,9 @@ def test_tick_returns_events_when_operation_scheduled(basic_context, mock_planti
         working_width=3.0,
         fuel_consumption=15.0,
         planned_date=test_date,
-        actual_date=None
+        actual_date=None,
     )
-    
+
     mock_event = FieldOperationEvent(
         field=1,
         worktype=1,
@@ -74,37 +76,42 @@ def test_tick_returns_events_when_operation_scheduled(basic_context, mock_planti
         end_date="2024-10-15 10:00:00",
         area=10.0,
         fuel=150.0,
-        worktype_text="Pflügen"
+        worktype_text="Pflügen",
     )
-    
+
     mock_planting_plan_service.get_next_operations.return_value = [mock_operation]
     mock_planting_plan_service.get_events_for_ops.return_value = [mock_event]
-    
-    with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
+
+    with patch(
+        "scheduler.calendar_driven_runner.PlantingPlanService",
+        return_value=mock_planting_plan_service,
+    ):
         runner = CalendarDrivenRunner(basic_context)
-        
+
         events = runner.tick(test_date)
-        
+
         assert isinstance(events, list)
         assert len(events) == 1
         assert events[0] == mock_event
         expected_datetime = datetime.datetime(2024, 10, 15, 0, 0)
         mock_planting_plan_service.get_next_operations.assert_called_once_with(expected_datetime)
-        mock_planting_plan_service.get_events_for_ops.assert_called_once_with([mock_operation], expected_datetime)
+        mock_planting_plan_service.get_events_for_ops.assert_called_once_with(
+            [mock_operation], expected_datetime
+        )
 
 
 def test_tick_marks_operations_as_completed(basic_context):
     """
     Test 3: tick() markiert ausgeführte Operationen als erledigt (actual_date gesetzt)
-    
+
     This test uses the real PlantingPlanService to verify that operations
     are properly marked with actual_date after execution.
     """
     test_date = datetime.date(2024, 11, 1)
-    
+
     runner = CalendarDrivenRunner(basic_context)
     events = runner.tick(test_date)
-    
+
     if events:
         for phase in runner.planting_plan_service.planting_plan.phases:
             for op in phase.operations:
@@ -117,7 +124,7 @@ def test_tick_idempotent_for_completed_operations(basic_context, mock_planting_p
     Test 4: tick() gibt nichts zurück wenn dieselbe Operation bereits ausgeführt wurde (Idempotenz)
     """
     test_date = datetime.date(2024, 10, 15)
-    
+
     _ = FieldOperation(
         sequence=1,
         operation="Pflügen",
@@ -126,16 +133,19 @@ def test_tick_idempotent_for_completed_operations(basic_context, mock_planting_p
         working_width=3.0,
         fuel_consumption=15.0,
         planned_date=test_date,
-        actual_date=test_date
+        actual_date=test_date,
     )
-    
+
     mock_planting_plan_service.get_next_operations.return_value = []
-    
-    with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
+
+    with patch(
+        "scheduler.calendar_driven_runner.PlantingPlanService",
+        return_value=mock_planting_plan_service,
+    ):
         runner = CalendarDrivenRunner(basic_context)
-        
+
         events = runner.tick(test_date)
-        
+
         assert isinstance(events, list)
         assert len(events) == 0
 
@@ -143,15 +153,15 @@ def test_tick_idempotent_for_completed_operations(basic_context, mock_planting_p
 def test_tick_collects_all_due_operations_from_past(basic_context):
     """
     Test 5: tick() mit einem Datum weit in der Vergangenheit – alle fälligen Ops werden gesammelt
-    
+
     This test verifies that when tick() is called with a date far in the future,
     all operations that were due between start_date and the given date are collected.
     """
     runner = CalendarDrivenRunner(basic_context)
-    
+
     future_date = datetime.date(2025, 1, 1)
     events = runner.tick(future_date)
-    
+
     assert isinstance(events, list)
 
 
@@ -160,13 +170,13 @@ def test_tick_with_crop_management_phase_initializes_services(basic_context):
     Test 6: tick() initializes protection and irrigation services when CROP_MANAGEMENT phase is active
     """
     runner = CalendarDrivenRunner(basic_context)
-    
+
     test_date = datetime.date(2025, 5, 1)
-    
-    with patch.object(runner, '_should_initialize_services', return_value=True):
-        with patch.object(runner, '_initialize_services') as mock_init:
+
+    with patch.object(runner, "_should_initialize_services", return_value=True):
+        with patch.object(runner, "_initialize_services") as mock_init:
             events = runner.tick(test_date)
-            
+
             mock_init.assert_called_once()
             assert isinstance(events, list)
 
@@ -176,7 +186,7 @@ def test_tick_handles_multiple_operations_same_day(basic_context, mock_planting_
     Test 7: tick() handles multiple operations scheduled for the same day
     """
     test_date = datetime.date(2024, 10, 15)
-    
+
     mock_op1 = FieldOperation(
         sequence=1,
         operation="Pflügen",
@@ -185,9 +195,9 @@ def test_tick_handles_multiple_operations_same_day(basic_context, mock_planting_
         working_width=3.0,
         fuel_consumption=15.0,
         planned_date=test_date,
-        actual_date=None
+        actual_date=None,
     )
-    
+
     mock_op2 = FieldOperation(
         sequence=2,
         operation="Eggen",
@@ -196,20 +206,23 @@ def test_tick_handles_multiple_operations_same_day(basic_context, mock_planting_
         working_width=4.0,
         fuel_consumption=10.0,
         planned_date=test_date,
-        actual_date=None
+        actual_date=None,
     )
-    
+
     mock_planting_plan_service.get_next_operations.return_value = [mock_op1, mock_op2]
     mock_planting_plan_service.get_events_for_ops.side_effect = lambda ops, date: [
         FieldOperationEvent(worktype=op.worktype, worktype_text=op.operation) for op in ops
     ]
     mock_planting_plan_service.active_phase = None
-    
-    with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
+
+    with patch(
+        "scheduler.calendar_driven_runner.PlantingPlanService",
+        return_value=mock_planting_plan_service,
+    ):
         runner = CalendarDrivenRunner(basic_context)
-        
+
         events = runner.tick(test_date)
-        
+
         assert len(events) == 2
         assert events[0].worktype == 1
         assert events[1].worktype == 2
@@ -220,13 +233,13 @@ def test_tick_integration_with_real_planting_plan(basic_context):
     Integration test: tick() with real PlantingPlanService loading from config
     """
     runner = CalendarDrivenRunner(basic_context)
-    
+
     assert runner.planting_plan_service is not None
     assert runner.planting_plan_service.planting_plan is not None
-    
+
     test_date = datetime.date(2024, 11, 1)
     events = runner.tick(test_date)
-    
+
     assert isinstance(events, list)
 
 
@@ -236,7 +249,7 @@ def test_tick_high_prio_op_suppresses_low_prio(basic_context, mock_planting_plan
     wird nur Pflügen ausgeführt. Spritzen wird nicht ausgeführt (actual_date bleibt None).
     """
     test_date = datetime.date(2024, 10, 15)
-    
+
     high_prio_op = FieldOperation(
         sequence=1,
         operation="Pflügen",
@@ -245,9 +258,9 @@ def test_tick_high_prio_op_suppresses_low_prio(basic_context, mock_planting_plan
         actual_date=None,
         duration_per_ha=2.0,
         working_width=3.0,
-        fuel_consumption=15.0
+        fuel_consumption=15.0,
     )
-    
+
     low_prio_op = FieldOperation(
         sequence=2,
         operation="Spritzen",
@@ -256,19 +269,22 @@ def test_tick_high_prio_op_suppresses_low_prio(basic_context, mock_planting_plan
         actual_date=None,
         duration_per_ha=0.2,
         working_width=18.0,
-        fuel_consumption=1.0
+        fuel_consumption=1.0,
     )
-    
+
     mock_planting_plan_service.get_next_operations.return_value = [high_prio_op, low_prio_op]
     mock_planting_plan_service.get_events_for_ops.side_effect = lambda ops, date: [
         FieldOperationEvent(worktype=op.worktype, worktype_text=op.operation) for op in ops
     ]
     mock_planting_plan_service.active_phase = None
-    
-    with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
+
+    with patch(
+        "scheduler.calendar_driven_runner.PlantingPlanService",
+        return_value=mock_planting_plan_service,
+    ):
         runner = CalendarDrivenRunner(basic_context)
         events = runner.tick(test_date)
-    
+
     assert len(events) == 1
     assert events[0].worktype == 1
     assert low_prio_op.actual_date is None
@@ -280,7 +296,7 @@ def test_tick_all_low_prio_ops_execute_when_no_high_prio(basic_context, mock_pla
     werden alle ausgeführt.
     """
     test_date = datetime.date(2024, 10, 15)
-    
+
     low_prio_op1 = FieldOperation(
         sequence=1,
         operation="Spritzen",
@@ -289,9 +305,9 @@ def test_tick_all_low_prio_ops_execute_when_no_high_prio(basic_context, mock_pla
         actual_date=None,
         duration_per_ha=0.2,
         working_width=18.0,
-        fuel_consumption=1.0
+        fuel_consumption=1.0,
     )
-    
+
     low_prio_op2 = FieldOperation(
         sequence=2,
         operation="Bewässern",
@@ -300,19 +316,22 @@ def test_tick_all_low_prio_ops_execute_when_no_high_prio(basic_context, mock_pla
         actual_date=None,
         duration_per_ha=1.0,
         working_width=10.0,
-        fuel_consumption=5.0
+        fuel_consumption=5.0,
     )
-    
+
     mock_planting_plan_service.get_next_operations.return_value = [low_prio_op1, low_prio_op2]
     mock_planting_plan_service.get_events_for_ops.side_effect = lambda ops, date: [
         FieldOperationEvent(worktype=op.worktype, worktype_text=op.operation) for op in ops
     ]
     mock_planting_plan_service.active_phase = None
-    
-    with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
+
+    with patch(
+        "scheduler.calendar_driven_runner.PlantingPlanService",
+        return_value=mock_planting_plan_service,
+    ):
         runner = CalendarDrivenRunner(basic_context)
         events = runner.tick(test_date)
-    
+
     assert len(events) == 2
     assert events[0].worktype == 14
     assert events[1].worktype == 15
@@ -324,12 +343,13 @@ def test_harvest_completed_emitted_only_once(basic_context, mock_planting_plan_s
     in mehreren aufeinanderfolgenden Ticks als abgeschlossen gemeldet wird (Issue #60).
     """
     mock_planting_plan_service.get_next_operations.return_value = []
-    mock_planting_plan_service.get_phase_status = Mock(
-        return_value=FieldOperationStatus.COMPLETED
-    )
+    mock_planting_plan_service.get_phase_status = Mock(return_value=FieldOperationStatus.COMPLETED)
     mock_planting_plan_service.active_phase = None
 
-    with patch('scheduler.calendar_driven_runner.PlantingPlanService', return_value=mock_planting_plan_service):
+    with patch(
+        "scheduler.calendar_driven_runner.PlantingPlanService",
+        return_value=mock_planting_plan_service,
+    ):
         runner = CalendarDrivenRunner(basic_context, event_bus=DomainEventBus())
         # Simulate that the cycle is already running (crop management started earlier)
         runner._crop_cycle_state = CropCycleState.RUNNING
@@ -339,17 +359,14 @@ def test_harvest_completed_emitted_only_once(basic_context, mock_planting_plan_s
         runner.tick(datetime.date(2024, 10, 17))
 
         harvest_events = [
-            e for e in runner.event_bus.get_history()
-            if e.event_type == 'HarvestCompleted'
+            e for e in runner.event_bus.get_history() if e.event_type == "HarvestCompleted"
         ]
         assert len(harvest_events) == 1, (
             f"Expected exactly one HarvestCompleted event, got {len(harvest_events)}"
         )
 
 
-def test_harvest_completed_date_matches_last_harvest_op(
-    basic_context, mock_planting_plan_service
-):
+def test_harvest_completed_date_matches_last_harvest_op(basic_context, mock_planting_plan_service):
     """HarvestCompleted.date == Datum des Ticks der letzten Harvest-Op (Issue #69).
 
     Vor dem Fix wurde die Harvest-Completed-Prüfung am Tick-Anfang
@@ -401,41 +418,31 @@ def test_harvest_completed_date_matches_last_harvest_op(
             return [mock_op]
         return []
 
-    mock_planting_plan_service.get_next_operations.side_effect = (
-        get_next_ops_side_effect
-    )
-    mock_planting_plan_service.get_events_for_ops.side_effect = (
-        events_for_ops_side_effect
-    )
-    mock_planting_plan_service.get_phase_status = Mock(
-        side_effect=phase_status_side_effect
-    )
+    mock_planting_plan_service.get_next_operations.side_effect = get_next_ops_side_effect
+    mock_planting_plan_service.get_events_for_ops.side_effect = events_for_ops_side_effect
+    mock_planting_plan_service.get_phase_status = Mock(side_effect=phase_status_side_effect)
     mock_planting_plan_service.active_phase = None
 
     with patch(
-        'scheduler.calendar_driven_runner.PlantingPlanService',
+        "scheduler.calendar_driven_runner.PlantingPlanService",
         return_value=mock_planting_plan_service,
     ):
-        runner = CalendarDrivenRunner(
-            basic_context, event_bus=DomainEventBus()
-        )
+        runner = CalendarDrivenRunner(basic_context, event_bus=DomainEventBus())
         runner._crop_cycle_state = CropCycleState.RUNNING
 
         runner.tick(test_date)
         runner.tick(next_date)
 
         harvest_events = [
-            e for e in runner.event_bus.get_history()
-            if e.event_type == 'HarvestCompleted'
+            e for e in runner.event_bus.get_history() if e.event_type == "HarvestCompleted"
         ]
         assert len(harvest_events) == 1, (
-            f"Expected exactly one HarvestCompleted event, "
-            f"got {len(harvest_events)}"
+            f"Expected exactly one HarvestCompleted event, got {len(harvest_events)}"
         )
         # HarvestCompleted.date == Datum der letzten Harvest-Op (Oct 15),
         # NICHT der Folgetag (Oct 16).
         expected_date = datetime.datetime(2024, 10, 15, 0, 0).isoformat()
-        actual_date = harvest_events[0].payload['date']
+        actual_date = harvest_events[0].payload["date"]
         assert actual_date == expected_date, (
             f"HarvestCompleted.date {actual_date} != {expected_date} "
             f"(Datum der letzten Harvest-Op, nicht Folgetag)"

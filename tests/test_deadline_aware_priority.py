@@ -21,9 +21,8 @@ import datetime
 
 import pytest
 
-from scheduler.decision_manager import DeadlineAwarePriorityStrategy
 from models.worktypes import WorkType
-
+from scheduler.decision_manager import DeadlineAwarePriorityStrategy
 
 _TEST_DATE = datetime.datetime(2027, 6, 15)
 
@@ -121,9 +120,7 @@ class TestDeadlineAwarePriorityStrategy:
             name="Beregnung",
         )
 
-        result = strategy.select_operation(
-            [in_window_fungicide, high_prio, low_prio]
-        )
+        result = strategy.select_operation([in_window_fungicide, high_prio, low_prio])
 
         assert result is not None
         assert in_window_fungicide in result

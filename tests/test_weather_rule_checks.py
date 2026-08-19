@@ -179,9 +179,7 @@ class TestWeatherCondition:
         soft = soft_violations(result)
         assert len(soft) == 1
 
-    def test_missing_weather_data_no_violation(
-        self, rule_kar030: dict[str, object]
-    ) -> None:
+    def test_missing_weather_data_no_violation(self, rule_kar030: dict[str, object]) -> None:
         """Kein Wetterdatum im Lookup → kein Fehler (graceful degradation)."""
         d = datetime.date(2026, 6, 1)
         lookup: dict[datetime.date, WeatherData] = {}
@@ -247,9 +245,7 @@ class TestSoilCondition:
         assert len(hard) == 1
         assert "nFK" in hard[0].message or "moisture" in hard[0].message.lower()
 
-    def test_kar032_violation_prev_day_precip(
-        self, rule_kar032: dict[str, object]
-    ) -> None:
+    def test_kar032_violation_prev_day_precip(self, rule_kar032: dict[str, object]) -> None:
         """KAR-032: Bodenbearbeitung nach Vortagesniederschlag >10 mm → Verletzung."""
         d = datetime.date(2026, 4, 15)
         prev = d - datetime.timedelta(days=1)
@@ -263,9 +259,7 @@ class TestSoilCondition:
         assert len(hard) == 1
         assert "Vortag" in hard[0].message or "precip" in hard[0].message.lower()
 
-    def test_kar032_ignores_other_worktype(
-        self, rule_kar032: dict[str, object]
-    ) -> None:
+    def test_kar032_ignores_other_worktype(self, rule_kar032: dict[str, object]) -> None:
         """KAR-032: Worktype nicht in Liste → ignoriert."""
         d = datetime.date(2026, 4, 15)
         lookup = {d: _wd(d, moisture=95.0, precip=20.0)}
@@ -284,9 +278,7 @@ class TestSoilCondition:
         assert len(soft) == 1
         assert "Bodentemp" in soft[0].message or "temp" in soft[0].message.lower()
 
-    def test_kar033_no_violation_warm_soil(
-        self, rule_kar033: dict[str, object]
-    ) -> None:
+    def test_kar033_no_violation_warm_soil(self, rule_kar033: dict[str, object]) -> None:
         """KAR-033: Legen bei Bodentemp >=8°C → keine Verletzung."""
         d = datetime.date(2026, 4, 20)
         # Bodentemp ≈ (15 + 7) / 2 = 11°C >= 8°C
@@ -322,9 +314,7 @@ class TestForecastCondition:
         """KAR-031: Beregnung bei trockener Prognose → keine Verletzung."""
         d = datetime.date(2026, 6, 1)
         lookup = {
-            d + datetime.timedelta(days=i): _wd(
-                d + datetime.timedelta(days=i), precip=0.0
-            )
+            d + datetime.timedelta(days=i): _wd(d + datetime.timedelta(days=i), precip=0.0)
             for i in range(5)
         }
         cycles = [[_event(15, d)]]
@@ -336,18 +326,10 @@ class TestForecastCondition:
         d = datetime.date(2026, 6, 1)
         lookup = {
             d: _wd(d, precip=0.0),
-            d + datetime.timedelta(days=1): _wd(
-                d + datetime.timedelta(days=1), precip=4.0
-            ),
-            d + datetime.timedelta(days=2): _wd(
-                d + datetime.timedelta(days=2), precip=4.0
-            ),
-            d + datetime.timedelta(days=3): _wd(
-                d + datetime.timedelta(days=3), precip=4.0
-            ),
-            d + datetime.timedelta(days=4): _wd(
-                d + datetime.timedelta(days=4), precip=0.0
-            ),
+            d + datetime.timedelta(days=1): _wd(d + datetime.timedelta(days=1), precip=4.0),
+            d + datetime.timedelta(days=2): _wd(d + datetime.timedelta(days=2), precip=4.0),
+            d + datetime.timedelta(days=3): _wd(d + datetime.timedelta(days=3), precip=4.0),
+            d + datetime.timedelta(days=4): _wd(d + datetime.timedelta(days=4), precip=0.0),
         }
         cycles = [[_event(15, d)]]
         result = check_rule(rule_kar031, cycles, weather_lookup=lookup)
@@ -359,27 +341,19 @@ class TestForecastCondition:
         """KAR-031: Nicht-Beregnung wird ignoriert."""
         d = datetime.date(2026, 6, 1)
         lookup = {
-            d + datetime.timedelta(days=i): _wd(
-                d + datetime.timedelta(days=i), precip=20.0
-            )
+            d + datetime.timedelta(days=i): _wd(d + datetime.timedelta(days=i), precip=20.0)
             for i in range(5)
         }
         cycles = [[_event(14, d)]]
         result = check_rule(rule_kar031, cycles, weather_lookup=lookup)
         assert result.violations == []
 
-    def test_partial_forecast_no_violation(
-        self, rule_kar031: dict[str, object]
-    ) -> None:
+    def test_partial_forecast_no_violation(self, rule_kar031: dict[str, object]) -> None:
         """KAR-031: Nur 2 von 4 Tagen im Lookup, Summe <10 → keine Verletzung."""
         d = datetime.date(2026, 6, 1)
         lookup = {
-            d + datetime.timedelta(days=1): _wd(
-                d + datetime.timedelta(days=1), precip=3.0
-            ),
-            d + datetime.timedelta(days=2): _wd(
-                d + datetime.timedelta(days=2), precip=3.0
-            ),
+            d + datetime.timedelta(days=1): _wd(d + datetime.timedelta(days=1), precip=3.0),
+            d + datetime.timedelta(days=2): _wd(d + datetime.timedelta(days=2), precip=3.0),
         }
         cycles = [[_event(15, d)]]
         result = check_rule(rule_kar031, cycles, weather_lookup=lookup)

@@ -1,4 +1,5 @@
 import httpx
+
 from models.planting_plan import FieldOperationEvent
 from models.sim_context import SimContext
 from utils.logger import get_logger
@@ -7,29 +8,16 @@ logger = get_logger("digizert_client")
 
 
 class DigiZertClient:
-    def __init__(
-        self,
-        api_url: str,
-        api_token: str,
-        timeout: int = 10
-    ) -> None:
+    def __init__(self, api_url: str, api_token: str, timeout: int = 10) -> None:
         self.api_url = api_url
         self.api_token = api_token
         self.timeout = timeout
 
     def send_event(self, event: FieldOperationEvent, context: SimContext) -> None:
         payload = self._build_payload(event, context)
-        headers = {
-            "Authorization": f"Token {self.api_token}",
-            "Content-Type": "application/json"
-        }
+        headers = {"Authorization": f"Token {self.api_token}", "Content-Type": "application/json"}
 
-        response = httpx.post(
-            self.api_url,
-            json=payload,
-            headers=headers,
-            timeout=self.timeout
-        )
+        response = httpx.post(self.api_url, json=payload, headers=headers, timeout=self.timeout)
         response.raise_for_status()
         logger.info("Event dispatched", field=event.field, worktype=event.worktype)
 
@@ -50,5 +38,5 @@ class DigiZertClient:
                 "application_name": event.application_name,
                 "application_amount": event.application_amount,
                 "application_unit": event.application_unit,
-            }
+            },
         }

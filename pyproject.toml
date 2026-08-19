@@ -40,9 +40,46 @@ dev = [
     "pytest-asyncio>=0.23.0",
     "pyyaml>=6.0",
     "respx>=0.21",
+    "ruff>=0.6.0",
+    "mypy>=1.10.0",
 ]
 
 [tool.pytest.ini_options]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+    "documentation/playground",
+    "export",
+    "poc",
+]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM"]
+ignore = [
+    "E501",   # line length handled by formatter
+    "SIM102", # nested if – style preference, not a bug
+    "SIM108", # ternary instead of if-else – readability preference
+    "SIM114", # combine if branches – readability preference
+    "SIM117", # nested with – style preference
+    "SIM105", # contextlib.suppress – style preference
+]
+
+[tool.ruff.format]
+quote-style = "double"
+
+[tool.mypy]
+python_version = "3.12"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+exclude = [
+    "documentation/",
+    "export/",
+    "poc/",
+    "tests/",
 ]

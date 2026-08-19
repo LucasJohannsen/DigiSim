@@ -21,6 +21,7 @@ Terminkritische Pflanzenschutz-Maßnahmen (insbesondere Fungizide) werden nicht 
 ```python
 # models/planting_plan.py
 
+
 @dataclass
 class FieldOperation:
     # ... bestehende Felder ...
@@ -77,26 +78,27 @@ Ersetzt `WorkTypePriorityStrategy` als Standard:
 ```python
 # scheduler/decision_manager.py
 
+
 @dataclass
 class DeadlineAwarePriorityStrategy:
     """Prioritätsstrategie mit Fälligkeitsberücksichtigung."""
-    
+
     def select_operation(self, operations: List[Any]) -> Any:
         if not operations:
             return None
-        
+
         today = datetime.date.today()  # oder aus Kontext
-        
+
         # Trenne in kritisch überfällig, kritisch im Fenster, andere
         overdue_critical = []
         in_window_critical = []
         others = []
-        
+
         for op in operations:
             is_critical = getattr(op, "is_critical", False)
             due_date = getattr(op, "due_date", None)
             wt = getattr(op, "worktype", None)
-            
+
             if is_critical and due_date:
                 if today > due_date:
                     overdue_critical.append(op)
@@ -106,7 +108,7 @@ class DeadlineAwarePriorityStrategy:
                     others.append(op)
             else:
                 others.append(op)
-        
+
         # Priorität: überfällig kritisch > im Fenster kritisch > high-prio andere > low-prio andere
         if overdue_critical:
             return overdue_critical  # Alle überfälligen kritischen ausführen
@@ -114,7 +116,7 @@ class DeadlineAwarePriorityStrategy:
             # Kritische im Fenster zusammen mit high-prio anderen
             high_prio = [op for op in others if op.worktype not in LOW_PRIORITY_WORKTYPES]
             return in_window_critical + high_prio
-        
+
         # Fallback auf ursprüngliche Logik
         low_prio_worktypes = LOW_PRIORITY_WORKTYPES
         filtered = [op for op in others if op.worktype not in low_prio_worktypes]

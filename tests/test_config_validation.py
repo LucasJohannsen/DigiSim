@@ -3,10 +3,10 @@
 Prüft ``utils.config_validator.validate_planting_plan`` auf
 Worktype-Label-Konsistenz (Befund B11).
 """
+
 from __future__ import annotations
 
 from utils.config_validator import validate_planting_plan
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

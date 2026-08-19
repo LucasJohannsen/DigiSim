@@ -116,9 +116,7 @@ class WeatherDataService:
         day_index = date.timetuple().tm_yday - 1
         return year_data[day_index]
 
-    def get_forecast(
-        self, date: datetime.date, days: int
-    ) -> list[WeatherData]:
+    def get_forecast(self, date: datetime.date, days: int) -> list[WeatherData]:
         """Liefert eine Prognose für N Tage ab dem gegebenen Datum.
 
         Bei Jahreswechsel wird das Folgejahr automatisch nachgeladen.
@@ -150,9 +148,7 @@ class WeatherDataService:
                 year=year,
                 coords=coords,
             )
-            self._cached_data[year] = self.provider.get_weather_data(
-                year, coords
-            )
+            self._cached_data[year] = self.provider.get_weather_data(year, coords)
         return self._cached_data[year]
 
     def _get_field_coords(self) -> tuple[float, float]:

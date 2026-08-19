@@ -1,9 +1,10 @@
-import pytest
 import datetime
 from unittest.mock import Mock, patch
 
-from scheduler.tick_scheduler import TickScheduler
+import pytest
+
 from models.sim_context import SimContext
+from scheduler.tick_scheduler import TickScheduler
 
 
 @pytest.fixture
@@ -17,7 +18,7 @@ def multiple_contexts():
             start_date=datetime.datetime(2024, 10, 1),
             crop_type="Potato",
             variety="Belana",
-            fuel_variation=0.1
+            fuel_variation=0.1,
         )
         for i in range(1, 6)
     ]
@@ -25,26 +26,26 @@ def multiple_contexts():
 
 @pytest.mark.asyncio
 async def test_daily_tick_processes_all_fields(tmp_path, multiple_contexts):
-    with patch('scheduler.tick_scheduler.CalendarDrivenRunner') as MockRunner:
+    with patch("scheduler.tick_scheduler.CalendarDrivenRunner") as MockRunner:
         mock_runners = {}
         for ctx in multiple_contexts:
             mock_runner = Mock()
             mock_runner.tick.return_value = []
             mock_runner.context = ctx
             mock_runners[ctx.field_id] = mock_runner
-        
+
         MockRunner.side_effect = lambda ctx, **kwargs: mock_runners[ctx.field_id]
-        
+
         scheduler = TickScheduler(multiple_contexts, state_dir=str(tmp_path))
         await scheduler.daily_tick()
-        
+
         for runner in mock_runners.values():
             runner.tick.assert_called_once()
 
 
 @pytest.mark.asyncio
 async def test_field_error_does_not_stop_others(tmp_path, multiple_contexts):
-    with patch('scheduler.tick_scheduler.CalendarDrivenRunner') as MockRunner:
+    with patch("scheduler.tick_scheduler.CalendarDrivenRunner") as MockRunner:
         mock_runners = {}
         for i, ctx in enumerate(multiple_contexts):
             mock_runner = Mock()
@@ -54,12 +55,12 @@ async def test_field_error_does_not_stop_others(tmp_path, multiple_contexts):
                 mock_runner.tick.return_value = []
             mock_runner.context = ctx
             mock_runners[ctx.field_id] = mock_runner
-        
+
         MockRunner.side_effect = lambda ctx, **kwargs: mock_runners[ctx.field_id]
-        
+
         scheduler = TickScheduler(multiple_contexts, state_dir=str(tmp_path))
         await scheduler.daily_tick()
-        
+
         for runner in mock_runners.values():
             assert runner.tick.call_count == 1
 
@@ -75,18 +76,20 @@ async def test_max_concurrent_fields_limits_parallelism(tmp_path):
             start_date=datetime.datetime(2024, 10, 1),
             crop_type="Potato",
             variety="Belana",
-            fuel_variation=0.1
+            fuel_variation=0.1,
         )
         for i in range(1, 21)
     ]
-    
+
     concurrent_count = 0
     max_concurrent = 0
     import threading
+
     lock = threading.Lock()
-    
+
     def slow_tick(*args):
         import time
+
         nonlocal concurrent_count, max_concurrent
         with lock:
             concurrent_count += 1
@@ -95,20 +98,20 @@ async def test_max_concurrent_fields_limits_parallelism(tmp_path):
         with lock:
             concurrent_count -= 1
         return []
-    
-    with patch('scheduler.tick_scheduler.CalendarDrivenRunner') as MockRunner:
+
+    with patch("scheduler.tick_scheduler.CalendarDrivenRunner") as MockRunner:
         mock_runners = {}
         for ctx in contexts:
             mock_runner = Mock()
             mock_runner.tick = slow_tick
             mock_runner.context = ctx
             mock_runners[ctx.field_id] = mock_runner
-        
+
         MockRunner.side_effect = lambda ctx, **kwargs: mock_runners[ctx.field_id]
-        
+
         scheduler = TickScheduler(contexts, state_dir=str(tmp_path), max_concurrent_fields=5)
         await scheduler.daily_tick()
-        
+
         assert max_concurrent <= 5
 
 
@@ -121,10 +124,10 @@ def test_tick_scheduler_accepts_max_concurrent_fields(tmp_path):
         start_date=datetime.datetime(2024, 10, 1),
         crop_type="Potato",
         variety="Belana",
-        fuel_variation=0.1
+        fuel_variation=0.1,
     )
-    
-    with patch('scheduler.tick_scheduler.CalendarDrivenRunner'):
+
+    with patch("scheduler.tick_scheduler.CalendarDrivenRunner"):
         scheduler = TickScheduler([context], state_dir=str(tmp_path), max_concurrent_fields=15)
         assert scheduler.max_concurrent_fields == 15
 
@@ -132,16 +135,17 @@ def test_tick_scheduler_accepts_max_concurrent_fields(tmp_path):
 @pytest.mark.asyncio
 async def test_tick_summary_logs_success_count(tmp_path, multiple_contexts, caplog):
     import structlog.testing
-    
+
     with structlog.testing.capture_logs() as logs:
-        with patch('scheduler.tick_scheduler.CalendarDrivenRunner') as MockRunner, \
-             patch('scheduler.tick_scheduler.StateManager') as MockStateManager:
-            
+        with (
+            patch("scheduler.tick_scheduler.CalendarDrivenRunner") as MockRunner,
+            patch("scheduler.tick_scheduler.StateManager") as MockStateManager,
+        ):
             mock_state_manager = Mock()
             mock_state_manager.load.return_value = None
             mock_state_manager.save.return_value = None
             MockStateManager.return_value = mock_state_manager
-            
+
             mock_runners = {}
             for i, ctx in enumerate(multiple_contexts):
                 mock_runner = Mock()
@@ -151,12 +155,12 @@ async def test_tick_summary_logs_success_count(tmp_path, multiple_contexts, capl
                     mock_runner.tick.side_effect = Exception("error")
                 mock_runner.context = ctx
                 mock_runners[ctx.field_id] = mock_runner
-            
+
             MockRunner.side_effect = lambda ctx, **kwargs: mock_runners[ctx.field_id]
-            
+
             scheduler = TickScheduler(multiple_contexts, state_dir=str(tmp_path))
             await scheduler.daily_tick()
-    
+
     summary_logs = [log for log in logs if log.get("event") == "Tick summary"]
     assert len(summary_logs) == 1
     assert summary_logs[0]["successful"] == 3

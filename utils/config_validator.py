@@ -4,6 +4,7 @@ Prüft die planting_plan-Konfiguration auf Konsistenz und gibt Warnungen
 zurück. Fail-open: ungültige Konfiguration wird nicht blockiert, nur
 gewarnt.
 """
+
 from __future__ import annotations
 
 from typing import Any

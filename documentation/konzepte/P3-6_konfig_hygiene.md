@@ -45,6 +45,7 @@ Der Parameter wird an `MoistureDataService` übergeben, aber nicht verwendet (Z.
 ```python
 # scheduler/calendar_driven_runner.py
 
+
 def _initialize_services(self, current_date: datetime.date) -> None:
     # ...
     if self._moisture_service_factory is not None:
@@ -62,10 +63,11 @@ Optionale Validierung beim Laden der Konfiguration:
 ```python
 # utils/config_validator.py
 
+
 def validate_planting_plan(config: dict) -> list[str]:
     """Validiert planting_plan-Konfiguration auf Konsistenz."""
     warnings = []
-    
+
     # Prüfe Worktype-Konsistenz
     for phase in config.get("phases", []):
         for op in phase.get("operations", []):
@@ -75,7 +77,7 @@ def validate_planting_plan(config: dict) -> list[str]:
                     f"Worktype 7 (Eggen) verwendet für 'Kreiseln' – "
                     f"fachlich akzeptabel, aber Label sollte konsistent sein"
                 )
-    
+
     return warnings
 ```
 

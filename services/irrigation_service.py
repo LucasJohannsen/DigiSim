@@ -1,20 +1,18 @@
-import logging
 import datetime
 import json
+import logging
 import os
 
 import numpy as np
 
-from typing import List
-
 from models.planting_plan import FieldOperationEvent
-from utils import sim_helper
 from models.sim_context import SimContext
+from utils import sim_helper
 
 __all__ = ["IrrigationSimulator"]
 
 MIN_MOISTURE_LEVEL = 50  # fallback if not in context
-EXPORT_BASE_DIR = os.path.join(os.path.dirname(__file__), '../export')
+EXPORT_BASE_DIR = os.path.join(os.path.dirname(__file__), "../export")
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +20,7 @@ logger = logging.getLogger(__name__)
 class IrrigationSimulator:
     """
     Simulates irrigation needs based on moisture data.
-    
+
     Architecture:
     - get_candidate_operations(): Generates candidate operations without side-effects
     - apply_irrigation(): Applies side-effects (moisture updates) after decision confirmation
@@ -46,7 +44,7 @@ class IrrigationSimulator:
     ):
         self.context = context
         self.moisture_data = moisture_data
-        self.min_moisture_level = getattr(context, 'min_moisture_level', MIN_MOISTURE_LEVEL)
+        self.min_moisture_level = getattr(context, "min_moisture_level", MIN_MOISTURE_LEVEL)
         self.current_day = 0
         self.moisture = np.array(moisture_data.get("moisture_data", []), dtype=float)
         self.irrigation = np.zeros_like(self.moisture)
@@ -83,8 +81,8 @@ class IrrigationSimulator:
             self.updated_moisture[day] = self.moisture[day]
         else:
             # Use the difference in original data as "evaporation" (or fallback to fixed rate)
-            evaporation = self.moisture[day] - self.moisture[day-1]
-            self.updated_moisture[day] = self.updated_moisture[day-1] + evaporation
+            evaporation = self.moisture[day] - self.moisture[day - 1]
+            self.updated_moisture[day] = self.updated_moisture[day - 1] + evaporation
 
         # Check if irrigation is needed
         moisture_level = self.updated_moisture[day]
@@ -93,22 +91,22 @@ class IrrigationSimulator:
 
         if irrigation_needed >= MIN_IRRIGATION_NEEDED:
             # Wetterbericht geht 4 Tage im Voraus
-            upcoming_moisture_levels = self.moisture[day:day + WEATHER_FORECAST_DAYS]
+            upcoming_moisture_levels = self.moisture[day : day + WEATHER_FORECAST_DAYS]
             # Only irrigate if no upcoming day is above the threshold
             if not np.any(np.array(upcoming_moisture_levels) > self.min_moisture_level):
                 needs_irrigation = True
 
         #
-        # 
+        #
         # print(f"    Day {day}: Moisture {moisture_level:.2f}%, Irrigation needed: {irrigation_needed:.0f}mm")
 
         return {
             "day": day,
-            "date": self.moisture_data['dates'][day],
+            "date": self.moisture_data["dates"][day],
             "moisture": float(moisture_level),
             "min_moisture_level": self.min_moisture_level,
             "irrigation_needed": irrigation_needed,
-            "needs_irrigation": needs_irrigation
+            "needs_irrigation": needs_irrigation,
         }
 
     # P3-5 (Issue #83): Arbeitszeiten begrenzen.
@@ -148,12 +146,10 @@ class IrrigationSimulator:
 
         total_duration = float(round(irrigation_amount * duration_factor, 2))
 
-        event_date = datetime.datetime(
-            date.year, date.month, date.day, self.WORK_START_HOUR
-        )
-        return [self._build_irrigation_event(
-            event_date, total_duration, irrigation_amount, fuel_factor
-        )]
+        event_date = datetime.datetime(date.year, date.month, date.day, self.WORK_START_HOUR)
+        return [
+            self._build_irrigation_event(event_date, total_duration, irrigation_amount, fuel_factor)
+        ]
 
     def _build_irrigation_event(
         self,
@@ -178,26 +174,26 @@ class IrrigationSimulator:
 
         event = FieldOperationEvent(
             worktype=15,
-            start_date=event_date.strftime('%Y-%m-%d %H:%M:%S'),
-            end_date=enddate.strftime('%Y-%m-%d %H:%M:%S'),
+            start_date=event_date.strftime("%Y-%m-%d %H:%M:%S"),
+            end_date=enddate.strftime("%Y-%m-%d %H:%M:%S"),
             area=self.context.field_size,
             distance=0,
             distanceWorked=0,
             duration=duration_seconds,
             durationWorked=duration_seconds,
             fuel=float(round(application_amount * fuel_factor, 2)),
-            application_type='irrigation',
+            application_type="irrigation",
             application_category=35,  # D2: DropdownData irrigation
-            application_name='Irrigation',
+            application_name="Irrigation",
             application_amount=round(application_amount, 2),
-            application_unit='mm',  # D2: Neue DataUnit "mm"
-            worktype_text='Bewässerung',
+            application_unit="mm",  # D2: Neue DataUnit "mm"
+            worktype_text="Bewässerung",
             machine="Regner 5000",
         )
         event.field = self.context.field_id
         return event
 
-    def get_candidate_operations(self, date: datetime.date) -> List[FieldOperationEvent]:
+    def get_candidate_operations(self, date: datetime.date) -> list[FieldOperationEvent]:
         """
         Generate irrigation candidate operations for the given date.
 
@@ -289,7 +285,7 @@ class IrrigationSimulator:
         day = date.timetuple().tm_yday
 
         if day < 0 or day >= len(self.irrigation):
-            raise IndexError(f"Day {day} out of range [0, {len(self.irrigation)-1}]")
+            raise IndexError(f"Day {day} out of range [0, {len(self.irrigation) - 1}]")
 
         # Record irrigation event
         self.irrigation[day] = irrigation_amount
@@ -299,7 +295,7 @@ class IrrigationSimulator:
 
         # Propagate moisture increase to future days
         for d in range(day + 1, len(self.updated_moisture)):
-            self.updated_moisture[d] = max(self.updated_moisture[d], self.updated_moisture[d-1])
+            self.updated_moisture[d] = max(self.updated_moisture[d], self.updated_moisture[d - 1])
 
         # P3-3 (Issue #81): Saisonale Summe und Post-Irrigation-Block tracken
         self.seasonal_sum_mm += irrigation_amount
@@ -310,16 +306,20 @@ class IrrigationSimulator:
             logger.info(
                 "Saisonale Beregnungssumme %s mm erreicht Obergrenze %s mm – "
                 "keine weiteren Beregnungen",
-                self.seasonal_sum_mm, self.seasonal_max_mm,
+                self.seasonal_sum_mm,
+                self.seasonal_max_mm,
             )
 
         if self.irrigation_count >= self.max_irrigation_count:
             logger.info(
                 "Beregnungsanzahl %d erreicht Obergrenze %d – keine weiteren Beregnungen",
-                self.irrigation_count, self.max_irrigation_count,
+                self.irrigation_count,
+                self.max_irrigation_count,
             )
 
-    def trigger_irrigation(self, date: datetime.date, irrigation_amount: float = None) -> FieldOperationEvent:
+    def trigger_irrigation(
+        self, date: datetime.date, irrigation_amount: float = None
+    ) -> FieldOperationEvent:
         """
         Trigger irrigation for the given date and return the event.
 
@@ -361,15 +361,15 @@ class IrrigationSimulator:
         This function is called by the simulation runner.
         """
         moisture_data = {
-            'coords': self.moisture_data['coords'],
-            'dates': [date.strftime('%Y-%m-%d') for date in self.moisture_data['dates']],
-            'moisture_data': self.moisture.tolist(),
-            'new_moisture': self.updated_moisture.tolist(),
-            'irrigation': self.irrigation.tolist(),
+            "coords": self.moisture_data["coords"],
+            "dates": [date.strftime("%Y-%m-%d") for date in self.moisture_data["dates"]],
+            "moisture_data": self.moisture.tolist(),
+            "new_moisture": self.updated_moisture.tolist(),
+            "irrigation": self.irrigation.tolist(),
         }
 
-        # Save to file under 
-        date = datetime.datetime.now().strftime('%Y-%m-%d')
+        # Save to file under
+        date = datetime.datetime.now().strftime("%Y-%m-%d")
 
         export_dir = os.path.join(EXPORT_BASE_DIR, date)
         if not os.path.exists(export_dir):
@@ -380,12 +380,12 @@ class IrrigationSimulator:
         # sanitize field name to be a valid filename (without spaces and special characters)
         clean_field_name = sim_helper.sanitize_filename(self.context.field_name)
 
-        filename = f'irrigation_{self.context.field_id}_{clean_field_name}.json'
+        filename = f"irrigation_{self.context.field_id}_{clean_field_name}.json"
         filepath = os.path.join(export_dir, filename)
 
-        with open(filepath, 'w') as f:
+        with open(filepath, "w") as f:
             json.dump(moisture_data, f, indent=2)
-    
+
     def get_state(self) -> dict:
         """
         Return the current state of the irrigation simulator for persistence.
@@ -404,7 +404,7 @@ class IrrigationSimulator:
                 else None
             ),
         }
-    
+
     def apply_state(self, state: dict) -> None:
         """
         Restore the irrigation simulator state from a saved snapshot.
@@ -415,7 +415,7 @@ class IrrigationSimulator:
         if state:
             self.irrigation = np.array(state.get("irrigation", []), dtype=float)
             self.updated_moisture = np.array(state.get("updated_moisture", []), dtype=float)
-            
+
             # Ensure arrays have correct shape
             if len(self.irrigation) != len(self.moisture):
                 self.irrigation = np.zeros_like(self.moisture)
@@ -429,6 +429,8 @@ class IrrigationSimulator:
             if last_date_str:
                 # Handle both date ("2026-08-03") and datetime ("2026-08-03T00:00:00") formats
                 parsed = datetime.datetime.fromisoformat(last_date_str)
-                self._last_irrigation_date = parsed.date() if isinstance(parsed, datetime.datetime) else parsed
+                self._last_irrigation_date = (
+                    parsed.date() if isinstance(parsed, datetime.datetime) else parsed
+                )
             else:
                 self._last_irrigation_date = None

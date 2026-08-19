@@ -21,9 +21,11 @@ from typing import Protocol, runtime_checkable
 from dataclasses import dataclass
 import datetime
 
+
 @dataclass(frozen=True)
 class WeatherData:
     """Wetterdaten für einen Tag."""
+
     date: datetime.date
     precipitation_mm: float
     wind_speed_ms: float
@@ -31,54 +33,48 @@ class WeatherData:
     temperature_min_c: float
     soil_moisture_pct_nfk: float  # Bodenfeuchte in % nFK
 
+
 @runtime_checkable
 class WeatherDataProvider(Protocol):
     """Provider-Interface für Wetterdaten."""
-    
+
     def get_weather_data(
-        self,
-        year: int,
-        coords: tuple[float, float] | None = None
+        self, year: int, coords: tuple[float, float] | None = None
     ) -> list[WeatherData]:
         """Liefert Wetterdaten für das gesamte Jahr."""
         ...
 
+
 class WeatherDataService:
     """Service für Wetterdaten mit Provider-Injection."""
-    
+
     def __init__(
         self,
         context: SimContext,
         provider: WeatherDataProvider,
-        event_bus: Optional[DomainEventBus] = None
+        event_bus: Optional[DomainEventBus] = None,
     ):
         self.context = context
         self.provider = provider
         self.event_bus = event_bus
         self._cached_data: dict[int, list[WeatherData]] = {}
-    
+
     def get_weather_for_date(self, date: datetime.date) -> WeatherData:
         """Liefert Wetterdaten für ein einzelnes Datum."""
         year = date.year
         if year not in self._cached_data:
-            self._cached_data[year] = self.provider.get_weather_data(
-                year,
-                self._get_field_coords()
-            )
+            self._cached_data[year] = self.provider.get_weather_data(year, self._get_field_coords())
         day_index = date.timetuple().tm_yday - 1
         return self._cached_data[year][day_index]
-    
+
     def get_forecast(self, date: datetime.date, days: int) -> list[WeatherData]:
         """Liefert Prognose für N Tage ab Datum."""
         year = date.year
         if year not in self._cached_data:
-            self._cached_data[year] = self.provider.get_weather_data(
-                year,
-                self._get_field_coords()
-            )
+            self._cached_data[year] = self.provider.get_weather_data(year, self._get_field_coords())
         day_index = date.timetuple().tm_yday - 1
-        return self._cached_data[year][day_index:day_index + days]
-    
+        return self._cached_data[year][day_index : day_index + days]
+
     def _get_field_coords(self) -> tuple[float, float]:
         """Konfigurierbarer Feldstandort aus SimContext/Config."""
         # Feldstandort wird aus der Konfiguration gelesen (nicht zufällig,
@@ -94,27 +90,23 @@ class WeatherDataService:
 ```python
 class DWDWeatherDataProvider:
     """Lädt DWD-Daten für Niederschlag, Wind, Temperatur.
-    
+
     Fallback-Strategie: Falls das angeforderte Jahr nicht verfügbar ist,
     wird das **zuletzt verfügbare Jahr** verwendet (dynamisch ermittelt,
     nicht hart auf 2022). Beispiel: Simulation 2027 → 2026, wenn 2026
     der jüngste verfügbare Datensatz ist.
     """
-    
+
     def __init__(self, cache_folder: str = "dwd_data"):
         self.cache_folder = cache_folder
-    
+
     def _find_latest_available_year(self) -> int:
         """Ermittelt das jüngste verfügbare Jahr im Cache-Ordner."""
         # Scanne dwd_data/ nach grids_germany_daily_*_<year>_*.nc
         # und liefere das maximale Jahr.
         ...
-    
-    def get_weather_data(
-        self,
-        year: int,
-        coords: tuple[float, float]
-    ) -> list[WeatherData]:
+
+    def get_weather_data(self, year: int, coords: tuple[float, float]) -> list[WeatherData]:
         # Download/Cache-Logik analog MoistureDataService
         # DWD-Quellen:
         # - precipitation: grids_germany_daily_precipitation_<year>_v1.nc
@@ -131,15 +123,11 @@ class DWDWeatherDataProvider:
 ```python
 class SyntheticWeatherDataProvider:
     """Deterministischer synthetischer Wetter-Generator."""
-    
+
     def __init__(self, seed: int = 42):
         self.seed = seed
-    
-    def get_weather_data(
-        self,
-        year: int,
-        coords: tuple[float, float]
-    ) -> list[WeatherData]:
+
+    def get_weather_data(self, year: int, coords: tuple[float, float]) -> list[WeatherData]:
         # Deterministische Wetter-Generierung basierend auf year + coords
         # Saisonale Muster: mehr Regen im Sommer, Hitze im Juli/August
         # Perlin-Noise oder ähnlich für Realismus
@@ -154,6 +142,7 @@ Analog zu `moisture_service_factory` (P2-5 C):
 # Type alias für optionale Weather-Service-Factory
 WeatherServiceFactory = Callable[[], WeatherDataService]
 
+
 class CalendarDrivenRunner:
     def __init__(
         self,
@@ -161,11 +150,11 @@ class CalendarDrivenRunner:
         event_bus: Optional[DomainEventBus] = None,
         skip_scheduling_event: bool = False,
         moisture_service_factory: Optional[MoistureServiceFactory] = None,
-        weather_service_factory: Optional[WeatherServiceFactory] = None  # NEU
+        weather_service_factory: Optional[WeatherServiceFactory] = None,  # NEU
     ):
         # ...
         self._weather_service_factory = weather_service_factory
-    
+
     def _initialize_services(self, current_date: datetime.date) -> None:
         # ...
         if self._weather_service_factory is not None:
@@ -175,9 +164,7 @@ class CalendarDrivenRunner:
             # verfügbares Jahr. Feldstandort aus Konfiguration (SimContext).
             provider = DWDWeatherDataProvider(cache_folder="dwd_data")
             self.weather_service = WeatherDataService(
-                context=self.context,
-                provider=provider,
-                event_bus=self.event_bus
+                context=self.context, provider=provider, event_bus=self.event_bus
             )
 ```
 

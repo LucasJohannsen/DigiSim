@@ -36,7 +36,6 @@ from services.planting_plan_service import PlantingPlanService
 from services.protection_plan_service import ProtectionPlanService
 from utils.sim_helper import assign_sequential_time
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -164,8 +163,7 @@ class TestAssignSequentialTime:
             min_start = t.time()
         for i in range(1, len(times)):
             assert times[i] > times[i - 1], (
-                f"Verletzung der Monotonie an Position {i}: "
-                f"{times[i]} <= {times[i-1]}"
+                f"Verletzung der Monotonie an Position {i}: {times[i]} <= {times[i - 1]}"
             )
 
 
@@ -215,10 +213,7 @@ class TestPlantingPlanServiceIntradaySequence:
 
         t1 = datetime.datetime.strptime(events1[0].start_date, "%Y-%m-%d %H:%M:%S")
         t2 = datetime.datetime.strptime(events2[0].start_date, "%Y-%m-%d %H:%M:%S")
-        assert t1 < t2, (
-            f"Pflanzguttransport (seq1) muss VOR Legen (seq2) starten: "
-            f"{t1} >= {t2}"
-        )
+        assert t1 < t2, f"Pflanzguttransport (seq1) muss VOR Legen (seq2) starten: {t1} >= {t2}"
 
     def test_cursor_does_not_leak_across_days(self, basic_context):
         """AK5: Cursor gilt nicht über Tagesgrenzen (neues Datum -> volles Fenster)."""
@@ -242,8 +237,10 @@ class TestPlantingPlanServiceIntradaySequence:
         # Wenn der Cursor von Tag A geerbt wuerde, waere min_start > 06:00.
         # Mit vollem Fenster kann die Uhrzeit ab 06:00:01 liegen.
         # Wir pruefen, dass der Cursor fuer Tag B leer ist:
-        assert date_b.date() not in service._last_assigned_time or \
-            service._last_assigned_time[date_b.date()] == op_b.actual_datetime
+        assert (
+            date_b.date() not in service._last_assigned_time
+            or service._last_assigned_time[date_b.date()] == op_b.actual_datetime
+        )
         # Die Uhrzeit muss im vollen Fenster liegen:
         assert t_b.time() >= datetime.time(6, 0)
         assert t_b.time() <= datetime.time(17, 0)
@@ -366,32 +363,42 @@ class TestCalendarDrivenRunnerOrderRegression:
     diese Design-Annahme ab.
     """
 
-    def test_tick_passes_ops_in_selected_order(
-        self, basic_context, mock_planting_plan_service
-    ):
+    def test_tick_passes_ops_in_selected_order(self, basic_context, mock_planting_plan_service):
         """tick() ruft get_events_for_ops pro Op in selected_ops-Reihenfolge auf."""
         test_date = datetime.date(2026, 5, 10)
 
         op1 = FieldOperation(
-            sequence=1, operation="Pflanzguttransport",
+            sequence=1,
+            operation="Pflanzguttransport",
             worktype=WorkType.TRANSPORTIEREN,
-            duration_per_ha=0.5, working_width=3.0, fuel_consumption=10.0,
-            planned_date=test_date, actual_date=None,
+            duration_per_ha=0.5,
+            working_width=3.0,
+            fuel_consumption=10.0,
+            planned_date=test_date,
+            actual_date=None,
         )
         op2 = FieldOperation(
-            sequence=2, operation="Legen",
+            sequence=2,
+            operation="Legen",
             worktype=WorkType.KARTOFFELN_LEGEN,
-            duration_per_ha=0.5, working_width=3.0, fuel_consumption=10.0,
-            planned_date=test_date, actual_date=None,
+            duration_per_ha=0.5,
+            working_width=3.0,
+            fuel_consumption=10.0,
+            planned_date=test_date,
+            actual_date=None,
         )
 
         # get_next_operations gibt sequenzsortiert zurueck (wie real).
         mock_planting_plan_service.get_next_operations.return_value = [op1, op2]
         # Protokolliere die Aufrufreihenfolge.
         call_order: list[list[FieldOperation]] = []
+
         def _record(ops, date):
             call_order.append(list(ops))
-            return [FieldOperationEvent(worktype=op.worktype, worktype_text=op.operation) for op in ops]
+            return [
+                FieldOperationEvent(worktype=op.worktype, worktype_text=op.operation) for op in ops
+            ]
+
         mock_planting_plan_service.get_events_for_ops.side_effect = _record
         mock_planting_plan_service.active_phase = None
 
@@ -438,7 +445,9 @@ def ff_simulation() -> dict:
         fuel_variation=0.1,
     )
     runner = FastForwardRunner(
-        context=ctx, n_days=_N_DAYS, output_target="stdout",
+        context=ctx,
+        n_days=_N_DAYS,
+        output_target="stdout",
     )
     buf = io.StringIO()
     with contextlib.redirect_stdout(buf):
@@ -468,9 +477,7 @@ class TestIntegrationKAR003:
             if p_date in transport_by_date:
                 for t_start in transport_by_date[p_date]:
                     if t_start >= p_start:
-                        violations.append(
-                            f"wt=18 ({t_start}) >= wt=26 ({p_start}) am {p_date}"
-                        )
+                        violations.append(f"wt=18 ({t_start}) >= wt=26 ({p_start}) am {p_date}")
 
         assert not violations, (
             f"KAR-003 verletzt: {len(violations)} Intra-Tages-Inversion(en): "
@@ -482,11 +489,13 @@ class TestIntegrationKAR003:
         events = ff_simulation["events"]
         transport_dates = {
             datetime.datetime.strptime(e.start_date, "%Y-%m-%d %H:%M:%S").date()
-            for e in events if e.worktype == WorkType.TRANSPORTIEREN
+            for e in events
+            if e.worktype == WorkType.TRANSPORTIEREN
         }
         planting_dates = {
             datetime.datetime.strptime(e.start_date, "%Y-%m-%d %H:%M:%S").date()
-            for e in events if e.worktype == WorkType.KARTOFFELN_LEGEN
+            for e in events
+            if e.worktype == WorkType.KARTOFFELN_LEGEN
         }
         common = transport_dates & planting_dates
         assert common, (

@@ -23,7 +23,6 @@ from models.sim_context import SimContext
 from scheduler.fast_forward_runner import FastForwardRunner
 from utils import sim_helper
 
-
 # Pflanzfenster Kartoffel (April–Mai), wie in config/planting_plan_potato.json
 _PLANTING_MONTHS = (4, 5)
 # Lead-Time aus dem Potato-Plan: max(|min_days_to_target|) der soil_preparation
@@ -94,9 +93,10 @@ def test_resolve_planting_year(
     expected_year: int,
 ) -> None:
     """resolve_planting_year wählt das korrekte Pflanzjahr."""
-    assert sim_helper.resolve_planting_year(
-        start_date, _PLANTING_MONTHS, lead_time_days
-    ) == expected_year
+    assert (
+        sim_helper.resolve_planting_year(start_date, _PLANTING_MONTHS, lead_time_days)
+        == expected_year
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -109,9 +109,7 @@ def test_get_random_planting_date_in_start_year() -> None:
     random.seed(42)
     np.random.seed(42)
     start = datetime.datetime(2026, 1, 1)
-    planting_date = sim_helper.get_random_planting_date(
-        start, _PLANTING_MONTHS, _LEAD_TIME_DAYS
-    )
+    planting_date = sim_helper.get_random_planting_date(start, _PLANTING_MONTHS, _LEAD_TIME_DAYS)
     assert planting_date.year == 2026
     assert planting_date.month in (4, 5)
 
@@ -121,9 +119,7 @@ def test_get_random_planting_date_respects_lead_time() -> None:
     random.seed(42)
     np.random.seed(42)
     start = datetime.datetime(2026, 4, 1)
-    planting_date = sim_helper.get_random_planting_date(
-        start, _PLANTING_MONTHS, _LEAD_TIME_DAYS
-    )
+    planting_date = sim_helper.get_random_planting_date(start, _PLANTING_MONTHS, _LEAD_TIME_DAYS)
     earliest = start + datetime.timedelta(days=_LEAD_TIME_DAYS)
     assert planting_date >= earliest, (
         f"Legetermin {planting_date.date()} vor earliest {earliest.date()}."
@@ -136,9 +132,7 @@ def test_get_random_planting_date_after_window_next_year() -> None:
     random.seed(42)
     np.random.seed(42)
     start = datetime.datetime(2026, 6, 15)
-    planting_date = sim_helper.get_random_planting_date(
-        start, _PLANTING_MONTHS, _LEAD_TIME_DAYS
-    )
+    planting_date = sim_helper.get_random_planting_date(start, _PLANTING_MONTHS, _LEAD_TIME_DAYS)
     assert planting_date.year == 2027
     assert planting_date.month in (4, 5)
 
@@ -226,20 +220,13 @@ def test_ff_365_harvest_in_start_year(ff_365_run: dict) -> None:
 
 def test_ff_365_crop_cycle_scheduled_emitted_once(ff_365_run: dict) -> None:
     """Akzeptanzkriterium 4: CropCycleScheduled genau 1× mit korrektem Payload."""
-    scheduled = [
-        e for e in ff_365_run["domain_events"]
-        if e.event_type == "CropCycleScheduled"
-    ]
-    assert len(scheduled) == 1, (
-        f"Erwartet genau 1 CropCycleScheduled, got {len(scheduled)}."
-    )
+    scheduled = [e for e in ff_365_run["domain_events"] if e.event_type == "CropCycleScheduled"]
+    assert len(scheduled) == 1, f"Erwartet genau 1 CropCycleScheduled, got {len(scheduled)}."
     payload = scheduled[0].payload
     assert "planned_planting_date" in payload
     planned_str = payload["planned_planting_date"]
     planned_year = int(planned_str[:4])
-    assert planned_year == 2026, (
-        f"planned_planting_date Jahr {planned_year}, erwartet 2026."
-    )
+    assert planned_year == 2026, f"planned_planting_date Jahr {planned_year}, erwartet 2026."
     planned_month = int(planned_str[5:7])
     assert planned_month in (4, 5), (
         f"planned_planting_date Monat {planned_month}, erwartet Apr/Mai."
@@ -248,11 +235,6 @@ def test_ff_365_crop_cycle_scheduled_emitted_once(ff_365_run: dict) -> None:
 
 def test_ff_365_scheduled_matches_planned_planting_date(ff_365_run: dict) -> None:
     """CropCycleScheduled.payload['planned_planting_date'] == planned_planting_date."""
-    scheduled = next(
-        e for e in ff_365_run["domain_events"]
-        if e.event_type == "CropCycleScheduled"
-    )
+    scheduled = next(e for e in ff_365_run["domain_events"] if e.event_type == "CropCycleScheduled")
     planned = ff_365_run["planned_planting_date"]
-    assert scheduled.payload["planned_planting_date"].startswith(
-        planned.date().isoformat()
-    )
+    assert scheduled.payload["planned_planting_date"].startswith(planned.date().isoformat())

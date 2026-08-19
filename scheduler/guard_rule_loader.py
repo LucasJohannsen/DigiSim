@@ -6,6 +6,7 @@ Konfigurationsfehlern (Datei fehlt, ungültiges JSON, unbekannter
 ``check_type``) wird ein leerer ``RuleGuard`` zurückgegeben und ein
 Warning-Log emittiert – die Simulation läuft ohne Guard weiter.
 """
+
 from __future__ import annotations
 
 import json
@@ -68,9 +69,7 @@ class GuardRuleLoader:
             with open(self.config_path, encoding="utf-8") as fh:
                 data: dict[str, Any] = json.load(fh)
         except FileNotFoundError:
-            logger.warning(
-                "Guard config not found, guard disabled: %s", self.config_path
-            )
+            logger.warning("Guard config not found, guard disabled: %s", self.config_path)
             return RuleGuard(rules=[])
         except json.JSONDecodeError as exc:
             logger.warning(

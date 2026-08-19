@@ -59,7 +59,7 @@ runner = ReplayRunner(
     context=context,
     start_date=datetime.date(2024, 1, 1),
     end_date=datetime.date(2024, 12, 31),
-    output_target="json"
+    output_target="json",
 )
 
 events = runner.run()
@@ -123,11 +123,7 @@ context = SimContext(
     # ... other parameters
 )
 
-runner = FastForwardRunner(
-    context=context,
-    n_days=365,
-    output_target="json"
-)
+runner = FastForwardRunner(context=context, n_days=365, output_target="json")
 
 events = runner.run()
 ```
@@ -188,15 +184,10 @@ Free weather data without API key requirement.
 from services.weather_adapters import OpenMeteoWeatherAdapter
 import datetime
 
-adapter = OpenMeteoWeatherAdapter(
-    latitude=52.52,
-    longitude=13.41,
-    enabled=True
-)
+adapter = OpenMeteoWeatherAdapter(latitude=52.52, longitude=13.41, enabled=True)
 
 weather_data = adapter.get_data(
-    start_date=datetime.date(2024, 1, 1),
-    end_date=datetime.date(2024, 12, 31)
+    start_date=datetime.date(2024, 1, 1), end_date=datetime.date(2024, 12, 31)
 )
 
 # Output format:
@@ -225,7 +216,7 @@ Set via environment variables or code:
 adapter = OpenMeteoWeatherAdapter(
     latitude=52.52,
     longitude=13.41,
-    enabled=True  # or False to use fallback
+    enabled=True,  # or False to use fallback
 )
 ```
 
@@ -238,7 +229,7 @@ from services.weather_adapters import DWDWeatherAdapter
 
 adapter = DWDWeatherAdapter(
     station_id="12345",
-    enabled=False  # Not yet implemented
+    enabled=False,  # Not yet implemented
 )
 ```
 
@@ -251,10 +242,7 @@ Load soil parameters from JSON configuration files.
 ```python
 from services.soil_adapters import ConfigFileSoilAdapter
 
-adapter = ConfigFileSoilAdapter(
-    config_path="config/soil_parameters.json",
-    enabled=True
-)
+adapter = ConfigFileSoilAdapter(config_path="config/soil_parameters.json", enabled=True)
 
 soil_data = adapter.get_data(field_id="12345")
 
@@ -376,16 +364,10 @@ Both ReplayRunner and FastForwardRunner use `CalendarDrivenRunner` internally:
 replay_context = copy.deepcopy(self.context)
 replay_context.start_date = replay_start_date
 
-self.calendar_runner = CalendarDrivenRunner(
-    context=replay_context,
-    event_bus=self.event_bus
-)
+self.calendar_runner = CalendarDrivenRunner(context=replay_context, event_bus=self.event_bus)
 
 # FastForwardRunner uses context as-is
-self.calendar_runner = CalendarDrivenRunner(
-    context=self.context,
-    event_bus=self.event_bus
-)
+self.calendar_runner = CalendarDrivenRunner(context=self.context, event_bus=self.event_bus)
 ```
 
 ### Event-Driven Architecture
@@ -415,14 +397,10 @@ context = SimContext(
     variety="Agria",
     field_id=12345,
     field_name="Demo Field",
-    fuel_variation=0.1
+    fuel_variation=0.1,
 )
 
-runner = FastForwardRunner(
-    context=context,
-    n_days=365,
-    output_target="json"
-)
+runner = FastForwardRunner(context=context, n_days=365, output_target="json")
 
 events = runner.run()
 print(f"Generated {len(events)} events for full season")
@@ -437,14 +415,10 @@ from models.sim_context import SimContext
 import datetime
 
 # Get weather data
-weather_adapter = OpenMeteoWeatherAdapter(
-    latitude=52.52,
-    longitude=13.41
-)
+weather_adapter = OpenMeteoWeatherAdapter(latitude=52.52, longitude=13.41)
 
 weather_data = weather_adapter.get_data(
-    start_date=datetime.date(2024, 3, 1),
-    end_date=datetime.date(2024, 9, 30)
+    start_date=datetime.date(2024, 3, 1), end_date=datetime.date(2024, 9, 30)
 )
 
 # Run replay
@@ -461,7 +435,7 @@ runner = ReplayRunner(
     context=context,
     start_date=datetime.date(2024, 3, 1),
     end_date=datetime.date(2024, 9, 30),
-    output_target="json"
+    output_target="json",
 )
 
 events = runner.run()
@@ -473,9 +447,7 @@ events = runner.run()
 from services.soil_adapters import ConfigFileSoilAdapter
 
 # Create custom soil config
-adapter = ConfigFileSoilAdapter(
-    config_path="config/my_soil_params.json"
-)
+adapter = ConfigFileSoilAdapter(config_path="config/my_soil_params.json")
 
 # Get soil data for field
 soil_data = adapter.get_data(field_id="12345")

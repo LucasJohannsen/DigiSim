@@ -33,7 +33,6 @@ from models.planting_plan import (
 from models.sim_context import SimContext
 from services.planting_plan_service import PlantingPlanService
 
-
 # ---------------------------------------------------------------------------
 # Fixtures & Helpers
 # ---------------------------------------------------------------------------
@@ -157,9 +156,7 @@ class TestHarvestPeriodCorrectionForward:
             f"Korrektur {harvest} liegt vor biologischer Reife {bio_maturity}"
         )
 
-    def test_july_planting_corrected_to_september_next_year_window(
-        self, basic_context
-    ):
+    def test_july_planting_corrected_to_september_next_year_window(self, basic_context):
         """Legen 01.04. + 110 d = 20.07. (Jul, außerhalb) → Zielmonat 9 liegt
         nach Pflanzmonat 4 → gleiches Jahr → 01.09.2026."""
         service = _make_service(basic_context, grow_duration=110)
@@ -215,9 +212,7 @@ class TestNoBackwardCorrection:
         planting = datetime.datetime(2026, 7, 15)
         harvest = service._compute_harvest_date(planting)
         expected = planting + datetime.timedelta(days=110)
-        assert harvest == expected, (
-            f"November darf nicht zurück korrigiert werden; got {harvest}"
-        )
+        assert harvest == expected, f"November darf nicht zurück korrigiert werden; got {harvest}"
         assert harvest.month == 11
 
     def test_december_not_corrected_backward(self, basic_context):
@@ -332,8 +327,7 @@ class TestUpdatePhaseStatusHarvesting:
         # crop_management ist aktiv (IN_PROGRESS) und abgeschlossen →
         # update_phase_status schließt sie ab und plant harvesting.
         cm_phase = next(
-            p for p in plan.phases
-            if p.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
+            p for p in plan.phases if p.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
         )
         service.active_phase = cm_phase
         captured: dict[str, datetime.datetime] = {}
@@ -347,8 +341,7 @@ class TestUpdatePhaseStatusHarvesting:
 
         assert captured.get("phase") == FieldOperationPhases.HARVESTING.value
         assert captured.get("target") == datetime.datetime(2026, 9, 1), (
-            f"Erwartet korrigierten Erntetermin 2026-09-01, got "
-            f"{captured.get('target')}"
+            f"Erwartet korrigierten Erntetermin 2026-09-01, got {captured.get('target')}"
         )
 
     def test_harvesting_scheduled_no_correction(self, basic_context):
@@ -364,8 +357,7 @@ class TestUpdatePhaseStatusHarvesting:
             )
         service.planting_plan = plan
         cm_phase = next(
-            p for p in plan.phases
-            if p.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
+            p for p in plan.phases if p.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
         )
         service.active_phase = cm_phase
         captured: dict[str, datetime.datetime] = {}
@@ -440,14 +432,12 @@ class TestUpdatePhaseStatusHarvesting:
             )
         service.planting_plan = plan
         cm_phase = next(
-            p for p in plan.phases
-            if p.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
+            p for p in plan.phases if p.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
         )
         service.active_phase = cm_phase
         # Darf keine Exception werfen; harvesting wird nicht geplant.
         service.update_phase_status(datetime.datetime(2026, 8, 20))
         harvesting = next(
-            p for p in plan.phases
-            if p.phase_name == FieldOperationPhases.HARVESTING.value
+            p for p in plan.phases if p.phase_name == FieldOperationPhases.HARVESTING.value
         )
         assert harvesting.status == FieldOperationStatus.NOT_STARTED
