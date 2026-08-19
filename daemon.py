@@ -216,7 +216,7 @@ def main() -> None:
 
     # S2/S3: Data-Transfer-Client (D3/D4 – Feature-Flag, default off)
     data_client = DigiZertDataClient(
-        api_base_url=config.api_base_url,
+        api_base_url=config.data_api_base_url,
         api_token=config.api_token,
         timeout=config.api_timeout,
         enabled=config.data_transfer_enabled,

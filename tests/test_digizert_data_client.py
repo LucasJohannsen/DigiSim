@@ -191,21 +191,22 @@ def test_send_data_empty_measurements_is_noop(enabled_client):
         mock_post.assert_not_called()
 
 
-def test_send_data_raises_on_http_error(enabled_client):
-    """Test that HTTP errors are raised for bulk transfer."""
+def test_send_data_logs_http_error_without_crashing(enabled_client):
+    """Test that HTTP errors are logged but don't crash the bootstrap."""
     measurements = [SoilMoistureMeasurement(
         timestamp=datetime.datetime(2026, 4, 1), vwc=28.5
     )]
     with patch("httpx.post") as mock_post:
         mock_response = Mock()
         mock_response.status_code = 500
+        mock_response.text = "Internal Server Error"
         mock_response.raise_for_status.side_effect = httpx.HTTPStatusError(
             "Server Error", request=Mock(), response=mock_response
         )
         mock_post.return_value = mock_response
 
-        with pytest.raises(httpx.HTTPStatusError):
-            enabled_client.send_soil_moisture_data(42, 15, measurements)
+        # Should NOT raise – just log the error
+        enabled_client.send_soil_moisture_data(42, 15, measurements)
 
 
 # ---------------------------------------------------------------------------

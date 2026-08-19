@@ -44,16 +44,18 @@ class DaemonConfig:
     api_base_url: str = ""
     field_filter_ids: list[int] | None = None
     data_transfer_enabled: bool = False
+    data_api_base_url: str = ""
 
     def __post_init__(self) -> None:
         if not self.api_base_url:
             parsed = urlparse(self.api_url)
-            # Basis-URL inkl. Pfad-Präfix (z. B. /api/v1/simulator/)
-            # damit Data-Endpoints (/sensors/, /weather/, etc.) korrekt liegen.
+            self.api_base_url = f"{parsed.scheme}://{parsed.netloc}"
+        if not self.data_api_base_url:
+            parsed = urlparse(self.api_url)
+            # Data-API-Basis-URL inkl. Pfad-Präfix (z. B. /api/v1/simulator/)
             path = parsed.path.rstrip("/")
-            # Entferne das letzte Segment (z. B. "events")
             prefix = path.rsplit("/", 1)[0] if "/" in path else ""
-            self.api_base_url = f"{parsed.scheme}://{parsed.netloc}{prefix}"
+            self.data_api_base_url = f"{parsed.scheme}://{parsed.netloc}{prefix}"
 
 
 def load_and_validate_config() -> DaemonConfig:

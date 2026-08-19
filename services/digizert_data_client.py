@@ -210,7 +210,7 @@ class DigiZertDataClient:
             logger.error("Failed to ensure sensor", context=context, error=str(exc))
 
     def _post_bulk(self, url: str, payload: dict, context: str) -> None:
-        """POST für Bulk-Data-Transfer."""
+        """POST für Bulk-Data-Transfer. Loggt Fehler, crasht nicht."""
         try:
             response = httpx.post(url, json=payload, headers=self._headers(), timeout=self.timeout)
             response.raise_for_status()
@@ -221,8 +221,7 @@ class DigiZertDataClient:
                 context=context,
                 status_code=exc.response.status_code,
                 error=str(exc),
+                response_body=exc.response.text[:500] if exc.response.text else None,
             )
-            raise
         except httpx.RequestError as exc:
             logger.error("Bulk data connection failed", context=context, error=str(exc))
-            raise
