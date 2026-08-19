@@ -12,9 +12,10 @@ Regelwerk übernommen; **nur harte Verletzungen führen zu Testfehlern**
 (soft-Verstöße werden als ``Violation(severity="soft")`` gemeldet, aber
 nicht als Fehler gewertet – siehe Konzept P1-1).
 
-Wetter-/Bodenregeln (KAR-030 … KAR-035) benötigen eine Wetter-/Bodenkopplung,
-die erst nach P3 existiert; sie werden als ``skip``-Begründung markiert und
-geben eine leere Verletzungsliste + ``weather_skip=True`` zurück.
+Wetter-/Bodenregeln (KAR-030 … KAR-035) prüfen fertige Event-Sequenzen gegen
+Wetterdaten aus einem ``WeatherLookup`` (``dict[date, WeatherData]``). Ohne
+``weather_lookup`` (Baseline-Suite) werden sie als ``skip`` markiert und geben
+eine leere Verletzungsliste + ``weather_skip=True`` zurück (Abwärtskompatibilität).
 """
 
 from __future__ import annotations
@@ -23,7 +24,15 @@ import datetime
 import json
 import os
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, TypeAlias
+
+from services.weather_service import WeatherData
+
+#: Lookup-Tabelle: Datum → Wetterdaten. Wird aus einem deterministischen
+#: Provider (z. B. ``SyntheticWeatherDataProvider``) generiert und an
+#: ``check_rule`` übergeben, damit die Wetter-Checker dieselben Daten sehen
+#: wie die Guards zur Laufzeit.
+WeatherLookup: TypeAlias = dict[datetime.date, WeatherData]
 
 # ---------------------------------------------------------------------------
 # Konstanten / Pfade
@@ -219,9 +228,7 @@ def segment_cycles(events: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
     if not events:
         return []
     sorted_events = sorted(events, key=lambda e: e["start"] or datetime.datetime.min)
-    boundaries = [
-        i for i, e in enumerate(sorted_events) if e["worktype"] == WT_LEGEN
-    ]
+    boundaries = [i for i, e in enumerate(sorted_events) if e["worktype"] == WT_LEGEN]
     if not boundaries:
         return [sorted_events]
     cycles: list[list[dict[str, Any]]] = []
@@ -234,7 +241,9 @@ def segment_cycles(events: list[dict[str, Any]]) -> list[list[dict[str, Any]]]:
     return cycles
 
 
-def _events_with_wt(cycle: list[dict[str, Any]], worktypes: int | list[int]) -> list[dict[str, Any]]:
+def _events_with_wt(
+    cycle: list[dict[str, Any]], worktypes: int | list[int]
+) -> list[dict[str, Any]]:
     if isinstance(worktypes, int):
         worktypes = [worktypes]
     wt_set = set(worktypes)
@@ -270,7 +279,9 @@ def _ref(ev: dict[str, Any]) -> str:
 
 
 def _check_phase_order(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-001: Phasenreihenfolge Bodenbearbeitung → Legen → Sikkation → Roden → Lagerung.
 
@@ -291,14 +302,18 @@ def _check_phase_order(
     soil_wts = order[0]  # [5,6,7,28]
 
     soil_dates = group_dates(soil_wts)
-    planting_dates = [e["start"] for e in _events_with_wt(cycle, WT_LEGEN) if e["start"]]
+    planting_dates = [
+        e["start"] for e in _events_with_wt(cycle, WT_LEGEN) if e["start"]
+    ]
     sikkation_dates = [
         e["start"]
         for e in _events_with_wt_cat(cycle, WT_SPRITZEN, CAT_HERBIZID)
         if e["start"]
     ]
     harvest_dates = [e["start"] for e in _events_with_wt(cycle, WT_RODEN) if e["start"]]
-    storage_dates = [e["start"] for e in _events_with_wt(cycle, WT_VERLADEN) if e["start"]]
+    storage_dates = [
+        e["start"] for e in _events_with_wt(cycle, WT_VERLADEN) if e["start"]
+    ]
 
     anchors: list[tuple[str, datetime.datetime | None]] = [
         ("Bodenbearbeitung_max", max(soil_dates) if soil_dates else None),
@@ -323,7 +338,9 @@ def _check_phase_order(
 
 
 def _check_no_worktype_after(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-002 / KAR-005: Keine Worktypes aus einer Menge nach einem Anker-Worktype."""
     rid = rule["id"]
@@ -366,7 +383,9 @@ def _check_no_worktype_after(
 
 
 def _check_intraday_timestamp_order(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-003: Intra-Tages-Sequenz – bei gleichem Datum muss Reihenfolge erhalten bleiben."""
     rid = rule["id"]
@@ -395,7 +414,9 @@ def _check_intraday_timestamp_order(
 
 
 def _check_requires_prior_event(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-004: Roden erst nach Sikkation (wt=14 cat=26) oder Kraut schlagen (wt=30)."""
     rid = rule["id"]
@@ -408,12 +429,18 @@ def _check_requires_prior_event(
     for e in cycle:
         if e["worktype"] != target_wt or e["start"] is None:
             continue
-        prior_events = _events_with_wt_cat(cycle, prior["worktype"], prior.get("application_category"))
-        prior_dates = [p["start"] for p in prior_events if p["start"] and p["start"] < e["start"]]
+        prior_events = _events_with_wt_cat(
+            cycle, prior["worktype"], prior.get("application_category")
+        )
+        prior_dates = [
+            p["start"] for p in prior_events if p["start"] and p["start"] < e["start"]
+        ]
         alt_dates: list[datetime.datetime] = []
         if alt_prior is not None:
             alt_events = _events_with_wt(cycle, alt_prior["worktype"])
-            alt_dates = [p["start"] for p in alt_events if p["start"] and p["start"] < e["start"]]
+            alt_dates = [
+                p["start"] for p in alt_events if p["start"] and p["start"] < e["start"]
+            ]
         if not prior_dates and not alt_dates:
             out.append(
                 Violation(
@@ -427,7 +454,9 @@ def _check_requires_prior_event(
 
 
 def _check_no_worktype_before(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-006: Kein Worktype vor einem Anker-Worktype (z. B. keine Beregnung vor dem Legen)."""
     rid = rule["id"]
@@ -457,7 +486,9 @@ def _check_no_worktype_before(
 
 
 def _check_interval_days(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-007/008/020/023/025/047: Tagesabstand zwischen zwei Worktype-Events.
 
@@ -516,9 +547,7 @@ def _check_interval_days(
     if src_occ == "last":
         src_selected: list[dict[str, Any]] = [src_events[-1]]
     elif src_occ == "last_before_harvest":
-        harvest_events = [
-            e for e in cycle if e["worktype"] == WT_RODEN and e["start"]
-        ]
+        harvest_events = [e for e in cycle if e["worktype"] == WT_RODEN and e["start"]]
         if harvest_events:
             harvest = min(e["start"] for e in harvest_events)
             before = [e for e in src_events if e["start"] < harvest]
@@ -589,7 +618,9 @@ def _check_interval_days(
 
 
 def _check_month_window(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-010…014: Monat der Events je Worktype in zulässigem Fenster."""
     rid = rule["id"]
@@ -630,7 +661,9 @@ def _check_month_window(
 
 
 def _check_chronology_consistency(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-015: Konsistente Zeitachse – keine Jahres-Sprünge innerhalb eines Zyklus.
 
@@ -667,7 +700,9 @@ def _check_chronology_consistency(
 
 
 def _check_fertilization_windows(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-016: Grunddüngung (cat 34) vor dem Legen; N-Kopfdüngung (cat 33) 1-35 d nach Legen."""
     rid = rule["id"]
@@ -710,7 +745,9 @@ def _check_fertilization_windows(
 
 
 def _check_gap_between_events(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-021/022: Abstand aufeinanderfolgender Events desselben Worktypes/Kategorie."""
     rid = rule["id"]
@@ -758,7 +795,9 @@ def _check_gap_between_events(
 
 
 def _check_siccation_limits(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-024: Sikkations-Grenzen (Shark ≤1×, Quickdown ≤2×, Abstand 4-7 d, letzte Gabe ≥14 d vor Roden).
 
@@ -772,7 +811,9 @@ def _check_siccation_limits(
     check = rule["check"]
     out: list[Violation] = []
     all_herbizid = _events_with_wt_cat(cycle, WT_SPRITZEN, CAT_HERBIZID)
-    all_herbizid = sorted([e for e in all_herbizid if e["start"]], key=lambda e: e["start"])
+    all_herbizid = sorted(
+        [e for e in all_herbizid if e["start"]], key=lambda e: e["start"]
+    )
 
     def medium(ev: dict[str, Any]) -> str | None:
         name = (ev.get("name") or "").lower()
@@ -832,7 +873,9 @@ def _check_siccation_limits(
 
 
 def _check_amount_range(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-040: application_amount in hartem/weichem Bereich."""
     rid = rule["id"]
@@ -854,8 +897,10 @@ def _check_amount_range(
                     event_ref=_ref(e),
                 )
             )
-        elif soft_min is not None and soft_max is not None and (
-            amt < soft_min or amt > soft_max
+        elif (
+            soft_min is not None
+            and soft_max is not None
+            and (amt < soft_min or amt > soft_max)
         ):
             out.append(
                 Violation(
@@ -869,7 +914,9 @@ def _check_amount_range(
 
 
 def _check_seasonal_sum(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-041: Saisonaler Summenbereich."""
     rid = rule["id"]
@@ -892,7 +939,9 @@ def _check_seasonal_sum(
 
 
 def _check_event_count(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-042 / KAR-046: Anzahlen je Zyklus (gesamt und/oder je Kategorie)."""
     rid = rule["id"]
@@ -941,7 +990,9 @@ def _check_event_count(
 
 
 def _check_nutrient_sum(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-043: N-Düngung gesamt ≤ Grenze (kg N/ha)."""
     rid = rule["id"]
@@ -973,7 +1024,9 @@ def _check_nutrient_sum(
 
 
 def _check_amount_per_ha_range(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-044: application_amount pro Hektar in Bereich."""
     rid = rule["id"]
@@ -1001,7 +1054,9 @@ def _check_amount_per_ha_range(
 
 
 def _check_operation_timing(
-    cycle: list[dict[str, Any]], rule: dict[str, Any]
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
 ) -> list[Violation]:
     """KAR-045: Arbeitsbeginn 05:00-20:00; max. 18 h Dauer."""
     rid = rule["id"]
@@ -1037,7 +1092,236 @@ def _check_operation_timing(
     return out
 
 
-# Wetter-Checks (KAR-030 … KAR-035) – erst nach P3 prüfbar
+# ---------------------------------------------------------------------------
+# Wetter-Checks (KAR-030 … KAR-035)
+# ---------------------------------------------------------------------------
+
+
+def _check_weather_condition(
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
+) -> list[Violation]:
+    """KAR-030 / KAR-035: Kein Spritzen bei Regen/Wind oder Hitze.
+
+    Prüft für alle Events des konfigurierten Worktypes (optional gefiltert
+    nach ``application_category``), ob die Wetterdaten am Event-Datum die
+    Schwellwerte für Niederschlag, Wind oder Temperatur überschreiten.
+    """
+    if weather_lookup is None:
+        return []
+    rid = rule["id"]
+    sev = rule["severity"]
+    check = rule["check"]
+    wt = check["worktype"]
+    max_precip = check.get("max_precipitation_mm_day")
+    max_wind = check.get("max_wind_ms")
+    max_temp = check.get("max_temperature_c")
+    app_cat = check.get("application_category")
+    out: list[Violation] = []
+    for e in cycle:
+        if e["worktype"] != wt or e["start"] is None:
+            continue
+        if app_cat is not None and e["category"] != app_cat:
+            continue
+        w = weather_lookup.get(e["start"].date())
+        if w is None:
+            continue
+        if max_precip is not None and w.precipitation_mm > max_precip:
+            out.append(
+                Violation(
+                    rule_id=rid,
+                    severity=sev,
+                    message=(
+                        f"Niederschlag {w.precipitation_mm} mm > "
+                        f"{max_precip} mm am {_ref(e)}."
+                    ),
+                    event_ref=_ref(e),
+                )
+            )
+        if max_wind is not None and w.wind_speed_ms > max_wind:
+            out.append(
+                Violation(
+                    rule_id=rid,
+                    severity=sev,
+                    message=(
+                        f"Wind {w.wind_speed_ms} m/s > {max_wind} m/s am {_ref(e)}."
+                    ),
+                    event_ref=_ref(e),
+                )
+            )
+        if max_temp is not None and w.temperature_max_c > max_temp:
+            out.append(
+                Violation(
+                    rule_id=rid,
+                    severity=sev,
+                    message=(
+                        f"Temperatur {w.temperature_max_c} °C > {max_temp} °C "
+                        f"am {_ref(e)}."
+                    ),
+                    event_ref=_ref(e),
+                )
+            )
+    return out
+
+
+def _check_soil_condition(
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
+) -> list[Violation]:
+    """KAR-032 / KAR-033: Bodenbearbeitung bei nassen Bedingungen / Bodentemperatur.
+
+    KAR-032: Keine Bodenbearbeitung bei nFK > Schwellwert oder
+    Vortagesniederschlag > Schwellwert.
+    KAR-033: Legen erst ab Bodentemperatur >= Schwellwert (Näherung:
+    Bodentemperatur ≈ (temp_max + temp_min) / 2).
+    """
+    if weather_lookup is None:
+        return []
+    rid = rule["id"]
+    sev = rule["severity"]
+    check = rule["check"]
+    worktypes = check.get("worktypes", [check.get("worktype")])
+    max_moisture = check.get("max_soil_moisture_pct_nfk")
+    max_prev_precip = check.get("max_previous_day_precipitation_mm")
+    min_soil_temp = check.get("min_soil_temperature_c")
+    out: list[Violation] = []
+    for e in cycle:
+        if e["worktype"] not in worktypes or e["start"] is None:
+            continue
+        d = e["start"].date()
+        w = weather_lookup.get(d)
+        if w is None:
+            continue
+        if max_moisture is not None and w.soil_moisture_pct_nfk > max_moisture:
+            out.append(
+                Violation(
+                    rule_id=rid,
+                    severity=sev,
+                    message=(
+                        f"nFK {w.soil_moisture_pct_nfk} % > {max_moisture} % "
+                        f"am {_ref(e)}."
+                    ),
+                    event_ref=_ref(e),
+                )
+            )
+        if max_prev_precip is not None:
+            prev = weather_lookup.get(d - datetime.timedelta(days=1))
+            if prev is not None and prev.precipitation_mm > max_prev_precip:
+                out.append(
+                    Violation(
+                        rule_id=rid,
+                        severity=sev,
+                        message=(
+                            f"Vortagesniederschlag {prev.precipitation_mm} mm > "
+                            f"{max_prev_precip} mm vor {_ref(e)}."
+                        ),
+                        event_ref=_ref(e),
+                    )
+                )
+        if min_soil_temp is not None:
+            soil_temp = (w.temperature_max_c + w.temperature_min_c) / 2.0
+            if soil_temp < min_soil_temp:
+                out.append(
+                    Violation(
+                        rule_id=rid,
+                        severity=sev,
+                        message=(
+                            f"Bodentemperatur ≈ {soil_temp:.1f} °C < "
+                            f"{min_soil_temp} °C am {_ref(e)}."
+                        ),
+                        event_ref=_ref(e),
+                    )
+                )
+    return out
+
+
+def _check_forecast_condition(
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
+) -> list[Violation]:
+    """KAR-031: Keine Beregnung bei prognostiziertem Niederschlag.
+
+    Kumuliert den Niederschlag der Folgetage (1 … forecast_days) und meldet
+    eine Verletzung, wenn die Summe den Schwellwert überschreitet.
+    """
+    if weather_lookup is None:
+        return []
+    rid = rule["id"]
+    sev = rule["severity"]
+    check = rule["check"]
+    wt = check["worktype"]
+    forecast_days = check["forecast_days"]
+    max_cumul = check["max_cumulative_precipitation_mm"]
+    out: list[Violation] = []
+    for e in cycle:
+        if e["worktype"] != wt or e["start"] is None:
+            continue
+        d = e["start"].date()
+        cumul = 0.0
+        for i in range(1, forecast_days + 1):
+            fw = weather_lookup.get(d + datetime.timedelta(days=i))
+            if fw is not None:
+                cumul += fw.precipitation_mm
+        if cumul > max_cumul:
+            out.append(
+                Violation(
+                    rule_id=rid,
+                    severity=sev,
+                    message=(
+                        f"Prognose-Niederschlag {cumul:.1f} mm > {max_cumul} mm "
+                        f"in {forecast_days} Tagen ab {_ref(e)}."
+                    ),
+                    event_ref=_ref(e),
+                )
+            )
+    return out
+
+
+def _check_irrigation_trigger(
+    cycle: list[dict[str, Any]],
+    rule: dict[str, Any],
+    weather_lookup: WeatherLookup | None = None,
+) -> list[Violation]:
+    """KAR-034: Beregnungsauslösung nur bei nFK < Schwellwert.
+
+    Prüft, ob die synthetische Bodenfeuchte (``soil_moisture_pct_nfk`` aus
+    dem WeatherLookup) am Beregnungs-Tag unter dem Trigger-Schwellwert lag.
+    Da ``FieldOperationEvent`` keine nFK-Werte enthält, dient der
+    ``WeatherLookup`` als Näherung.
+    """
+    if weather_lookup is None:
+        return []
+    rid = rule["id"]
+    sev = rule["severity"]
+    check = rule["check"]
+    wt = check["worktype"]
+    trigger_early = check["trigger_pct_nfk_early"]
+    out: list[Violation] = []
+    for e in cycle:
+        if e["worktype"] != wt or e["start"] is None:
+            continue
+        w = weather_lookup.get(e["start"].date())
+        if w is None:
+            continue
+        if w.soil_moisture_pct_nfk >= trigger_early:
+            out.append(
+                Violation(
+                    rule_id=rid,
+                    severity=sev,
+                    message=(
+                        f"Beregnung bei nFK {w.soil_moisture_pct_nfk} % >= "
+                        f"{trigger_early} % (Trigger-Schwellwert) am {_ref(e)}."
+                    ),
+                    event_ref=_ref(e),
+                )
+            )
+    return out
+
+
+# Wetter-Regel-IDs (KAR-030 … KAR-035)
 _WEATHER_RULE_IDS = {f"KAR-0{i}" for i in range(30, 36)}
 
 
@@ -1056,7 +1340,7 @@ def _weather_skip(rule: dict[str, Any]) -> CheckResult:
 # Dispatch
 # ---------------------------------------------------------------------------
 
-_CHECK_DISPATCH: dict[str, Callable[[list[dict[str, Any]], dict[str, Any]], list[Violation]]] = {
+_CHECK_DISPATCH: dict[str, Callable[..., list[Violation]]] = {
     "phase_order": _check_phase_order,
     "no_worktype_after": _check_no_worktype_after,
     "intraday_timestamp_order": _check_intraday_timestamp_order,
@@ -1074,22 +1358,32 @@ _CHECK_DISPATCH: dict[str, Callable[[list[dict[str, Any]], dict[str, Any]], list
     "nutrient_sum": _check_nutrient_sum,
     "amount_per_ha_range": _check_amount_per_ha_range,
     "operation_timing": _check_operation_timing,
+    "weather_condition": _check_weather_condition,
+    "soil_condition": _check_soil_condition,
+    "forecast_condition": _check_forecast_condition,
+    "irrigation_trigger": _check_irrigation_trigger,
 }
 
 
 def check_rule(
-    rule: dict[str, Any], cycles: list[list[dict[str, Any]]]
+    rule: dict[str, Any],
+    cycles: list[list[dict[str, Any]]],
+    weather_lookup: WeatherLookup | None = None,
 ) -> CheckResult:
     """Führe einen einzelnen Regel-Check über alle Zyklen aus.
 
     Args:
         rule: Regel-Dict aus ``kartoffel_regeln.json``.
         cycles: Liste der Anbauzyklen (jeweils normalisierte Events).
+        weather_lookup: Optionale Wetterdaten-Tabelle (Datum → WeatherData).
+            Wird für Wetter-Regeln (KAR-030 … KAR-035) benötigt. Ohne Lookup
+            werden Wetter-Regeln als ``weather_skip`` markiert
+            (Abwärtskompatibilität für die Baseline-Suite).
 
     Returns:
         ``CheckResult`` mit allen Verletzungen über alle Zyklen.
     """
-    if rule["id"] in _WEATHER_RULE_IDS:
+    if rule["id"] in _WEATHER_RULE_IDS and weather_lookup is None:
         return _weather_skip(rule)
     check_type = rule["check"]["type"]
     handler = _CHECK_DISPATCH.get(check_type)
@@ -1105,7 +1399,7 @@ def check_rule(
         )
     all_violations: list[Violation] = []
     for cycle in cycles:
-        all_violations.extend(handler(cycle, rule))
+        all_violations.extend(handler(cycle, rule, weather_lookup))
     return CheckResult(violations=all_violations)
 
 
@@ -1122,6 +1416,7 @@ def soft_violations(result: CheckResult) -> list[Violation]:
 __all__ = [
     "Violation",
     "CheckResult",
+    "WeatherLookup",
     "load_rules",
     "normalize_events",
     "segment_cycles",

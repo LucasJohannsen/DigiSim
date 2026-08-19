@@ -25,10 +25,15 @@ import pytest
 from events.domain_event_bus import DomainEventBus
 from models.sim_context import SimContext
 from scheduler.fast_forward_runner import FastForwardRunner
+from services.providers.synthetic_weather_provider import (
+    SyntheticWeatherDataProvider,
+)
+from services.weather_service import WeatherDataService
 
 from tests.plausibility.dry_moisture_stub import DryMoistureDataService
 from tests.plausibility.rule_checks import (
     CheckResult,
+    WeatherLookup,
     hard_violations,
     load_rules,
     normalize_events,
@@ -77,14 +82,15 @@ def dry_simulation() -> dict[str, Any]:
         fuel_variation=0.1,
     )
     event_bus = DomainEventBus()
+    weather_provider = SyntheticWeatherDataProvider(seed=_SEED)
+    weather_service = WeatherDataService(context=context, provider=weather_provider)
     runner = FastForwardRunner(
         context=context,
         n_days=_N_DAYS,
         output_target="stdout",
         event_bus=event_bus,
-        moisture_service_factory=lambda: DryMoistureDataService(
-            context=context
-        ),
+        moisture_service_factory=lambda: DryMoistureDataService(context=context),
+        weather_service_factory=lambda: weather_service,
     )
 
     # Stdout des Runners unterdrücken (Progress-Reports).
@@ -96,6 +102,14 @@ def dry_simulation() -> dict[str, Any]:
     normalized = normalize_events(events)
     cycles = segment_cycles(normalized)
 
+    # WeatherLookup aus demselben Provider generieren (dieselben Daten wie
+    # zur Laufzeit von den Guards genutzt). Die Simulation läuft über
+    # 2026–2028 (760 Tage ab 2026-01-01).
+    weather_lookup: WeatherLookup = {}
+    for year in (2026, 2027, 2028):
+        for wd in weather_provider.get_weather_data(year):
+            weather_lookup[wd.date] = wd
+
     return {
         "events": events,
         "domain_events": domain_events,
@@ -103,6 +117,7 @@ def dry_simulation() -> dict[str, Any]:
         "context": context,
         "cycles": cycles,
         "normalized": normalized,
+        "weather_lookup": weather_lookup,
     }
 
 
@@ -190,9 +205,7 @@ class TestDryMoistureService:
         dates = data["dates"]
         for d, m in zip(dates, moisture):
             if 5 <= d.month <= 9:
-                assert m < 50, (
-                    f"{d}: nFK={m} >= 50 in Vegetationsperiode (Mai–Sep)."
-                )
+                assert m < 50, f"{d}: nFK={m} >= 50 in Vegetationsperiode (Mai–Sep)."
 
     def test_moisture_above_threshold_outside_vegetation_period(self) -> None:
         """Außerhalb Mai–Sep: nFK >= 50 % (kein Beregnungs-Trigger)."""
@@ -212,9 +225,7 @@ class TestDryMoistureService:
         dates = data["dates"]
         for d, m in zip(dates, moisture):
             if d.month < 5 or d.month > 9:
-                assert m >= 50, (
-                    f"{d}: nFK={m} < 50 außerhalb Vegetationsperiode."
-                )
+                assert m >= 50, f"{d}: nFK={m} < 50 außerhalb Vegetationsperiode."
 
     def test_deterministic_no_network(self) -> None:
         """Zwei Aufrufe lieerten identische Daten (kein Zufall, kein Netz)."""
@@ -245,18 +256,14 @@ class TestDryFixture:
 
     def test_dry_season_has_irrigation_events(self, dry_simulation) -> None:
         """AK 2: Dry-Saison enthält >= 1 Beregnungs-Event (wt=15)."""
-        irrigation = [
-            e for e in dry_simulation["events"] if e.worktype == 15
-        ]
+        irrigation = [e for e in dry_simulation["events"] if e.worktype == 15]
         assert len(irrigation) >= 1, (
             f"Erwartet >= 1 Beregnungs-Event, got {len(irrigation)}."
         )
 
     def test_irrigation_in_vegetation_period(self, dry_simulation) -> None:
         """AK 2: Beregnungs-Events liegen in der Vegetationsperiode (Mai–Sep)."""
-        irrigation = [
-            e for e in dry_simulation["events"] if e.worktype == 15
-        ]
+        irrigation = [e for e in dry_simulation["events"] if e.worktype == 15]
         assert irrigation, "Keine Beregnungs-Events zum Monats-Check."
         for ev in irrigation:
             start = ev.start_date
@@ -286,9 +293,7 @@ class TestDryFixture:
             context=ctx,
             n_days=_N_DAYS,
             output_target="stdout",
-            moisture_service_factory=lambda: DryMoistureDataService(
-                context=ctx
-            ),
+            moisture_service_factory=lambda: DryMoistureDataService(context=ctx),
         )
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
@@ -319,11 +324,16 @@ class TestKartoffelRegelnDry:
     ) -> None:
         """Jede harte Regelverletzung ist ein Testfehler (gegen Dry-Saison).
 
-        Wetter-/Bodenregeln (KAR-030 … KAR-035) werden übersprungen.
-        KAR-040 ist xfail (B3 – Gaben zu klein, P3).
+        Wetter-/Bodenregeln (KAR-030 … KAR-035) werden mit dem
+        ``weather_lookup`` aktiv geprüft (dieselben synthetischen Wetterdaten
+        wie zur Laufzeit von den Guards genutzt).
         """
         rule = next(r for r in rules if r["id"] == rule_id)
-        result: CheckResult = check_rule(rule, dry_simulation["cycles"])
+        result: CheckResult = check_rule(
+            rule,
+            dry_simulation["cycles"],
+            weather_lookup=dry_simulation.get("weather_lookup"),
+        )
 
         if result.weather_skip:
             pytest.skip(result.skip_reason or "Wetterregel übersprungen")
