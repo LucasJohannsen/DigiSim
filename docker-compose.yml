@@ -9,6 +9,7 @@ services:
       - ./retry_queue:/app/retry_queue
       - ./logs:/app/logs
       - ./config:/app/config:ro
+      - ./dwd_data:/app/dwd_data:ro
     environment:
       - STATE_DIR=/app/state
       - LOG_FILE=/app/logs/digisim.log

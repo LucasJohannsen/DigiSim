@@ -119,6 +119,9 @@ def load_sim_contexts_from_json(config: DaemonConfig) -> list[SimContext]:
 
     contexts = []
     for field in farm["fields"]:
+        coords = field.get("coords")
+        field_coords = (coords["lon"], coords["lat"]) if coords else None
+
         contexts.append(SimContext(
             field_id=field["id"],
             field_name=field["name"],
@@ -128,6 +131,7 @@ def load_sim_contexts_from_json(config: DaemonConfig) -> list[SimContext]:
             variety=config.variety,
             start_date=config.season_start_date,
             fuel_variation=config.fuel_variation,
+            field_coords=field_coords,
         ))
     return contexts
 
