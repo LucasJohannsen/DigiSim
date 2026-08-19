@@ -1,8 +1,9 @@
 import datetime
 import json
-import pytest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from scheduler.tick_scheduler import TickScheduler
 
@@ -23,7 +24,9 @@ def run_healthcheck(state_dir: str, max_age_hours: int = 25) -> int:
     """Run healthcheck.main() and return the exit code."""
     import scripts.healthcheck as hc
 
-    with patch.dict("os.environ", {"STATE_DIR": state_dir, "HEALTHCHECK_MAX_AGE_HOURS": str(max_age_hours)}):
+    with patch.dict(
+        "os.environ", {"STATE_DIR": state_dir, "HEALTHCHECK_MAX_AGE_HOURS": str(max_age_hours)}
+    ):
         with pytest.raises(SystemExit) as exc:
             hc.main()
         return exc.value.code

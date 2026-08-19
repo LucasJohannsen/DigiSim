@@ -1,20 +1,18 @@
 import random
 from datetime import datetime, time, timedelta
 from math import ceil
-from typing import Optional
 
-from services.planting_plan_loader import PlantingPlanLoader
+import models.sim_context as sim_context
+from models.domain_events import create_crop_cycle_scheduled
 from models.planting_plan import (
-    FieldOperationStatus,
     FieldOperation,
     FieldOperationEvent,
-    FieldOperationPhases
+    FieldOperationPhases,
+    FieldOperationStatus,
 )
-from models.domain_events import create_crop_cycle_scheduled
-import models.sim_context as sim_context
+from services.planting_plan_loader import PlantingPlanLoader
 from utils import sim_helper
 from utils.logger import get_logger
-
 
 _DEFAULT_LEAD_TIME_DAYS = 30
 
@@ -22,13 +20,12 @@ logger = get_logger("planting_plan_service")
 
 
 class PlantingPlanService:
-
     def __init__(
         self,
         context: sim_context.SimContext,
         start_date: datetime,
-        event_bus: Optional[object] = None,
-        skip_scheduling_event: bool = False
+        event_bus: object | None = None,
+        skip_scheduling_event: bool = False,
     ):
         self.context = context
         self.start_date = start_date
@@ -45,9 +42,7 @@ class PlantingPlanService:
         # Zeitstempel erhalten. Der Cursor wirkt NICHT über Tagesgrenzen.
         self._last_assigned_time: dict[datetime.date, datetime] = {}
 
-        self.initialize_planting_plan(
-            skip_scheduling_event=skip_scheduling_event
-        )
+        self.initialize_planting_plan(skip_scheduling_event=skip_scheduling_event)
 
     def initialize_planting_plan(self, skip_scheduling_event=False):
         """
@@ -59,14 +54,15 @@ class PlantingPlanService:
         nachträglich via :meth:`set_planned_planting_date` gesetzt.
         """
         self.planting_plan = PlantingPlanLoader(
-            crop_type=self.context.crop_type,
-            variety=self.context.variety
+            crop_type=self.context.crop_type, variety=self.context.variety
         ).get_planting_plan()
 
         if not self.planting_plan:
             print("No planting plan found. Exiting simulation.")
             return
-        print(f"Loaded planting plan for crop type: {self.planting_plan.crop_type}, variety: {self.planting_plan.variety}")
+        print(
+            f"Loaded planting plan for crop type: {self.planting_plan.crop_type}, variety: {self.planting_plan.variety}"
+        )
 
         if skip_scheduling_event:
             # Restore-Pfad: Termin + Timeline werden via
@@ -109,7 +105,9 @@ class PlantingPlanService:
             )
 
         # Set the planting date for the first phase
-        self.configure_planting_timeline(FieldOperationPhases.SOIL_PREPARATION, target_date=self.planned_planting_date)
+        self.configure_planting_timeline(
+            FieldOperationPhases.SOIL_PREPARATION, target_date=self.planned_planting_date
+        )
 
     def set_planned_planting_date(self, planned_planting_date: datetime | None) -> None:
         """Setzt den restaurierten Legetermin und re-konfiguriert die
@@ -143,8 +141,11 @@ class PlantingPlanService:
             Lead time in days (always non-negative).
         """
         phase = next(
-            (p for p in self.planting_plan.phases
-             if p.phase_name == FieldOperationPhases.SOIL_PREPARATION.value),
+            (
+                p
+                for p in self.planting_plan.phases
+                if p.phase_name == FieldOperationPhases.SOIL_PREPARATION.value
+            ),
             None,
         )
         if not phase or not phase.operations:
@@ -162,25 +163,27 @@ class PlantingPlanService:
         """
         Update the planned dates for a specific operation in the planting plan.
         """
- 
+
         # get the list of operations for the specified phase
         operations = sim_helper.get_operations_by_phase(self.planting_plan, phase_name)
         # Sort operations by their sequence property
         operations = sorted(operations, key=lambda op: op.sequence)
 
         operation_date = target_date
-    
+
         for operation in operations:
             min_offset = operation.min_days_to_target
             max_offset = operation.max_days_to_target
 
             # calculate the planned date for the operation
-            operation.planned_date = sim_helper.get_random_date_in_range(min_offset, max_offset, operation_date)
-            #print(f"Operation '{operation.operation}' planned for date: {operation.planned_date}")
+            operation.planned_date = sim_helper.get_random_date_in_range(
+                min_offset, max_offset, operation_date
+            )
+            # print(f"Operation '{operation.operation}' planned for date: {operation.planned_date}")
 
-
-
-    def configure_planting_timeline(self, target_phase: FieldOperationPhases, target_date: datetime = None):
+    def configure_planting_timeline(
+        self, target_phase: FieldOperationPhases, target_date: datetime = None
+    ):
         """
         Defines the start date for the given target phase in the planting plan.
         """
@@ -189,20 +192,19 @@ class PlantingPlanService:
             print("No planting plan loaded. Exiting.")
             return
 
-        phase = next((p for p in self.planting_plan.phases if p.phase_name == target_phase.value), None)
+        phase = next(
+            (p for p in self.planting_plan.phases if p.phase_name == target_phase.value), None
+        )
 
         if target_phase == FieldOperationPhases.SOIL_PREPARATION:
             min(op.min_days_to_target for op in phase.operations)
-            
+
             # update dates for all operations in the phase
             self.update_planned_operations_startdates(phase.phase_name, target_date)
 
-            #phase.start_date = min(op.planned_date for op in phase.operations if op.planned_date)
-            
-            #print(f"Phase '{phase.phase_name}' start date: {phase.start_date}")
-        
-       
+            # phase.start_date = min(op.planned_date for op in phase.operations if op.planned_date)
 
+            # print(f"Phase '{phase.phase_name}' start date: {phase.start_date}")
 
     def update_phase_status(self, date: datetime):
         """
@@ -212,43 +214,65 @@ class PlantingPlanService:
         if not self.active_phase:
             # check if another phase can be set to active
             for phase in self.planting_plan.phases:
-                if phase.start_date and phase.start_date <= date and phase.status == FieldOperationStatus.NOT_STARTED:
+                if (
+                    phase.start_date
+                    and phase.start_date <= date
+                    and phase.status == FieldOperationStatus.NOT_STARTED
+                ):
                     self.active_phase = phase
                     phase.status = FieldOperationStatus.IN_PROGRESS
                     print(f"Active phase set to: {phase.phase_name}")
                     break
-        
+
         # if all operations in the active phase are completed, set the phase status to COMPLETED
         if self.active_phase:
             all_completed = all(op.actual_date is not None for op in self.active_phase.operations)
             if all_completed:
                 self.active_phase.status = FieldOperationStatus.COMPLETED
-                #print(f"Phase '{self.active_phase.phase_name}' completed on {date.strftime('%Y-%m-%d')}")
+                # print(f"Phase '{self.active_phase.phase_name}' completed on {date.strftime('%Y-%m-%d')}")
                 self.active_phase = None
 
                 # plan the next phase if available
-                next_phase = next((p for p in self.planting_plan.phases if p.status == FieldOperationStatus.NOT_STARTED), None)
+                next_phase = next(
+                    (
+                        p
+                        for p in self.planting_plan.phases
+                        if p.status == FieldOperationStatus.NOT_STARTED
+                    ),
+                    None,
+                )
                 if next_phase:
-
                     if next_phase.phase_name == FieldOperationPhases.PLANTING.value:
                         self.update_planned_operations_startdates(next_phase.phase_name, date)
 
                     elif next_phase.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value:
                         # get the last operation in the planting phase
-                        last_planting_op_date = max(op.actual_date for op in sim_helper.get_operations_by_phase(self.planting_plan, "sowing_planting") if op.actual_date)
+                        last_planting_op_date = max(
+                            op.actual_date
+                            for op in sim_helper.get_operations_by_phase(
+                                self.planting_plan, "sowing_planting"
+                            )
+                            if op.actual_date
+                        )
 
-                        self.update_planned_operations_startdates(next_phase.phase_name, last_planting_op_date)
+                        self.update_planned_operations_startdates(
+                            next_phase.phase_name, last_planting_op_date
+                        )
 
-                        #print(f"Next phase '{next_phase.phase_name}' will start on {next_phase.start_date.strftime('%Y-%m-%d')}")
+                        # print(f"Next phase '{next_phase.phase_name}' will start on {next_phase.start_date.strftime('%Y-%m-%d')}")
 
                     elif next_phase.phase_name == FieldOperationPhases.HARVESTING.value:
                         # get actual planting date of last op in the planting phase
                         # (P3-7, Issue #85): Filter gegen None actual_date, damit
                         # max() nicht bei fehlenden Actuals abstürzt.
                         actual_planting_date = max(
-                            (op.actual_date for op in sim_helper.get_operations_by_phase(
-                                self.planting_plan, "sowing_planting"
-                            ) if op.actual_date),
+                            (
+                                op.actual_date
+                                for op in sim_helper.get_operations_by_phase(
+                                    self.planting_plan, "sowing_planting"
+                                )
+                                if op.actual_date
+                            ),
                             default=None,
                         )
 
@@ -260,9 +284,7 @@ class PlantingPlanService:
                             # P3-7 (Issue #85): growth_duration primär,
                             # harvest_period_months als Validierung (Korrektur
                             # nur nach hinten, nicht unter biologische Reife).
-                            harvest_date = self._compute_harvest_date(
-                                actual_planting_date
-                            )
+                            harvest_date = self._compute_harvest_date(actual_planting_date)
                             self.update_planned_operations_startdates(
                                 next_phase.phase_name, harvest_date
                             )
@@ -289,9 +311,7 @@ class PlantingPlanService:
         """
         assert self.planting_plan is not None  # type narrowing (s. update_phase_status)
         # PRIMÄR: harvest_date aus growth_duration
-        harvest_date = actual_planting_date + timedelta(
-            days=self.planting_plan.grow_duration
-        )
+        harvest_date = actual_planting_date + timedelta(days=self.planting_plan.grow_duration)
 
         # VALIDIERUNG: harvest_period_months als Korrektur-Fenster
         harvest_period_months = self.planting_plan.harvest_period_months
@@ -315,7 +335,9 @@ class PlantingPlanService:
             logger.info(
                 "Erntetermin aus growth_duration (%s) außerhalb "
                 "harvest_period_months %s -> korrigiert auf %s",
-                harvest_date, harvest_months_list, corrected
+                harvest_date,
+                harvest_months_list,
+                corrected,
             )
             return corrected
         # Termin liegt nach dem Fenster → keine Rück-Korrektur (nur nach
@@ -326,11 +348,13 @@ class PlantingPlanService:
         """
         Get the status of a specific phase in the planting plan.
         """
-        phase = next((p for p in self.planting_plan.phases if p.phase_name == phase_name.value), None)
+        phase = next(
+            (p for p in self.planting_plan.phases if p.phase_name == phase_name.value), None
+        )
         if not phase:
             print(f"Phase '{phase_name.value}' not found in the planting plan.")
             return FieldOperationStatus.NOT_STARTED
-        
+
         return phase.status
 
     def get_next_operations(self, date: datetime) -> FieldOperation:
@@ -342,26 +366,28 @@ class PlantingPlanService:
 
         # get next operation in the active phase
         if not self.active_phase:
-            #print("No active phase found. Exiting.")
+            # print("No active phase found. Exiting.")
             return []
 
         next_operations = []
         for operation in self.active_phase.operations:
-            if operation.planned_date and operation.planned_date <= date and operation.actual_date is None:
+            if (
+                operation.planned_date
+                and operation.planned_date <= date
+                and operation.actual_date is None
+            ):
                 # add the operation to the next operations
                 next_operations.append(operation)
 
-
         if not next_operations:
-            #print("No next operations found for the active phase.")
+            # print("No next operations found for the active phase.")
             return []
-        
+
         # Sort by sequence to ensure correct execution order
         next_operations.sort(key=lambda op: op.sequence)
-        #print(f"Next operations for phase '{self.active_phase.phase_name}':")
-  
+        # print(f"Next operations for phase '{self.active_phase.phase_name}':")
+
         return next_operations
-    
 
     # P3-5 (Issue #83): Arbeitszeiten begrenzen – mehrtägige Aufteilung.
     # Arbeitsfenster [05:00, 22:00], max. 18 h/Tag. Lange Operationen
@@ -375,7 +401,9 @@ class PlantingPlanService:
     # soft), aber ein hard-Regelverstoß wird vermieden.
     _SINGLE_EVENT_WORKTYPES: set[int] = {26, 27}
 
-    def get_events_for_ops(self, operations: list[FieldOperation], date:datetime) -> list[FieldOperationEvent]:
+    def get_events_for_ops(
+        self, operations: list[FieldOperation], date: datetime
+    ) -> list[FieldOperationEvent]:
 
         # get active phase
         events = []
@@ -388,17 +416,24 @@ class PlantingPlanService:
 
         for operation in operations:
             # get the variation factor for fuel consumption (individual per operation)
-            fuel_variation_factor = random.uniform(1 - self.context.fuel_variation, 1 + self.context.fuel_variation)
+            fuel_variation_factor = random.uniform(
+                1 - self.context.fuel_variation, 1 + self.context.fuel_variation
+            )
             # Process the operation
 
             # Update the actual date of the operation
             operation.actual_date = date
-            print(f"    {operation.operation}: {operation.actual_date.strftime('%Y-%m-%d %H:%M:%S')}")
+            print(
+                f"    {operation.operation}: {operation.actual_date.strftime('%Y-%m-%d %H:%M:%S')}"
+            )
 
             # P3-5 (Issue #83): Gesamtdauer berechnen und ggf. aufteilen
             total_duration_hours = operation.duration_per_ha * self.context.field_size
 
-            if total_duration_hours > self.MAX_DURATION_HOURS and operation.worktype not in self._SINGLE_EVENT_WORKTYPES:
+            if (
+                total_duration_hours > self.MAX_DURATION_HOURS
+                and operation.worktype not in self._SINGLE_EVENT_WORKTYPES
+            ):
                 # Mehrtägige Aufteilung (Befund B10, KAR-045)
                 num_days = ceil(total_duration_hours / self.MAX_DURATION_HOURS)
                 duration_per_day = total_duration_hours / num_days
@@ -455,15 +490,24 @@ class PlantingPlanService:
     ) -> FieldOperationEvent:
         """Erstellt ein einzelnes Event für eine Operation ≤ 18 h (bestehende Logik)."""
         event = FieldOperationEvent()
-        event.start_date = operation.actual_datetime.strftime('%Y-%m-%d %H:%M:%S')
-        event.end_date = (operation.actual_datetime + timedelta(hours=operation.duration_per_ha * self.context.field_size)).strftime('%Y-%m-%d %H:%M:%S')
+        event.start_date = operation.actual_datetime.strftime("%Y-%m-%d %H:%M:%S")
+        event.end_date = (
+            operation.actual_datetime
+            + timedelta(hours=operation.duration_per_ha * self.context.field_size)
+        ).strftime("%Y-%m-%d %H:%M:%S")
         event.area = self.context.field_size
         event.fuel = round(self.context.field_size * operation.fuel_consumption, 2)
         event.worktype = operation.worktype
         event.worktype_text = operation.operation
-        event.duration = round(operation.duration_per_ha * self.context.field_size * 60 * 60, 2)  # Sekunden
+        event.duration = round(
+            operation.duration_per_ha * self.context.field_size * 60 * 60, 2
+        )  # Sekunden
         event.durationWorked = round(event.duration * 0.95, 2)
-        event.distance = round(self.context.field_size * 10 / operation.working_width, 2) if operation.working_width > 0 else 0
+        event.distance = (
+            round(self.context.field_size * 10 / operation.working_width, 2)
+            if operation.working_width > 0
+            else 0
+        )
         event.distanceWorked = round(event.distance * 0.95, 2)
         event.application_type = operation.application_type
         event.application_name = operation.application_name
@@ -498,21 +542,27 @@ class PlantingPlanService:
             FieldOperationEvent mit proportionalen Werten.
         """
         event = FieldOperationEvent()
-        event.start_date = op_datetime.strftime('%Y-%m-%d %H:%M:%S')
+        event.start_date = op_datetime.strftime("%Y-%m-%d %H:%M:%S")
         end_datetime = op_datetime + timedelta(hours=duration_hours)
-        event.end_date = end_datetime.strftime('%Y-%m-%d %H:%M:%S')
+        event.end_date = end_datetime.strftime("%Y-%m-%d %H:%M:%S")
         event.area = round(self.context.field_size * fraction, 2)
         event.fuel = round(self.context.field_size * operation.fuel_consumption * fraction, 2)
         event.worktype = operation.worktype
         event.worktype_text = operation.operation
         event.duration = round(duration_hours * 60 * 60, 2)  # Sekunden
         event.durationWorked = round(event.duration * 0.95, 2)
-        event.distance = round(self.context.field_size * 10 / operation.working_width * fraction, 2) if operation.working_width > 0 else 0
+        event.distance = (
+            round(self.context.field_size * 10 / operation.working_width * fraction, 2)
+            if operation.working_width > 0
+            else 0
+        )
         event.distanceWorked = round(event.distance * 0.95, 2)
         event.application_type = operation.application_type
         event.application_name = operation.application_name
         event.application_category = operation.application_category
-        event.application_amount = round(operation.application_amount * self.context.field_size * fraction, 2)
+        event.application_amount = round(
+            operation.application_amount * self.context.field_size * fraction, 2
+        )
         event.application_unit = operation.application_unit
         event.field = self.context.field_id
         event.fuel = round(event.fuel * fuel_variation_factor, 2)

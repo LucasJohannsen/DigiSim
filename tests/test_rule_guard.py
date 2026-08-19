@@ -6,6 +6,7 @@ Parametrisierte Unit-Tests je ``check_type`` der Guard-Regeln
 Sicherheitsnetz – Regeln werden aus ``config/decision_guards_potato.json``
 geladen, nicht hartcodiert.
 """
+
 from __future__ import annotations
 
 import datetime
@@ -14,7 +15,6 @@ import pytest
 
 from scheduler.decision_manager import CycleContext, RuleGuard
 from scheduler.guard_rule_loader import GuardRuleLoader
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -108,9 +108,7 @@ class TestKAR005NoWorktypeAfterHarvest:
     """KAR-005: Keine Bestandesmaßnahme nach Roden (harvest_completed=True)."""
 
     @pytest.mark.parametrize("wt", [13, 14, 15, 23, 29])
-    def test_rejects_worktype_after_harvest(
-        self, guard: RuleGuard, wt: int
-    ) -> None:
+    def test_rejects_worktype_after_harvest(self, guard: RuleGuard, wt: int) -> None:
         """harvest_completed=True → wt ∈ {13,14,15,23,29} wird abgelehnt."""
         op = MockOperation(worktype=wt)
         ctx = _ctx(harvest_completed=True)
@@ -119,18 +117,14 @@ class TestKAR005NoWorktypeAfterHarvest:
         assert reason.startswith("KAR-005:")
 
     @pytest.mark.parametrize("wt", [13, 14, 15, 23, 29])
-    def test_passes_worktype_before_harvest(
-        self, guard: RuleGuard, wt: int
-    ) -> None:
+    def test_passes_worktype_before_harvest(self, guard: RuleGuard, wt: int) -> None:
         """harvest_completed=False → wt ∈ {13,14,15,23,29} wird durchgelassen."""
         op = MockOperation(worktype=wt)
         ctx = _ctx(harvest_completed=False)
         reason = guard.check(op, ctx, datetime.datetime(2027, 6, 1))
         assert reason is None
 
-    def test_passes_other_worktype_after_harvest(
-        self, guard: RuleGuard
-    ) -> None:
+    def test_passes_other_worktype_after_harvest(self, guard: RuleGuard) -> None:
         """harvest_completed=True, wt=27 (Roden) → nicht durch KAR-005 abgelehnt."""
         op = MockOperation(worktype=27)
         ctx = _ctx(harvest_completed=True)
@@ -230,9 +224,7 @@ class TestKAR024NoSiccationAfterHarvest:
         reason = guard.check(op, ctx, datetime.datetime(2027, 7, 1))
         assert reason is None
 
-    def test_passes_fungicide_after_harvest_via_kar024(
-        self, guard: RuleGuard
-    ) -> None:
+    def test_passes_fungicide_after_harvest_via_kar024(self, guard: RuleGuard) -> None:
         """harvest_completed=True, wt=14, Kat.27 (Fungizid) → nicht durch
         KAR-024 abgelehnt (nur Kat. 26). Aber KAR-005 lehnt wt=14 ab."""
         op = MockOperation(worktype=14, application_category=27)
@@ -242,9 +234,7 @@ class TestKAR024NoSiccationAfterHarvest:
         assert reason is not None
         assert reason.startswith("KAR-005:")
 
-    def test_passes_non_sikkation_after_harvest(
-        self, guard: RuleGuard
-    ) -> None:
+    def test_passes_non_sikkation_after_harvest(self, guard: RuleGuard) -> None:
         """harvest_completed=True, wt=27 (Roden), Kat.26 → nicht durch KAR-024."""
         op = MockOperation(worktype=27, application_category=26)
         ctx = _ctx(harvest_completed=True)

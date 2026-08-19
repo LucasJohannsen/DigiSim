@@ -1,27 +1,27 @@
 import datetime
+from collections.abc import Callable
 from enum import Enum
-from typing import Callable, List, Optional
 
-from models.sim_context import SimContext
-from models.planting_plan import FieldOperationEvent, FieldOperationPhases, FieldOperationStatus
-from services.planting_plan_service import PlantingPlanService
-from services.protection_plan_service import ProtectionPlanService
-from services.irrigation_service import IrrigationSimulator
-from services.moisture_service import MoistureDataService
-from services.weather_service import WeatherDataService
-from services.providers.dwd_weather_provider import DWDWeatherDataProvider
-from scheduler.decision_manager import CycleContext, DecisionManager, DeadlineAwarePriorityStrategy
-from scheduler.guard_rule_loader import GuardRuleLoader
-from utils.event_logger import EventLogger
-from utils.logger import get_logger
 from events.domain_event_bus import DomainEventBus
 from models.domain_events import (
-    create_daily_tick_started,
-    create_daily_tick_completed,
     create_crop_cycle_started,
+    create_daily_tick_completed,
+    create_daily_tick_started,
     create_harvest_completed,
-    create_operation_applied
+    create_operation_applied,
 )
+from models.planting_plan import FieldOperationEvent, FieldOperationPhases, FieldOperationStatus
+from models.sim_context import SimContext
+from scheduler.decision_manager import CycleContext, DeadlineAwarePriorityStrategy, DecisionManager
+from scheduler.guard_rule_loader import GuardRuleLoader
+from services.irrigation_service import IrrigationSimulator
+from services.moisture_service import MoistureDataService
+from services.planting_plan_service import PlantingPlanService
+from services.protection_plan_service import ProtectionPlanService
+from services.providers.dwd_weather_provider import DWDWeatherDataProvider
+from services.weather_service import WeatherDataService
+from utils.event_logger import EventLogger
+from utils.logger import get_logger
 
 # Type alias für die optionale Moisture-Service-Factory (P2-5 C, Issue #71).
 # Erlaubt Tests, einen synthetischen Moisture-Service zu injizieren, ohne
@@ -39,6 +39,7 @@ logger = get_logger("calendar_driven_runner")
 
 class CropCycleState(Enum):
     """Terminal states of a crop cycle within the CalendarDrivenRunner."""
+
     SCHEDULED = "scheduled"
     RUNNING = "running"
     COMPLETED = "completed"
@@ -48,10 +49,10 @@ class CalendarDrivenRunner:
     def __init__(
         self,
         context: SimContext,
-        event_bus: Optional[DomainEventBus] = None,
+        event_bus: DomainEventBus | None = None,
         skip_scheduling_event: bool = False,
-        moisture_service_factory: Optional[MoistureServiceFactory] = None,
-        weather_service_factory: Optional[WeatherServiceFactory] = None
+        moisture_service_factory: MoistureServiceFactory | None = None,
+        weather_service_factory: WeatherServiceFactory | None = None,
     ) -> None:
         self.context = context
         self.event_logger = EventLogger()
@@ -73,7 +74,7 @@ class CalendarDrivenRunner:
             context=self.context,
             start_date=self.context.start_date,
             event_bus=self.event_bus,
-            skip_scheduling_event=skip_scheduling_event
+            skip_scheduling_event=skip_scheduling_event,
         )
 
         self.protection_plan_service: ProtectionPlanService = None
@@ -93,34 +94,31 @@ class CalendarDrivenRunner:
         # WeatherService bleibt weather_service=None (Abwärtskompatibilität).
         self._weather_service_factory = weather_service_factory
 
-    def tick(self, date: datetime.date) -> List[FieldOperationEvent]:
+    def tick(self, date: datetime.date) -> list[FieldOperationEvent]:
         """
         Execute one simulation tick for the given date.
-        
+
         Unified decision pipeline:
         1. Emit DailyTickStarted event
         2. Collect candidate operations from all services (planting, protection, irrigation)
         3. Pass all candidates to DecisionManager for prioritization
         4. Execute selected operations and apply side-effects
         5. Emit DailyTickCompleted event
-        
+
         Args:
             date: The simulation date to process
-            
+
         Returns:
             List of executed FieldOperationEvents
         """
         all_events = []
-        
+
         # Emit DailyTickStarted event
         self.event_bus.publish(
-            create_daily_tick_started(
-                field_id=str(self.context.field_id),
-                date=date
-            )
+            create_daily_tick_started(field_id=str(self.context.field_id), date=date)
         )
         logger.debug("Daily tick started", field_id=self.context.field_id, date=date)
-        
+
         if isinstance(date, datetime.date) and not isinstance(date, datetime.datetime):
             date = datetime.datetime.combine(date, datetime.time())
 
@@ -129,9 +127,7 @@ class CalendarDrivenRunner:
 
             # State transition: SCHEDULED -> RUNNING when entering crop management phase
             crop_cycle_started_event = create_crop_cycle_started(
-                field_id=str(self.context.field_id),
-                date=date,
-                crop_type=self.context.crop_type
+                field_id=str(self.context.field_id), date=date, crop_type=self.context.crop_type
             )
             self.event_bus.publish(crop_cycle_started_event)
             self._crop_cycle_state = CropCycleState.RUNNING
@@ -139,16 +135,17 @@ class CalendarDrivenRunner:
                 "Crop cycle started",
                 field_id=self.context.field_id,
                 crop_type=self.context.crop_type,
-                date=date
+                date=date,
             )
-        
+
         # Collect candidate operations from all services
         planting_ops = self.planting_plan_service.get_next_operations(date)
         protection_ops = (
             self.protection_plan_service.get_next_operations(date)
-            if self.protection_plan_service else []
+            if self.protection_plan_service
+            else []
         )
-        
+
         # Add irrigation candidates to the unified pipeline
         irrigation_candidates = []
         if self.irrigation_service:
@@ -156,31 +153,30 @@ class CalendarDrivenRunner:
                 irrigation_candidates = self.irrigation_service.get_candidate_operations(date)
             except Exception as e:
                 logger.warning("Irrigation candidate generation failed", date=date, error=str(e))
-        
+
         # Unified candidate list - all operations compete equally
         all_candidate_ops = planting_ops + protection_ops + irrigation_candidates
-        
+
         # DecisionManager decides which operations to execute
         cycle_context = self._build_cycle_context(date)
-        selected_ops = self.decision_manager.decide(
-            all_candidate_ops,
-            field_id=str(self.context.field_id),
-            date=date,
-            cycle_context=cycle_context,
-        ) or []
-        
+        selected_ops = (
+            self.decision_manager.decide(
+                all_candidate_ops,
+                field_id=str(self.context.field_id),
+                date=date,
+                cycle_context=cycle_context,
+            )
+            or []
+        )
+
         # Execute selected operations
         # P3-5 (Issue #83): Irrigation kann mehrere Teil-Events (Tage)
         # umfassen. Diese werden als Gruppe behandelt: apply_irrigation
         # wird einmal mit der Gesamtmenge aufgerufen, alle Teil-Events
         # werden geloggt.
-        irrigation_selected = [
-            op for op in selected_ops if op in irrigation_candidates
-        ]
+        irrigation_selected = [op for op in selected_ops if op in irrigation_candidates]
         if irrigation_selected:
-            total_irrigation_amount = sum(
-                op.application_amount for op in irrigation_selected
-            )
+            total_irrigation_amount = sum(op.application_amount for op in irrigation_selected)
             try:
                 self.irrigation_service.apply_irrigation(
                     date=date,
@@ -192,19 +188,15 @@ class CalendarDrivenRunner:
 
         for op in selected_ops:
             if op in planting_ops:
-                all_events.extend(
-                    self.planting_plan_service.get_events_for_ops([op], date)
-                )
+                all_events.extend(self.planting_plan_service.get_events_for_ops([op], date))
             elif op in protection_ops:
-                all_events.extend(
-                    self.protection_plan_service.get_events_for_ops([op], date)
-                )
+                all_events.extend(self.protection_plan_service.get_events_for_ops([op], date))
             # Irrigation wurde oben als Gruppe behandelt.
-        
+
         # Log integration events and emit OperationApplied domain events
         for event in all_events:
             self.event_logger.log(event)
-            
+
             # Emit OperationApplied domain event
             self.event_bus.publish(
                 create_operation_applied(
@@ -212,10 +204,10 @@ class CalendarDrivenRunner:
                     date=date,
                     operation_type=event.worktype_text or f"Worktype {event.worktype}",
                     worktype=event.worktype,
-                    integration_event_id=str(event.exa_id) if event.exa_id else None
+                    integration_event_id=str(event.exa_id) if event.exa_id else None,
                 )
             )
-        
+
         # State transition: RUNNING -> COMPLETED after last harvest op (Issue #69).
         # Die Prüfung erfolgt NACH der Op-Ausführung, damit HarvestCompleted
         # im selben Tick emittiert wird wie die letzte Harvest-Operation
@@ -230,35 +222,27 @@ class CalendarDrivenRunner:
             self.planting_plan_service.update_phase_status(date)
             if self._is_phase_completed(FieldOperationPhases.HARVESTING):
                 harvest_completed_event = create_harvest_completed(
-                    field_id=str(self.context.field_id),
-                    date=date,
-                    yield_estimate=None
+                    field_id=str(self.context.field_id), date=date, yield_estimate=None
                 )
                 self.event_bus.publish(harvest_completed_event)
                 self._crop_cycle_state = CropCycleState.COMPLETED
                 if self.irrigation_service or self.protection_plan_service:
                     self._reset_services()
-                logger.debug(
-                    "Harvest completed",
-                    field_id=self.context.field_id,
-                    date=date
-                )
+                logger.debug("Harvest completed", field_id=self.context.field_id, date=date)
 
         # Emit DailyTickCompleted event
         self.event_bus.publish(
             create_daily_tick_completed(
-                field_id=str(self.context.field_id),
-                date=date,
-                events_dispatched=len(all_events)
+                field_id=str(self.context.field_id), date=date, events_dispatched=len(all_events)
             )
         )
         logger.debug(
             "Daily tick completed",
             field_id=self.context.field_id,
             date=date,
-            events_dispatched=len(all_events)
+            events_dispatched=len(all_events),
         )
-        
+
         return all_events
 
     def _is_phase_completed(self, phase: FieldOperationPhases) -> bool:
@@ -271,10 +255,11 @@ class CalendarDrivenRunner:
 
     def _should_initialize_services(self) -> bool:
         return (
-            self._crop_cycle_state == CropCycleState.SCHEDULED and
-            not self.protection_plan_service and
-            self.planting_plan_service.active_phase and
-            self.planting_plan_service.active_phase.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
+            self._crop_cycle_state == CropCycleState.SCHEDULED
+            and not self.protection_plan_service
+            and self.planting_plan_service.active_phase
+            and self.planting_plan_service.active_phase.phase_name
+            == FieldOperationPhases.CROP_MANAGEMENT.value
         )
 
     def _compute_harvest_date(self) -> datetime.datetime:
@@ -285,16 +270,11 @@ class CalendarDrivenRunner:
         Hier wird der geplante Pflanztermin verwendet, da der
         Protection-Plan vor dem Legen geplant wird.
         """
-        return (
-            self.planting_plan_service.planned_planting_date
-            + datetime.timedelta(
-                days=self.planting_plan_service.planting_plan.grow_duration
-            )
+        return self.planting_plan_service.planned_planting_date + datetime.timedelta(
+            days=self.planting_plan_service.planting_plan.grow_duration
         )
 
-    def _build_cycle_context(
-        self, date: datetime.datetime | None = None
-    ) -> CycleContext:
+    def _build_cycle_context(self, date: datetime.datetime | None = None) -> CycleContext:
         """Baut den CycleContext für die Guard-Prüfung (P2-4, Issue #68).
 
         Sammelt Zyklus-Daten aus den Services, ohne direkte Service-
@@ -325,10 +305,7 @@ class CalendarDrivenRunner:
             for op in self.protection_plan_service.operations:
                 if op.actual_date is not None and op.application_category == 26:
                     siccation_count += 1
-                    if (
-                        last_siccation_date is None
-                        or op.actual_date > last_siccation_date
-                    ):
+                    if last_siccation_date is None or op.actual_date > last_siccation_date:
                         last_siccation_date = op.actual_date
 
         # Letzte Ernte-Operation aus der Harvesting-Phase.
@@ -355,12 +332,8 @@ class CalendarDrivenRunner:
         if self.weather_service is not None and date is not None:
             weather_date = date.date() if isinstance(date, datetime.datetime) else date
             try:
-                current_weather = self.weather_service.get_weather_for_date(
-                    weather_date
-                )
-                weather_forecast = self.weather_service.get_forecast(
-                    weather_date, 7
-                )
+                current_weather = self.weather_service.get_weather_for_date(weather_date)
+                weather_forecast = self.weather_service.get_forecast(weather_date, 7)
             except (IndexError, ValueError) as exc:
                 logger.warning(
                     "Weather data lookup failed",
@@ -391,7 +364,9 @@ class CalendarDrivenRunner:
         )
 
         # Extract year from current simulation date
-        simulation_year = current_date.year if isinstance(current_date, datetime.datetime) else current_date.year
+        simulation_year = (
+            current_date.year if isinstance(current_date, datetime.datetime) else current_date.year
+        )
 
         # P2-5 C (Issue #71): Nutze die injizierte Factory, falls gesetzt
         # (z. B. DryMoistureDataService-Stub in der Plausibilitätssuite);
@@ -406,7 +381,7 @@ class CalendarDrivenRunner:
             ms = MoistureDataService(context=self.context)
         self.irrigation_service = IrrigationSimulator(
             context=self.context,
-            moisture_data=ms.get_moisture_data(year=simulation_year, depth_range='0-10')
+            moisture_data=ms.get_moisture_data(year=simulation_year, depth_range="0-10"),
         )
 
         # P3-1 (Issue #79): Weather-Service initialisieren.
@@ -418,35 +393,34 @@ class CalendarDrivenRunner:
         else:
             provider = DWDWeatherDataProvider(cache_folder="dwd_data")
             self.weather_service = WeatherDataService(
-                context=self.context,
-                provider=provider,
-                event_bus=self.event_bus
+                context=self.context, provider=provider, event_bus=self.event_bus
             )
-
 
     def get_state_snapshot(self, last_tick_date: datetime.date | None = None):
         from utils.state_manager import FieldStateSnapshot
-        
+
         planting_ops = []
         for phase in self.planting_plan_service.planting_plan.phases:
             for op in phase.operations:
-                planting_ops.append({
-                    "phase": phase.phase_name,
-                    "sequence": op.sequence,
-                    "actual_date": op.actual_date.isoformat() if op.actual_date else None
-                })
-        
+                planting_ops.append(
+                    {
+                        "phase": phase.phase_name,
+                        "sequence": op.sequence,
+                        "actual_date": op.actual_date.isoformat() if op.actual_date else None,
+                    }
+                )
+
         protection_ops = []
         if self.protection_plan_service:
             for op in self.protection_plan_service.operations:
-                protection_ops.append({
-                    "actual_date": op.actual_date.isoformat() if op.actual_date else None
-                })
-        
+                protection_ops.append(
+                    {"actual_date": op.actual_date.isoformat() if op.actual_date else None}
+                )
+
         irrigation_state = None
         if self.irrigation_service:
             irrigation_state = self.irrigation_service.get_state()
-        
+
         return FieldStateSnapshot(
             field_id=self.context.field_id,
             last_tick_date=last_tick_date,
@@ -455,7 +429,7 @@ class CalendarDrivenRunner:
             protection_ops=protection_ops,
             irrigation_state=irrigation_state,
             crop_cycle_state=self._crop_cycle_state.value,
-            planned_planting_date=self.planting_plan_service.planned_planting_date
+            planned_planting_date=self.planting_plan_service.planned_planting_date,
         )
 
     def apply_state_snapshot(self, snapshot) -> None:
@@ -464,9 +438,7 @@ class CalendarDrivenRunner:
         # Termin beim Constructor nicht gewürfelt. Ist das Feld im Snapshot
         # nicht vorhanden (alter Snapshot), würfelt set_planned_planting_date
         # neu + emittiert CropCycleScheduled (Bestandsschutz).
-        self.planting_plan_service.set_planned_planting_date(
-            snapshot.planned_planting_date
-        )
+        self.planting_plan_service.set_planned_planting_date(snapshot.planned_planting_date)
 
         for op_data in snapshot.planting_ops:
             phase_name = op_data["phase"]
@@ -507,8 +479,9 @@ class CalendarDrivenRunner:
                 self._crop_cycle_state = CropCycleState.COMPLETED
                 self._reset_services()
             elif (
-                self.planting_plan_service.active_phase and
-                self.planting_plan_service.active_phase.phase_name == FieldOperationPhases.CROP_MANAGEMENT.value
+                self.planting_plan_service.active_phase
+                and self.planting_plan_service.active_phase.phase_name
+                == FieldOperationPhases.CROP_MANAGEMENT.value
             ):
                 self._crop_cycle_state = CropCycleState.RUNNING
                 if not self.protection_plan_service:

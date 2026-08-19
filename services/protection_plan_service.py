@@ -1,17 +1,11 @@
 import random
 from datetime import datetime, time, timedelta
-from typing import Optional
 
-from models.planting_plan import (
-    FieldOperation,
-    FieldOperationEvent,
-    PlantingPlan
-)
-from models.domain_events import create_protection_operations_pruned
 import models.sim_context as sim_context
+from models.domain_events import create_protection_operations_pruned
+from models.planting_plan import FieldOperation, FieldOperationEvent, PlantingPlan
 from models.worktypes import WorkType
 from utils import sim_helper
-
 
 # Sikkationsgaben (Kat. 26) muessen >= 14 Tage vor dem Roden liegen (KAR-020/KAR-024).
 SIKKATION_MIN_DAYS_BEFORE_HARVEST = 14  # KAR-020 / KAR-024
@@ -21,14 +15,13 @@ SIKKATION_CATEGORY = 26
 
 
 class ProtectionPlanService:
-
     def __init__(
         self,
         context: sim_context.SimContext,
         start_date: datetime,
         planting_plan: PlantingPlan = None,
-        harvest_date: Optional[datetime] = None,
-        event_bus: Optional[object] = None,
+        harvest_date: datetime | None = None,
+        event_bus: object | None = None,
     ):
         self.context = context
 
@@ -51,7 +44,6 @@ class ProtectionPlanService:
 
         self.plan_protections()
 
-
     def plan_protections(self):
         """
         Plan the protection operations for the planting plan.
@@ -66,10 +58,10 @@ class ProtectionPlanService:
             return
 
         # Get protection defaults from planting plan or use fallback values
-        protection_defaults = getattr(self.planting_plan, 'protection_defaults', {})
-        default_duration = protection_defaults.get('duration_per_ha', 0.2)
-        default_width = protection_defaults.get('working_width', 18)
-        default_fuel = protection_defaults.get('fuel_consumption', 1.0)
+        protection_defaults = getattr(self.planting_plan, "protection_defaults", {})
+        default_duration = protection_defaults.get("duration_per_ha", 0.2)
+        default_width = protection_defaults.get("working_width", 18)
+        default_fuel = protection_defaults.get("fuel_consumption", 1.0)
 
         # read categories from config
         protection_categories = sim_helper.get_protection_categories()
@@ -123,11 +115,13 @@ class ProtectionPlanService:
             planned_count += 1
 
             # Calculate the sum if protection.amount contains '+'
-            application_amount = sum(float(x) for x in protection.amount.split('+'))
+            application_amount = sum(float(x) for x in protection.amount.split("+"))
 
-            #get the category from the protection categories
-            category_item = next((c for c in protection_categories if c['id'] == protection.type), None)
-            application_type_text = category_item['category'] if category_item else "unknown"
+            # get the category from the protection categories
+            category_item = next(
+                (c for c in protection_categories if c["id"] == protection.type), None
+            )
+            application_type_text = category_item["category"] if category_item else "unknown"
 
             spritz_operation = FieldOperation(
                 operation="Spritzen",
@@ -151,9 +145,8 @@ class ProtectionPlanService:
             # einheitlich berechnet (auch nicht-kritische Ops erhalten ein
             # due_date, das von der Strategie jedoch ignoriert wird, da
             # is_critical=False).
-            spritz_operation.due_date = (
-                protection_operation_date
-                + timedelta(days=protection.due_window_days)
+            spritz_operation.due_date = protection_operation_date + timedelta(
+                days=protection.due_window_days
             )
 
             self.operations.append(spritz_operation)
@@ -191,8 +184,9 @@ class ProtectionPlanService:
 
         return next_operations
 
-
-    def get_events_for_ops(self, operations: list[FieldOperation], date:datetime) -> list[FieldOperationEvent]:
+    def get_events_for_ops(
+        self, operations: list[FieldOperation], date: datetime
+    ) -> list[FieldOperationEvent]:
 
         # get active phase
         events = []
@@ -205,12 +199,14 @@ class ProtectionPlanService:
 
         for operation in operations:
             # get the variation factor for fuel consumption (individual per operation)
-            fuel_variation_factor = random.uniform(1 - self.context.fuel_variation, 1 + self.context.fuel_variation)
+            fuel_variation_factor = random.uniform(
+                1 - self.context.fuel_variation, 1 + self.context.fuel_variation
+            )
             # Process the operation
 
             # Update the actual date of the operation
             operation.actual_date = date
-            print(f"    {operation.operation}: {operation.actual_date.strftime("%Y-%m-%d")}")
+            print(f"    {operation.operation}: {operation.actual_date.strftime('%Y-%m-%d')}")
 
             event = FieldOperationEvent()
 
@@ -223,25 +219,34 @@ class ProtectionPlanService:
             # Zufallszustand nicht zu verschieben (KAR-021).
             last_dt = self._last_assigned_time.get(date_key)
             min_start = last_dt.time() if last_dt is not None else time(6, 0)
-            operation.actual_datetime = sim_helper.assign_sequential_time(
-                date, min_start=min_start
-            )
+            operation.actual_datetime = sim_helper.assign_sequential_time(date, min_start=min_start)
             self._last_assigned_time[date_key] = operation.actual_datetime
 
-            event.start_date = operation.actual_datetime.strftime('%Y-%m-%d %H:%M:%S')
-            event.end_date = (operation.actual_datetime + timedelta(hours=operation.duration_per_ha * self.context.field_size)).strftime('%Y-%m-%d %H:%M:%S')
+            event.start_date = operation.actual_datetime.strftime("%Y-%m-%d %H:%M:%S")
+            event.end_date = (
+                operation.actual_datetime
+                + timedelta(hours=operation.duration_per_ha * self.context.field_size)
+            ).strftime("%Y-%m-%d %H:%M:%S")
             event.area = self.context.field_size
-            event.fuel =  round(self.context.field_size * operation.fuel_consumption,2)
+            event.fuel = round(self.context.field_size * operation.fuel_consumption, 2)
             event.worktype = operation.worktype
             event.worktype_text = operation.operation
-            event.duration = round(operation.duration_per_ha * self.context.field_size*60*60,2) # Umrechnung in Sekunden
-            event.durationWorked = round(event.duration * 0.95,2)
-            event.distance = round(self.context.field_size * 10/ operation.working_width,2) if operation.working_width > 0 else 0
-            event.distanceWorked = round(event.distance * 0.95,2)
+            event.duration = round(
+                operation.duration_per_ha * self.context.field_size * 60 * 60, 2
+            )  # Umrechnung in Sekunden
+            event.durationWorked = round(event.duration * 0.95, 2)
+            event.distance = (
+                round(self.context.field_size * 10 / operation.working_width, 2)
+                if operation.working_width > 0
+                else 0
+            )
+            event.distanceWorked = round(event.distance * 0.95, 2)
             event.application_type = operation.application_type
             event.application_name = operation.application_name
             event.application_category = operation.application_category
-            event.application_amount = round(operation.application_amount * self.context.field_size, 2)
+            event.application_amount = round(
+                operation.application_amount * self.context.field_size, 2
+            )
             event.application_unit = operation.application_unit
             event.field = self.context.field_id
 

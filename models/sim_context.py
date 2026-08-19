@@ -1,11 +1,13 @@
 import datetime
 from dataclasses import dataclass
 
+
 @dataclass
 class SimContext:
     """
     Parameters for the SimPy simulation environment.
     """
+
     field_size: float
     soil_type: str
     start_date: datetime.datetime

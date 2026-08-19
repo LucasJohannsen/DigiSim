@@ -59,9 +59,7 @@ class SyntheticMoistureProvider:
             dates.append(date)
 
             # Saisonale Temperatur (analog SyntheticWeatherDataProvider)
-            temp_avg = 10.0 + 15.0 * math.sin(
-                2.0 * math.pi * (day_of_year - 80) / 365.0
-            )
+            temp_avg = 10.0 + 15.0 * math.sin(2.0 * math.pi * (day_of_year - 80) / 365.0)
 
             # 15cm: stärkere Schwankung, korreliert mit Verdunstung
             # Winter: 55-75% VWC, Sommer: 25-45% VWC

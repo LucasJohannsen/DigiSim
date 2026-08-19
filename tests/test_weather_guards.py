@@ -10,6 +10,7 @@ Die Guards sind datengetrieben (``from_config``) und folgen dem
 ``cycle_context.current_weather``/``weather_forecast`` None ist
 (Abwärtskompatibilität ohne P3-1).
 """
+
 from __future__ import annotations
 
 import datetime
@@ -25,7 +26,6 @@ from scheduler.decision_manager import (
 )
 from scheduler.guard_rule_loader import GuardRuleLoader
 from services.weather_service import WeatherData
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -166,9 +166,7 @@ class TestWeatherConditionGuard:
             max_wind_ms=5.0,
         )
         op = MockOperation(worktype=14)
-        ctx = _ctx(
-            current_weather=_weather(precipitation_mm=2.0, wind_speed_ms=3.0)
-        )
+        ctx = _ctx(current_weather=_weather(precipitation_mm=2.0, wind_speed_ms=3.0))
         assert guard.check(op, ctx, _DATE) is None
 
     def test_passes_at_exact_limit(self) -> None:
@@ -181,9 +179,7 @@ class TestWeatherConditionGuard:
             max_wind_ms=5.0,
         )
         op = MockOperation(worktype=14)
-        ctx = _ctx(
-            current_weather=_weather(precipitation_mm=5.0, wind_speed_ms=5.0)
-        )
+        ctx = _ctx(current_weather=_weather(precipitation_mm=5.0, wind_speed_ms=5.0))
         assert guard.check(op, ctx, _DATE) is None
 
     def test_rejects_sikkation_with_heat(self) -> None:
@@ -303,11 +299,7 @@ class TestSoilConditionGuard:
             max_previous_day_precipitation_mm=10.0,
         )
         op = MockOperation(worktype=7)
-        ctx = _ctx(
-            current_weather=_weather(
-                soil_moisture_pct_nfk=50.0, precipitation_mm=12.0
-            )
-        )
+        ctx = _ctx(current_weather=_weather(soil_moisture_pct_nfk=50.0, precipitation_mm=12.0))
         reason = guard.check(op, ctx, _DATE)
         assert reason is not None
         assert reason.startswith("KAR-032:")
@@ -322,11 +314,7 @@ class TestSoilConditionGuard:
             max_previous_day_precipitation_mm=10.0,
         )
         op = MockOperation(worktype=6)
-        ctx = _ctx(
-            current_weather=_weather(
-                soil_moisture_pct_nfk=50.0, precipitation_mm=2.0
-            )
-        )
+        ctx = _ctx(current_weather=_weather(soil_moisture_pct_nfk=50.0, precipitation_mm=2.0))
         assert guard.check(op, ctx, _DATE) is None
 
     def test_passes_at_exact_limit(self) -> None:
@@ -339,11 +327,7 @@ class TestSoilConditionGuard:
             max_previous_day_precipitation_mm=10.0,
         )
         op = MockOperation(worktype=6)
-        ctx = _ctx(
-            current_weather=_weather(
-                soil_moisture_pct_nfk=90.0, precipitation_mm=10.0
-            )
-        )
+        ctx = _ctx(current_weather=_weather(soil_moisture_pct_nfk=90.0, precipitation_mm=10.0))
         assert guard.check(op, ctx, _DATE) is None
 
     def test_other_worktype_not_checked(self) -> None:
@@ -545,9 +529,7 @@ class TestWeatherGuardConfigLoading:
         """3 bestehende + 4 neue Wetter-Guards = 7 Regeln."""
         assert len(guard.rules) == 7
 
-    @pytest.mark.parametrize(
-        "rule_id", ["KAR-030", "KAR-031", "KAR-032", "KAR-035"]
-    )
+    @pytest.mark.parametrize("rule_id", ["KAR-030", "KAR-031", "KAR-032", "KAR-035"])
     def test_weather_guard_loaded(self, guard: RuleGuard, rule_id: str) -> None:
         rule_ids = [r.rule_id for r in guard.rules]
         assert rule_id in rule_ids
@@ -559,9 +541,7 @@ class TestWeatherGuardConfigLoading:
         assert "KAR-020" in rule_ids
         assert "KAR-024" in rule_ids
 
-    def test_weather_guards_disabled_in_baseline_context(
-        self, guard: RuleGuard
-    ) -> None:
+    def test_weather_guards_disabled_in_baseline_context(self, guard: RuleGuard) -> None:
         """Ohne Wetterdaten (current_weather=None) lehnen Wetter-Guards
         nichts ab – Baseline-Fixture ohne WeatherService bleibt unangetastet."""
         op = MockOperation(worktype=14, application_category=26)

@@ -155,7 +155,11 @@ class DigiZertDataClient:
                 for m in measurements
             ],
         }
-        self._post_bulk(url, payload, context=f"soil_moisture field={field_id} depth={depth} n={len(measurements)}")
+        self._post_bulk(
+            url,
+            payload,
+            context=f"soil_moisture field={field_id} depth={depth} n={len(measurements)}",
+        )
 
     def send_weather_data(
         self,

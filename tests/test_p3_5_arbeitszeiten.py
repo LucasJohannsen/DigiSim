@@ -26,7 +26,6 @@ from services.irrigation_service import IrrigationSimulator
 from services.planting_plan_service import PlantingPlanService
 from utils.sim_helper import assign_sequential_time
 
-
 # ---------------------------------------------------------------------------
 # Konstanten
 # ---------------------------------------------------------------------------
@@ -115,9 +114,7 @@ class TestAssignSequentialTimeExplicitWindow:
         """Explizite Fenster bleiben unangetastet."""
         random.seed(42)
         d = datetime.datetime(2026, 5, 10)
-        t = assign_sequential_time(
-            d, min_start=datetime.time(8, 0), max_end=datetime.time(10, 0)
-        )
+        t = assign_sequential_time(d, min_start=datetime.time(8, 0), max_end=datetime.time(10, 0))
         assert datetime.time(8, 0) <= t.time() <= datetime.time(10, 0)
 
 
@@ -152,9 +149,7 @@ class TestPlantingPlanServiceSplitting:
 
         # Gesamtdauer = 30 h
         total_dur = sum(ev.duration / 3600.0 for ev in events)
-        assert abs(total_dur - 30.0) < 0.01, (
-            f"Gesamtdauer {total_dur:.1f} h ≠ 30 h"
-        )
+        assert abs(total_dur - 30.0) < 0.01, f"Gesamtdauer {total_dur:.1f} h ≠ 30 h"
 
     def test_short_operation_single_event(self, basic_context):
         """≤ 18 h Dauer → 1 Event (keine Aufteilung)."""
@@ -186,13 +181,12 @@ class TestPlantingPlanServiceSplitting:
 
         assert len(events) == 3
         dates = [
-            datetime.datetime.strptime(ev.start_date, "%Y-%m-%d %H:%M:%S").date()
-            for ev in events
+            datetime.datetime.strptime(ev.start_date, "%Y-%m-%d %H:%M:%S").date() for ev in events
         ]
         # Tage sind aufeinanderfolgend
         for i in range(1, len(dates)):
             assert dates[i] == dates[i - 1] + datetime.timedelta(days=1), (
-                f"Tag {i} ({dates[i]}) nicht aufeinanderfolgend mit Tag {i-1} ({dates[i-1]})"
+                f"Tag {i} ({dates[i]}) nicht aufeinanderfolgend mit Tag {i - 1} ({dates[i - 1]})"
             )
 
     def test_no_event_starts_before_05_or_after_20(self, basic_context):
@@ -213,9 +207,7 @@ class TestPlantingPlanServiceSplitting:
 
         for ev in events:
             start = datetime.datetime.strptime(ev.start_date, "%Y-%m-%d %H:%M:%S")
-            assert start.time() >= datetime.time(5, 0), (
-                f"Start {start.time()} vor 05:00"
-            )
+            assert start.time() >= datetime.time(5, 0), f"Start {start.time()} vor 05:00"
             assert start.time() <= datetime.time(20, 0), (
                 f"Start {start.time()} nach 20:00 (KAR-045 start_hour_range)"
             )
@@ -234,9 +226,7 @@ class TestPlantingPlanServiceSplitting:
 
         for ev in events:
             dur_h = ev.duration / 3600.0
-            assert dur_h <= _MAX_DURATION_HOURS, (
-                f"Dauer {dur_h:.1f} h > {_MAX_DURATION_HOURS} h"
-            )
+            assert dur_h <= _MAX_DURATION_HOURS, f"Dauer {dur_h:.1f} h > {_MAX_DURATION_HOURS} h"
 
     def test_proportional_application_amount(self, basic_context):
         """Aufgeteilte Events haben proportionale application_amount."""
@@ -311,9 +301,7 @@ class TestPlantingPlanServiceSplitting:
         # Cursor für alle 3 Tage gesetzt
         for day_idx in range(3):
             day = _TEST_DATE.date() + datetime.timedelta(days=day_idx)
-            assert day in service._last_assigned_time, (
-                f"Cursor für Tag +{day_idx} nicht gesetzt"
-            )
+            assert day in service._last_assigned_time, f"Cursor für Tag +{day_idx} nicht gesetzt"
 
     def test_wt26_not_split(self, basic_context):
         """KAR-046: wt=26 (Legen) wird nicht aufgeteilt, auch wenn > 18 h."""
@@ -407,9 +395,7 @@ class TestIrrigationStartHour:
 
         for ev in candidates:
             start = datetime.datetime.strptime(ev.start_date, "%Y-%m-%d %H:%M:%S")
-            assert start.time() >= datetime.time(5, 0), (
-                f"Beregnungs-Start {start.time()} vor 05:00"
-            )
+            assert start.time() >= datetime.time(5, 0), f"Beregnungs-Start {start.time()} vor 05:00"
 
     def test_irrigation_uses_passed_date(self, sim_context, moisture_data_dry):
         """Beregnungs-Event verwendet das übergebene Datum."""

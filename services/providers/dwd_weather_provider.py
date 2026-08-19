@@ -44,9 +44,7 @@ _FILE_PATTERNS: dict[str, str] = {
     "precipitation": "grids_germany_daily_precipitation_{year}_v1.nc",
     "wind": "grids_germany_daily_wind_{year}_v1.nc",
     "airtemp": "grids_germany_daily_airtemp_{year}_v1.nc",
-    "soil_moisture": (
-        "grids_germany_daily_soil_moisture_grass_{year}_0-10_v1.nc"
-    ),
+    "soil_moisture": ("grids_germany_daily_soil_moisture_grass_{year}_0-10_v1.nc"),
 }
 
 # Regex zum Extrahieren der Jahreszahl aus DWD-Dateinamen.
@@ -86,8 +84,7 @@ class DWDWeatherDataProvider:
         effective_year = self._resolve_year(year)
         if effective_year is None:
             logger.warning(
-                "No DWD weather data found in %s, falling back to "
-                "SyntheticWeatherDataProvider",
+                "No DWD weather data found in %s, falling back to SyntheticWeatherDataProvider",
                 self.cache_folder,
             )
             return self._synthetic_fallback.get_weather_data(year, coords)
@@ -159,9 +156,7 @@ class DWDWeatherDataProvider:
 
         return None
 
-    def _load_and_assemble(
-        self, year: int, coords: tuple[float, float]
-    ) -> list[WeatherData]:
+    def _load_and_assemble(self, year: int, coords: tuple[float, float]) -> list[WeatherData]:
         """Lädt alle DWD-Dateien für ein Jahr und baut WeatherData-Liste.
 
         Extrahiert die Werte an der gegebenen Koordinate (lat, lon).
@@ -173,20 +168,12 @@ class DWDWeatherDataProvider:
             year, "precipitation", lat, lon, var_name="precipitation"
         )
         # Wind
-        wind_data = self._extract_from_nc(
-            year, "wind", lat, lon, var_name="wind_speed"
-        )
+        wind_data = self._extract_from_nc(year, "wind", lat, lon, var_name="wind_speed")
         # Temperatur (min/max)
-        temp_min_data = self._extract_from_nc(
-            year, "airtemp", lat, lon, var_name="temperature_min"
-        )
-        temp_max_data = self._extract_from_nc(
-            year, "airtemp", lat, lon, var_name="temperature_max"
-        )
+        temp_min_data = self._extract_from_nc(year, "airtemp", lat, lon, var_name="temperature_min")
+        temp_max_data = self._extract_from_nc(year, "airtemp", lat, lon, var_name="temperature_max")
         # Bodenfeuchte
-        moisture_data = self._extract_from_nc(
-            year, "soil_moisture", lat, lon, var_name="paws"
-        )
+        moisture_data = self._extract_from_nc(year, "soil_moisture", lat, lon, var_name="paws")
 
         # Datenlänge bestimmen (alle Arrays sollten gleich lang sein).
         n_days = min(
@@ -213,9 +200,7 @@ class DWDWeatherDataProvider:
             )
 
         # Falls Daten kürzer als 365 Tage: mit Synthetic auffüllen.
-        expected_days = (
-            datetime.date(year, 12, 31) - datetime.date(year, 1, 1)
-        ).days + 1
+        expected_days = (datetime.date(year, 12, 31) - datetime.date(year, 1, 1)).days + 1
         if n_days < expected_days:
             logger.warning(
                 "DWD data for year %d has only %d days (expected %d), "
@@ -273,9 +258,7 @@ class DWDWeatherDataProvider:
                 y_idx = int(np.argmin(np.abs(ys - lat * 1000)))
                 data = nc.variables[var_name][:, y_idx, x_idx]
             else:
-                raise ValueError(
-                    f"Unknown coordinate system in {filepath}"
-                )
+                raise ValueError(f"Unknown coordinate system in {filepath}")
 
             # Maskierte Werte durch 0 ersetzen (für fehlende Datenpunkte).
             if np.ma.is_masked(data):

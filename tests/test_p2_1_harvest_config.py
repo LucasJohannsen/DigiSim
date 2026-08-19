@@ -50,9 +50,7 @@ def _load_plan() -> Any:
 
 
 def _phase_ops(plan: Any, phase: FieldOperationPhases) -> list[Any]:
-    phase_obj = next(
-        (p for p in plan.phases if p.phase_name == phase.value), None
-    )
+    phase_obj = next((p for p in plan.phases if p.phase_name == phase.value), None)
     assert phase_obj is not None, f"Phase '{phase.value}' fehlt im Plan."
     return phase_obj.operations
 
@@ -65,12 +63,8 @@ class TestPlantingPlanConfig:
         plan = _load_plan()
         soil_ops = _phase_ops(plan, FieldOperationPhases.SOIL_PREPARATION)
         p_ops = [op for op in soil_ops if op.application_name == _P_NAME]
-        assert p_ops, (
-            "P-Düngung (Superphosphat) fehlt in soil_preparation (B14 nicht gefixt)."
-        )
-        assert len(p_ops) == 1, (
-            f"Erwartet genau 1 P-Düngung in soil_preparation, got {len(p_ops)}."
-        )
+        assert p_ops, "P-Düngung (Superphosphat) fehlt in soil_preparation (B14 nicht gefixt)."
+        assert len(p_ops) == 1, f"Erwartet genau 1 P-Düngung in soil_preparation, got {len(p_ops)}."
         p = p_ops[0]
         assert p.worktype == 23
         assert int(p.application_category) == 34
@@ -84,9 +78,7 @@ class TestPlantingPlanConfig:
         plan = _load_plan()
         crop_ops = _phase_ops(plan, FieldOperationPhases.CROP_MANAGEMENT)
         p_ops = [op for op in crop_ops if op.application_name == _P_NAME]
-        assert not p_ops, (
-            f"P-Düngung darf nicht in crop_management liegen: {p_ops}."
-        )
+        assert not p_ops, f"P-Düngung darf nicht in crop_management liegen: {p_ops}."
         # Auch kein Eintrag mit operation-Name "P Düngung"
         p_by_op = [op for op in crop_ops if op.operation == _P_OP_NAME]
         assert not p_by_op, (
@@ -99,8 +91,7 @@ class TestPlantingPlanConfig:
         crop_ops = _phase_ops(plan, FieldOperationPhases.CROP_MANAGEMENT)
         by_seq = sorted(crop_ops, key=lambda op: op.sequence)
         assert len(by_seq) == 2, (
-            f"crop_management sollte 2 Operationen haben (N-Düngung, Häufeln), "
-            f"got {len(by_seq)}."
+            f"crop_management sollte 2 Operationen haben (N-Düngung, Häufeln), got {len(by_seq)}."
         )
         assert by_seq[0].sequence == 1
         assert by_seq[0].operation == "N Düngung"
@@ -112,9 +103,7 @@ class TestPlantingPlanConfig:
         plan = _load_plan()
         harvest_ops = _phase_ops(plan, FieldOperationPhases.HARVESTING)
         herbizid = [op for op in harvest_ops if op.application_name == "Quickdown"]
-        assert len(herbizid) == 1, (
-            f"Erwartet genau 1 Quickdown in harvesting, got {len(herbizid)}."
-        )
+        assert len(herbizid) == 1, f"Erwartet genau 1 Quickdown in harvesting, got {len(herbizid)}."
         h = herbizid[0]
         assert h.min_days_to_target == -21, (
             f"min_days_to_target={h.min_days_to_target}, erwartet -21 (B5)."
@@ -242,13 +231,9 @@ class TestFastForwardEventOrder:
         assert before, "Keine Sikkation vor dem Roden."
         last_sikk = max(_start(s) for s in before)
         delta = (roden_date.date() - last_sikk.date()).days
-        assert delta >= 14, (
-            f"Abstand letzte Sikkation→Roden = {delta} d < 14 d (B5 nicht gefixt)."
-        )
+        assert delta >= 14, f"Abstand letzte Sikkation→Roden = {delta} d < 14 d (B5 nicht gefixt)."
 
-    def test_sikkation_in_window_14_to_35_days_before_roden(
-        self, ff_events: list[Any]
-    ) -> None:
+    def test_sikkation_in_window_14_to_35_days_before_roden(self, ff_events: list[Any]) -> None:
         """AK #2: Sikkation aus Harvest-Phase im Fenster 14–35 d vor Roden (weich)."""
         sikkation = _events_wt_cat(ff_events, 14, 26)
         roden = _events_wt(ff_events, 27)
@@ -257,22 +242,16 @@ class TestFastForwardEventOrder:
         before = [s for s in sikkation if _start(s) < roden_date]
         assert before
         # Mindestens eine Sikkation muss im Fenster [14, 35] liegen
-        in_window = [
-            s for s in before
-            if 14 <= (roden_date.date() - _start(s).date()).days <= 35
-        ]
-        assert in_window, (
-            "Keine Sikkation im Fenster 14–35 d vor Roden: "
-            + ", ".join(
-                f"{(roden_date.date() - _start(s).date()).days}d"
-                for s in before
-            )
+        in_window = [s for s in before if 14 <= (roden_date.date() - _start(s).date()).days <= 35]
+        assert in_window, "Keine Sikkation im Fenster 14–35 d vor Roden: " + ", ".join(
+            f"{(roden_date.date() - _start(s).date()).days}d" for s in before
         )
 
     def test_p_duengung_before_legen(self, ff_events: list[Any]) -> None:
         """AK #3: P-Düngung (wt=23, Kat.34, Superphosphat) vor dem Legen (wt=26)."""
         p_duengung = [
-            e for e in _events_wt_cat(ff_events, 23, 34)
+            e
+            for e in _events_wt_cat(ff_events, 23, 34)
             if getattr(e, "application_name", None) == "Superphosphat"
         ]
         legen = _events_wt(ff_events, 26)
@@ -288,7 +267,8 @@ class TestFastForwardEventOrder:
     def test_kali_before_legen_regression(self, ff_events: list[Any]) -> None:
         """AK #4: Kali-Düngung (wt=23, Kat.34, Kali) bleibt vor dem Legen."""
         kali = [
-            e for e in _events_wt_cat(ff_events, 23, 34)
+            e
+            for e in _events_wt_cat(ff_events, 23, 34)
             if getattr(e, "application_name", None) == "Kali"
         ]
         legen = _events_wt(ff_events, 26)

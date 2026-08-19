@@ -22,7 +22,7 @@ Der RuleGuard-Mechanismus aus P2-4 wird um Wetter-Guards erweitert. Neue Guard-R
 @dataclass(frozen=True)
 class WeatherConditionGuard:
     """Prüft Wetterbedingungen für Spritzoperationen."""
-    
+
     rule_id: str
     description: str
     worktype: int
@@ -30,7 +30,7 @@ class WeatherConditionGuard:
     max_precipitation_mm_day: float = 5.0
     max_wind_ms: float = 5.0
     max_temperature_c: float | None = None  # None = keine Temperatur-Prüfung
-    
+
     @classmethod
     def from_config(cls, entry: dict[str, Any]) -> "WeatherConditionGuard":
         return cls(
@@ -42,7 +42,7 @@ class WeatherConditionGuard:
             max_wind_ms=entry.get("max_wind_ms", 5.0),
             max_temperature_c=entry.get("max_temperature_c"),
         )
-    
+
     def check(
         self,
         operation: Any,
@@ -51,30 +51,33 @@ class WeatherConditionGuard:
     ) -> str | None:
         if cycle_context is None or cycle_context.current_weather is None:
             return None  # Guard deaktiviert ohne Wetterdaten
-        
+
         wt = getattr(operation, "worktype", None)
         if wt != self.worktype:
             return None
-        
+
         if self.application_category is not None:
             cat = getattr(operation, "application_category", None)
             if cat != self.application_category:
                 return None
-        
+
         weather = cycle_context.current_weather
-        
+
         # Niederschlag-Prüfung
         if weather.precipitation_mm > self.max_precipitation_mm_day:
             return f"{self.rule_id}: {self.description} (Niederschlag {weather.precipitation_mm} mm > {self.max_precipitation_mm_day} mm)"
-        
+
         # Wind-Prüfung
         if weather.wind_speed_ms > self.max_wind_ms:
             return f"{self.rule_id}: {self.description} (Wind {weather.wind_speed_ms} m/s > {self.max_wind_ms} m/s)"
-        
+
         # Temperatur-Prüfung (optional)
-        if self.max_temperature_c is not None and weather.temperature_max_c > self.max_temperature_c:
+        if (
+            self.max_temperature_c is not None
+            and weather.temperature_max_c > self.max_temperature_c
+        ):
             return f"{self.rule_id}: {self.description} (Temperatur {weather.temperature_max_c}°C > {self.max_temperature_c}°C)"
-        
+
         return None
 ```
 
@@ -133,13 +136,13 @@ class SoilConditionGuard:
 @dataclass(frozen=True)
 class ForecastConditionGuard:
     """Prüft Prognose für Beregnung (kein Niederschlag in den nächsten N Tagen)."""
-    
+
     rule_id: str
     description: str
     worktype: int
     forecast_days: int = 4
     max_cumulative_precipitation_mm: float = 10.0
-    
+
     @classmethod
     def from_config(cls, entry: dict[str, Any]) -> "ForecastConditionGuard":
         return cls(
@@ -149,7 +152,7 @@ class ForecastConditionGuard:
             forecast_days=entry.get("forecast_days", 4),
             max_cumulative_precipitation_mm=entry.get("max_cumulative_precipitation_mm", 10.0),
         )
-    
+
     def check(
         self,
         operation: Any,
@@ -158,17 +161,17 @@ class ForecastConditionGuard:
     ) -> str | None:
         if cycle_context is None or cycle_context.weather_forecast is None:
             return None
-        
+
         wt = getattr(operation, "worktype", None)
         if wt != self.worktype:
             return None
-        
-        forecast = cycle_context.weather_forecast[:self.forecast_days]
+
+        forecast = cycle_context.weather_forecast[: self.forecast_days]
         cumulative_precip = sum(day.precipitation_mm for day in forecast)
-        
+
         if cumulative_precip > self.max_cumulative_precipitation_mm:
             return f"{self.rule_id}: {self.description} (Prognose-Niederschlag {cumulative_precip} mm > {self.max_cumulative_precipitation_mm} mm)"
-        
+
         return None
 ```
 

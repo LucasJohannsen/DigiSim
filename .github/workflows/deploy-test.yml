@@ -1,0 +1,46 @@
+name: Deploy to Test Server
+
+on:
+  workflow_run:
+    workflows: ["Docker Build & Push"]
+    types: [completed]
+    branches: [test]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Nur ausführen, wenn der Docker-Build erfolgreich war
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    environment: test
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.TEST_SSH_HOST }}
+          username: ${{ secrets.TEST_SSH_USER }}
+          key: ${{ secrets.TEST_SSH_KEY }}
+          script: |
+            cd ${{ secrets.TEST_DEPLOY_PATH }}
+            # Repo auf test-Branch aktualisieren (für docker-compose.yml mit image: Tag)
+            git fetch origin
+            git checkout test 2>/dev/null || git checkout -b test origin/test
+            git pull origin test
+            # Neues Image pullen und Container starten
+            docker compose pull
+            docker compose up -d
+            # Warte auf Health-Check (max 120s)
+            timeout=120
+            elapsed=0
+            while [ $elapsed -lt $timeout ]; do
+              status=$(docker inspect --format='{{.State.Health.Status}}' digisim 2>/dev/null || echo "none")
+              if [ "$status" = "healthy" ]; then
+                echo "Container healthy after ${elapsed}s"
+                exit 0
+              fi
+              sleep 5
+              elapsed=$((elapsed + 5))
+            done
+            echo "Container did not become healthy within ${timeout}s"
+            docker logs digisim --tail 50
+            exit 1

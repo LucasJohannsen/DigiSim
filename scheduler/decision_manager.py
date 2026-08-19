@@ -1,16 +1,17 @@
 from __future__ import annotations
 
+import datetime
 from dataclasses import dataclass
-from typing import List, Protocol, Any, Optional, runtime_checkable
-from models.worktypes import LOW_PRIORITY_WORKTYPES
+from typing import Any, Protocol, runtime_checkable
+
 from events.domain_event_bus import DomainEventBus
 from models.domain_events import (
-    create_operation_considered,
     create_operation_approved,
-    create_operation_rejected
+    create_operation_considered,
+    create_operation_rejected,
 )
+from models.worktypes import LOW_PRIORITY_WORKTYPES
 from services.weather_service import WeatherData
-import datetime
 
 __all__ = [
     "CycleContext",
@@ -107,7 +108,7 @@ class NoWorktypeAfterHarvestRule:
         self.worktypes = worktypes
 
     @classmethod
-    def from_config(cls, entry: dict[str, Any]) -> "NoWorktypeAfterHarvestRule":
+    def from_config(cls, entry: dict[str, Any]) -> NoWorktypeAfterHarvestRule:
         return cls(
             rule_id=entry["rule_id"],
             description=entry["description"],
@@ -136,16 +137,14 @@ class MinGapBeforeHarvestOpRule:
     ``date − last_siccation_date < min_days``.
     """
 
-    def __init__(
-        self, rule_id: str, description: str, to_worktype: int, min_days: int
-    ) -> None:
+    def __init__(self, rule_id: str, description: str, to_worktype: int, min_days: int) -> None:
         self.rule_id = rule_id
         self.description = description
         self.to_worktype = to_worktype
         self.min_days = min_days
 
     @classmethod
-    def from_config(cls, entry: dict[str, Any]) -> "MinGapBeforeHarvestOpRule":
+    def from_config(cls, entry: dict[str, Any]) -> MinGapBeforeHarvestOpRule:
         return cls(
             rule_id=entry["rule_id"],
             description=entry["description"],
@@ -190,7 +189,7 @@ class NoSiccationAfterHarvestRule:
         self.application_category = application_category
 
     @classmethod
-    def from_config(cls, entry: dict[str, Any]) -> "NoSiccationAfterHarvestRule":
+    def from_config(cls, entry: dict[str, Any]) -> NoSiccationAfterHarvestRule:
         return cls(
             rule_id=entry["rule_id"],
             description=entry["description"],
@@ -251,15 +250,13 @@ class WeatherConditionGuard:
         self.max_temperature_c = max_temperature_c
 
     @classmethod
-    def from_config(cls, entry: dict[str, Any]) -> "WeatherConditionGuard":
+    def from_config(cls, entry: dict[str, Any]) -> WeatherConditionGuard:
         return cls(
             rule_id=entry["rule_id"],
             description=entry["description"],
             worktype=entry["worktype"],
             application_category=entry.get("application_category"),
-            max_precipitation_mm_day=float(
-                entry.get("max_precipitation_mm_day", 5.0)
-            ),
+            max_precipitation_mm_day=float(entry.get("max_precipitation_mm_day", 5.0)),
             max_wind_ms=float(entry.get("max_wind_ms", 5.0)),
             max_temperature_c=(
                 float(entry["max_temperature_c"])
@@ -345,19 +342,15 @@ class SoilConditionGuard:
         self.description = description
         self.worktypes = worktypes
         self.max_soil_moisture_pct_nfk = max_soil_moisture_pct_nfk
-        self.max_previous_day_precipitation_mm = (
-            max_previous_day_precipitation_mm
-        )
+        self.max_previous_day_precipitation_mm = max_previous_day_precipitation_mm
 
     @classmethod
-    def from_config(cls, entry: dict[str, Any]) -> "SoilConditionGuard":
+    def from_config(cls, entry: dict[str, Any]) -> SoilConditionGuard:
         return cls(
             rule_id=entry["rule_id"],
             description=entry["description"],
             worktypes=list(entry["worktypes"]),
-            max_soil_moisture_pct_nfk=float(
-                entry.get("max_soil_moisture_pct_nfk", 90.0)
-            ),
+            max_soil_moisture_pct_nfk=float(entry.get("max_soil_moisture_pct_nfk", 90.0)),
             max_previous_day_precipitation_mm=float(
                 entry.get("max_previous_day_precipitation_mm", 10.0)
             ),
@@ -423,7 +416,7 @@ class ForecastConditionGuard:
         self.max_cumulative_precipitation_mm = max_cumulative_precipitation_mm
 
     @classmethod
-    def from_config(cls, entry: dict[str, Any]) -> "ForecastConditionGuard":
+    def from_config(cls, entry: dict[str, Any]) -> ForecastConditionGuard:
         return cls(
             rule_id=entry["rule_id"],
             description=entry["description"],
@@ -448,9 +441,7 @@ class ForecastConditionGuard:
             return None
 
         forecast = cycle_context.weather_forecast[: self.forecast_days]
-        cumulative_precip = sum(
-            day.precipitation_mm for day in forecast
-        )
+        cumulative_precip = sum(day.precipitation_mm for day in forecast)
 
         if cumulative_precip > self.max_cumulative_precipitation_mm:
             return (
@@ -492,84 +483,87 @@ class RuleGuard:
                 return reason
         return None
 
+
 class DecisionStrategy(Protocol):
     """
     Protocol for decision strategies in the unified decision pipeline.
-    
+
     Strategies determine which operations to execute from a list of candidates.
     This enables flexible decision-making logic while maintaining separation of concerns.
     """
-    def select_operation(self, operations: List[Any]) -> Any:
+
+    def select_operation(self, operations: list[Any]) -> Any:
         """
         Select which operations to execute from the candidate list.
-        
+
         Args:
             operations: List of candidate operations (FieldOperationEvent or FieldOperation)
-            
+
         Returns:
             Selected operations (list) or None if no operations
         """
         return NotImplemented
 
+
 class WorkTypePriorityStrategy:
     """
     Priority-based decision strategy for agricultural operations.
-    
+
     This strategy implements a two-tier priority system:
-    
+
     **High-Priority Operations** (executed first):
     - Soil preparation (plowing, harrowing, etc.)
     - Planting operations
     - Fertilization
     - Harvesting
     - All other operations not in LOW_PRIORITY_WORKTYPES
-    
+
     **Low-Priority Operations** (deferred when high-priority ops exist):
     - Irrigation (worktype 15 / BEREGNEN)
     - Plant protection spraying (worktype 14 / SPRITZEN)
-    
+
     **Decision Rules:**
     1. If high-priority operations exist, select ALL high-priority ops and SUPPRESS all low-priority ops
     2. If only low-priority operations exist, select ALL of them
     3. If no operations exist, return None
-    
+
     **Irrigation-Specific Behavior:**
     Irrigation candidates are only executed when no high-priority operations are scheduled.
     This ensures critical operations (planting, harvesting, etc.) are never delayed by irrigation.
-    
+
     **Example Scenarios:**
     - [Planting, Irrigation] → Select: [Planting] (irrigation suppressed)
     - [Irrigation, Spraying] → Select: [Irrigation, Spraying] (both low-priority)
     - [Plowing, Planting, Irrigation] → Select: [Plowing, Planting] (irrigation suppressed)
     - [Irrigation] → Select: [Irrigation] (only operation available)
-    
+
     **Integration with Unified Pipeline:**
     This strategy is used by DecisionManager in CalendarDrivenRunner.tick() to decide
     which operations to execute from the unified candidate list (planting + protection + irrigation).
-    
+
     See Also:
         - models.worktypes.LOW_PRIORITY_WORKTYPES: List of low-priority worktype IDs
         - Issue #40: Integration of irrigation priority logic into DecisionManager
     """
-    
-    def select_operation(self, operations: List[Any]) -> Any:
+
+    def select_operation(self, operations: list[Any]) -> Any:
         """
         Select operations based on priority rules.
-        
+
         Filters out low-priority operations (irrigation, spraying) when high-priority
         operations are present. If only low-priority operations exist, all are selected.
-        
+
         Args:
             operations: List of candidate operations with 'worktype' attribute
-            
+
         Returns:
             List of selected operations, or None if input is empty
-            
+
         Priority Logic:
             - Filters operations by worktype
             - Low-priority worktypes (14, 15) are suppressed by high-priority ops
             - If all operations are low-priority, all are selected
-            
+
         Note:
             Operations without a 'worktype' attribute are treated as high-priority.
         """
@@ -577,14 +571,16 @@ class WorkTypePriorityStrategy:
 
         if not operations:
             return None
-        
+
         # Filter out low-priority operations
-        filtered_operations = [op for op in operations if getattr(op, 'worktype', None) not in low_prio_worktypes]
-        
+        filtered_operations = [
+            op for op in operations if getattr(op, "worktype", None) not in low_prio_worktypes
+        ]
+
         # If no high-priority operations exist, select all (including low-priority)
         if not filtered_operations:
             return operations
-        
+
         # High-priority operations exist - return only those
         return filtered_operations
 
@@ -617,7 +613,7 @@ class DeadlineAwarePriorityStrategy:
     None, wird die Operation als nicht-überfällig behandelt.
     """
 
-    def select_operation(self, operations: List[Any]) -> Any:
+    def select_operation(self, operations: list[Any]) -> Any:
         """Wählt Operationen nach Fälligkeits- und Prioritätslogik aus.
 
         Args:
@@ -659,21 +655,16 @@ class DeadlineAwarePriorityStrategy:
             # High-Prio-Konkurrenz). Plus alle High-Prio-Ops, aber nicht
             # Low-Prio (um Stauung zu vermeiden).
             high_prio = [
-                op for op in others
-                if getattr(op, "worktype", None) not in LOW_PRIORITY_WORKTYPES
+                op for op in others if getattr(op, "worktype", None) not in LOW_PRIORITY_WORKTYPES
             ]
             return overdue_critical + high_prio
 
         # Keine überfälligen kritischen → Standard-Logik mit
         # Im-Fenster-kritischen als High-Prio-Äquivalent.
         high_prio = [
-            op for op in others
-            if getattr(op, "worktype", None) not in LOW_PRIORITY_WORKTYPES
+            op for op in others if getattr(op, "worktype", None) not in LOW_PRIORITY_WORKTYPES
         ]
-        low_prio = [
-            op for op in others
-            if getattr(op, "worktype", None) in LOW_PRIORITY_WORKTYPES
-        ]
+        low_prio = [op for op in others if getattr(op, "worktype", None) in LOW_PRIORITY_WORKTYPES]
 
         if high_prio or in_window_critical:
             # High-Prio + im-Fenster-kritische ausführen, Low-Prio
@@ -688,8 +679,8 @@ class DecisionManager:
     def __init__(
         self,
         strategy: DecisionStrategy,
-        event_bus: Optional[DomainEventBus] = None,
-        rule_guard: Optional[RuleGuard] = None
+        event_bus: DomainEventBus | None = None,
+        rule_guard: RuleGuard | None = None,
     ):
         self.strategy = strategy
         self.event_bus = event_bus
@@ -697,56 +688,58 @@ class DecisionManager:
 
     def decide(
         self,
-        operations: List[Any],
+        operations: list[Any],
         field_id: str | None = None,
         date: datetime.datetime | None = None,
-        cycle_context: CycleContext | None = None
+        cycle_context: CycleContext | None = None,
     ) -> Any:
         """
         Decide which operations to execute from the candidate list.
-        
+
         Emits domain events for each operation:
         - OperationConsidered for each candidate
         - OperationApproved for selected operations
         - OperationRejected for rejected operations (with reason)
-        
+
         Guard-Schicht (P2-4, Issue #68): Nach der Strategie-Auswahl werden
         selektierte Kandidaten, die gegen eine Guard-Regel verstoßen,
         entfernt und als OperationRejected mit Regel-ID markiert.
         Bei ``cycle_context=None`` ist der Guard deaktiviert (Abwärts-
         kompatibilität, keine Regression).
-        
+
         Args:
             operations: List of candidate operations
             field_id: Optional field ID for domain events
             date: Optional date for domain events
             cycle_context: Optional cycle context for guard checks
-            
+
         Returns:
             List of selected operations or None
         """
         if not operations:
             return None
-        
+
         # Emit OperationConsidered events for all candidates
         if self.event_bus is not None and field_id and date:
             for op in operations:
-                operation_type = getattr(op, 'operation', None) or getattr(op, 'worktype_text', 'Unknown')
-                worktype = getattr(op, 'worktype', 0)
-                
+                operation_type = getattr(op, "operation", None) or getattr(
+                    op, "worktype_text", "Unknown"
+                )
+                worktype = getattr(op, "worktype", 0)
+
                 self.event_bus.publish(
                     create_operation_considered(
                         field_id=field_id,
                         date=date,
                         operation_type=operation_type,
-                        worktype=worktype
+                        worktype=worktype,
                     )
                 )
-        
+
         # Apply strategy to select operations
         selected = self.strategy.select_operation(operations)
         selected_list = list(selected) if selected else []
-        
+
         # Apply guard filter on selected candidates (P2-4, Issue #68).
         # Guard deaktiviert bei cycle_context=None oder rule_guard=None.
         guard_rejected: list[tuple[Any, str]] = []
@@ -759,60 +752,60 @@ class DecisionManager:
                 else:
                     filtered.append(op)
             selected_list = filtered
-        
+
         # Emit OperationApproved and OperationRejected events
         if self.event_bus is not None and field_id and date:
             for op in operations:
-                operation_type = getattr(op, 'operation', None) or getattr(op, 'worktype_text', 'Unknown')
-                worktype = getattr(op, 'worktype', 0)
-                
+                operation_type = getattr(op, "operation", None) or getattr(
+                    op, "worktype_text", "Unknown"
+                )
+                worktype = getattr(op, "worktype", 0)
+
                 if op in selected_list:
                     self.event_bus.publish(
                         create_operation_approved(
                             field_id=field_id,
                             date=date,
                             operation_type=operation_type,
-                            worktype=worktype
+                            worktype=worktype,
                         )
                     )
                 else:
                     # Check if rejected by guard (rule-id reason takes priority)
-                    guard_reason = next(
-                        (r for o, r in guard_rejected if o == op), None
-                    )
+                    guard_reason = next((r for o, r in guard_rejected if o == op), None)
                     if guard_reason is not None:
                         reason = guard_reason
                     else:
                         reason = self._get_rejection_reason(op, selected_list)
-                    
+
                     self.event_bus.publish(
                         create_operation_rejected(
                             field_id=field_id,
                             date=date,
                             operation_type=operation_type,
                             worktype=worktype,
-                            reason=reason
+                            reason=reason,
                         )
                     )
-        
+
         return selected_list if selected_list else None
-    
-    def _get_rejection_reason(self, operation: Any, selected_ops: List[Any]) -> str:
+
+    def _get_rejection_reason(self, operation: Any, selected_ops: list[Any]) -> str:
         """
         Determine why an operation was rejected.
-        
+
         Args:
             operation: The rejected operation
             selected_ops: List of selected operations
-            
+
         Returns:
             Reason string for rejection
         """
-        worktype = getattr(operation, 'worktype', None)
-        
+        worktype = getattr(operation, "worktype", None)
+
         # Check if rejected due to low priority
         if worktype in LOW_PRIORITY_WORKTYPES:
             if selected_ops:  # If high-priority ops were selected
-                return 'low_priority'
-        
-        return 'strategy_decision'
+                return "low_priority"
+
+        return "strategy_decision"

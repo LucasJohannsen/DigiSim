@@ -19,16 +19,17 @@ Beregnungsgaben liegen im fachlich plausiblen Bereich (20–30 mm mit Zufallsstr
 ```python
 # services/irrigation_service.py
 
+
 class IrrigationSimulator:
     def __init__(
         self,
         context: SimContext,
         moisture_data: dict,
         target_application_mm: float = 25.0,  # Zielgabe (Mitte 20-30 mm)
-        target_tolerance_pct: float = 0.2,     # ±20% Toleranz → 20-30 mm
-        min_application_mm: float = 10.0,      # KAR-040 Mindestwert
-        max_application_mm: float = 40.0,      # KAR-040 Maximalwert
-        seasonal_max_mm: float = 170.0,        # PO: max 170 mm/Saison
+        target_tolerance_pct: float = 0.2,  # ±20% Toleranz → 20-30 mm
+        min_application_mm: float = 10.0,  # KAR-040 Mindestwert
+        max_application_mm: float = 40.0,  # KAR-040 Maximalwert
+        seasonal_max_mm: float = 170.0,  # PO: max 170 mm/Saison
         post_irrigation_block_days: int = 10,  # PO: 10 Tage Block nach Beregnung
     ):
         self.context = context
@@ -49,37 +50,34 @@ def get_candidate_operations(self, date: datetime.date) -> List[FieldOperationEv
     # 1. Saisonsummen-Limit: keine weiteren Beregnungen, wenn Obergrenze erreicht
     if self.seasonal_sum_mm >= self.seasonal_max_mm:
         return []
-    
+
     # 2. Post-Irrigation-Block: 10 Tage nach letzter Beregnung keine neue
     if self._last_irrigation_date is not None:
-        block_until = self._last_irrigation_date + timedelta(
-            days=self.post_irrigation_block_days
-        )
+        block_until = self._last_irrigation_date + timedelta(days=self.post_irrigation_block_days)
         if date < block_until:
             return []
-    
+
     try:
         status = self.get_status_for_day(date)
     except IndexError:
         return []
-    
+
     # Trigger-Prüfung: Defizit >= 5 % nFK UND keine Prognose über Threshold
     if not status["needs_irrigation"]:
         return []
-    
+
     # NEUE LOGIK: Feste Zielgabe statt Defizit-basiert
     # Berechne Zielgabe mit Zufallsstreuung (20-30 mm)
     base_amount = self.target_application_mm
     random_factor = np.random.uniform(
-        1.0 - self.target_tolerance_pct,
-        1.0 + self.target_tolerance_pct
+        1.0 - self.target_tolerance_pct, 1.0 + self.target_tolerance_pct
     )
     irrigation_amount = base_amount * random_factor
-    
+
     # Begrenzung auf KAR-040-Grenzen
     irrigation_amount = max(self.min_application_mm, irrigation_amount)
     irrigation_amount = min(self.max_application_mm, irrigation_amount)
-    
+
     # Saisonsummen-Begrenzung: nicht über 170 mm kippen
     remaining_budget = self.seasonal_max_mm - self.seasonal_sum_mm
     if irrigation_amount > remaining_budget:
@@ -88,11 +86,11 @@ def get_candidate_operations(self, date: datetime.date) -> List[FieldOperationEv
             irrigation_amount = remaining_budget
         else:
             return []  # Budget erschöpft
-    
+
     # Schwellwertprüfung NACH der Randomisierung
     if irrigation_amount < self.min_application_mm:
         return []
-    
+
     event = self._create_irrigation_event(date, irrigation_amount)
     return [event]
 ```

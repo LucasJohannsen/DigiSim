@@ -1,20 +1,20 @@
 import datetime
 import json
-import pytest
-import httpx
-import respx
 from pathlib import Path
-from tenacity import wait_none
 from unittest.mock import MagicMock
 
-from config.settings import load_sim_contexts, load_sim_contexts_from_api, DaemonConfig
+import httpx
+import pytest
+import respx
+from tenacity import wait_none
+
+from config.settings import DaemonConfig, load_sim_contexts, load_sim_contexts_from_api
 from models.planting_plan import FieldOperationEvent
 from models.sim_context import SimContext
 from scheduler.tick_scheduler import TickScheduler
 from services.digizert_client import DigiZertClient
 from services.retry_dispatcher import RetryDispatcher
-from utils.state_manager import StateManager, FieldStateSnapshot
-
+from utils.state_manager import FieldStateSnapshot, StateManager
 
 API_URL = "http://api.test"
 FARM_ID = 7
@@ -26,7 +26,7 @@ MOCK_FIELDS = {
         {"id": 1, "name": "Field 1", "area": 10.5, "soil_type": "sand"},
         {"id": 2, "name": "Field 2", "area": 15.0, "soil_type": "loam"},
     ],
-    "next": None
+    "next": None,
 }
 
 
@@ -46,7 +46,8 @@ def make_config(tmp_path: Path, farms_config: str | None = None) -> DaemonConfig
         variety="Belana",
         season_start_date=datetime.datetime(2024, 10, 1),
         fuel_variation=0.1,
-        farms_config_path=farms_config or str(Path(__file__).parent.parent / "config" / "farms.json"),
+        farms_config_path=farms_config
+        or str(Path(__file__).parent.parent / "config" / "farms.json"),
         max_concurrent_fields=5,
     )
 
@@ -143,12 +144,24 @@ def test_event_dispatch_success_no_queue(tmp_path):
     """Erfolgreiches Event-Dispatch (201) hinterlässt keine Queue-Dateien."""
     dispatcher = make_fast_dispatcher(tmp_path)
     event = FieldOperationEvent(
-        field=1, worktype="sowing", exa_id=None,
-        start_date="2024-10-01", end_date="2024-10-01", area=10.5,
-        distance=None, distanceWorked=None, duration=None, durationWorked=None,
-        fuel=5.0, application_type=None, application_category=None,
-        application_name=None, application_amount=None, application_unit=None,
-        worktype_text="Saat", machine=None,
+        field=1,
+        worktype="sowing",
+        exa_id=None,
+        start_date="2024-10-01",
+        end_date="2024-10-01",
+        area=10.5,
+        distance=None,
+        distanceWorked=None,
+        duration=None,
+        durationWorked=None,
+        fuel=5.0,
+        application_type=None,
+        application_category=None,
+        application_name=None,
+        application_amount=None,
+        application_unit=None,
+        worktype_text="Saat",
+        machine=None,
     )
     context = make_sim_context(1)
 
@@ -165,12 +178,24 @@ def test_event_queued_on_persistent_failure(tmp_path):
     """Bei dauerhaftem API-Fehler (503) wird das Event in die Queue geschrieben."""
     dispatcher = make_fast_dispatcher(tmp_path)
     event = FieldOperationEvent(
-        field=1, worktype="sowing", exa_id=None,
-        start_date="2024-10-01", end_date="2024-10-01", area=10.5,
-        distance=None, distanceWorked=None, duration=None, durationWorked=None,
-        fuel=5.0, application_type=None, application_category=None,
-        application_name=None, application_amount=None, application_unit=None,
-        worktype_text="Saat", machine=None,
+        field=1,
+        worktype="sowing",
+        exa_id=None,
+        start_date="2024-10-01",
+        end_date="2024-10-01",
+        area=10.5,
+        distance=None,
+        distanceWorked=None,
+        duration=None,
+        durationWorked=None,
+        fuel=5.0,
+        application_type=None,
+        application_category=None,
+        application_name=None,
+        application_amount=None,
+        application_unit=None,
+        worktype_text="Saat",
+        machine=None,
     )
     context = make_sim_context(1)
 
@@ -225,12 +250,24 @@ async def test_daily_tick_dispatches_events(tmp_path):
     snapshot = make_snapshot(1)
 
     event = FieldOperationEvent(
-        field=1, worktype="sowing", exa_id=None,
-        start_date="2024-10-01", end_date="2024-10-01", area=10.5,
-        distance=None, distanceWorked=None, duration=None, durationWorked=None,
-        fuel=5.0, application_type=None, application_category=None,
-        application_name=None, application_amount=None, application_unit=None,
-        worktype_text="Saat", machine=None,
+        field=1,
+        worktype="sowing",
+        exa_id=None,
+        start_date="2024-10-01",
+        end_date="2024-10-01",
+        area=10.5,
+        distance=None,
+        distanceWorked=None,
+        duration=None,
+        durationWorked=None,
+        fuel=5.0,
+        application_type=None,
+        application_category=None,
+        application_name=None,
+        application_amount=None,
+        application_unit=None,
+        worktype_text="Saat",
+        machine=None,
     )
 
     runner = MagicMock()
