@@ -4,9 +4,7 @@ Tests for continuous retry queue processing after each Daily Tick (Issue #34)
 import pytest
 import asyncio
 import datetime
-from unittest.mock import Mock, AsyncMock, patch, MagicMock
-from pathlib import Path
-import json
+from unittest.mock import Mock
 
 from models.sim_context import SimContext
 from scheduler.tick_scheduler import TickScheduler

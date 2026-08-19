@@ -1,5 +1,5 @@
 import json
-from models.planting_plan import PlantingPlan, FieldOperationStatus, FieldOperationCycle, FieldOperation, TargetDates, ProtectionPlan, Protection
+from models.planting_plan import PlantingPlan, FieldOperationCycle, FieldOperation, TargetDates, ProtectionPlan, Protection
 import os
 
 class PlantingPlanLoader:

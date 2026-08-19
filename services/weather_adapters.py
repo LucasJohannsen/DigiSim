@@ -1,6 +1,5 @@
 import datetime
-import os
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any
 import requests
 
 from services.data_source_adapter import WeatherDataAdapter

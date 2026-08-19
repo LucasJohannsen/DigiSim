@@ -1,8 +1,6 @@
 import datetime
 import json
-import os
 import pytest
-from unittest.mock import Mock, patch
 
 from models.sim_context import SimContext
 from scheduler.fast_forward_runner import FastForwardRunner
@@ -95,7 +93,7 @@ class TestFastForwardRunner:
             output_path=str(output_path)
         )
         
-        events = runner.run()
+        runner.run()
         
         # Check JSON file was created
         assert output_path.exists()
@@ -118,7 +116,7 @@ class TestFastForwardRunner:
         )
         
         try:
-            events = runner.run()
+            runner.run()
             
             # Should complete successfully
             assert runner.tick_count == 100
@@ -134,7 +132,7 @@ class TestFastForwardRunner:
         )
         
         # Run should complete even if some ticks fail
-        events = runner.run()
+        runner.run()
         
         # Should track errors
         assert runner.error_count >= 0
@@ -162,7 +160,7 @@ class TestFastForwardRunner:
             output_target="stdout"
         )
         
-        events = runner.run()
+        runner.run()
         
         # Check that progress was printed
         captured = capsys.readouterr()
@@ -176,7 +174,7 @@ class TestFastForwardRunner:
             output_target="stdout"
         )
         
-        events = runner.run()
+        runner.run()
         
         # Check summary output
         captured = capsys.readouterr()

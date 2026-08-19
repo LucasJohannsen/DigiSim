@@ -1,7 +1,6 @@
 import pytest
 import json
 import datetime
-from pathlib import Path
 from unittest.mock import Mock, patch
 import signal
 

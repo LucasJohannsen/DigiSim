@@ -1,7 +1,7 @@
 import json
 import datetime
 from pathlib import Path
-from tenacity import retry, stop_after_attempt, wait_exponential, RetryError
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 from models.planting_plan import FieldOperationEvent
 from models.sim_context import SimContext

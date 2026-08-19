@@ -192,7 +192,7 @@ class PlantingPlanService:
         phase = next((p for p in self.planting_plan.phases if p.phase_name == target_phase.value), None)
 
         if target_phase == FieldOperationPhases.SOIL_PREPARATION:
-            min_target_interval = min(op.min_days_to_target for op in phase.operations)
+            min(op.min_days_to_target for op in phase.operations)
             
             # update dates for all operations in the phase
             self.update_planned_operations_startdates(phase.phase_name, target_date)

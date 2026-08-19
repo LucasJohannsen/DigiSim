@@ -1,6 +1,5 @@
 import json
 import datetime
-from pathlib import Path
 from unittest.mock import Mock, patch
 import pytest
 import httpx
@@ -54,7 +53,7 @@ def test_tick_scheduler_logs_tick_completed(mock_context):
                 scheduler = TickScheduler([mock_context])
                 asyncio.run(scheduler.daily_tick())
     
-    tick_logs = [l for l in logs if l.get("event") == "Tick completed"]
+    tick_logs = [log for log in logs if log.get("event") == "Tick completed"]
     assert len(tick_logs) == 1
     assert tick_logs[0]["field_id"] == 42
     assert tick_logs[0]["events_sent"] == 2
@@ -74,9 +73,9 @@ def test_tick_scheduler_logs_state_restored(mock_context):
                 mock_state_manager.load.return_value = mock_snapshot
                 MockStateManager.return_value = mock_state_manager
                 
-                scheduler = TickScheduler([mock_context])
+                TickScheduler([mock_context])
     
-    state_logs = [l for l in logs if l.get("event") == "State restored"]
+    state_logs = [log for log in logs if log.get("event") == "State restored"]
     assert len(state_logs) == 1
     assert state_logs[0]["field_id"] == 42
     assert "last_tick_date" in state_logs[0]
@@ -95,7 +94,7 @@ def test_tick_scheduler_logs_tick_failed(mock_context):
                 scheduler = TickScheduler([mock_context])
                 asyncio.run(scheduler.daily_tick())
     
-    error_logs = [l for l in logs if l.get("event") == "Tick failed"]
+    error_logs = [log for log in logs if log.get("event") == "Tick failed"]
     assert len(error_logs) == 1
     assert error_logs[0]["field_id"] == 42
     assert "error" in error_logs[0]
@@ -113,7 +112,7 @@ def test_retry_dispatcher_logs_retry_attempt(tmp_path, mock_event, mock_context)
         dispatcher = RetryDispatcher(mock_client, max_attempts=3, queue_dir=str(tmp_path), _wait_strategy=wait_none())
         dispatcher.send_event(mock_event, mock_context)
     
-    retry_logs = [l for l in logs if l.get("event") == "Retry attempt"]
+    retry_logs = [log for log in logs if log.get("event") == "Retry attempt"]
     assert len(retry_logs) >= 1
     assert "attempt" in retry_logs[0]
     assert "error" in retry_logs[0]
@@ -134,7 +133,7 @@ def test_retry_dispatcher_logs_event_queued(tmp_path, mock_event, mock_context):
         )
         dispatcher.send_event(mock_event, mock_context)
     
-    queue_logs = [l for l in logs if l.get("event") == "Event queued"]
+    queue_logs = [log for log in logs if log.get("event") == "Event queued"]
     assert len(queue_logs) == 1
     assert "queue_file" in queue_logs[0]
 
@@ -153,7 +152,7 @@ def test_retry_dispatcher_logs_all_attempts_failed(tmp_path, mock_event, mock_co
         )
         dispatcher.send_event(mock_event, mock_context)
     
-    error_logs = [l for l in logs if l.get("event") == "All retry attempts failed"]
+    error_logs = [log for log in logs if log.get("event") == "All retry attempts failed"]
     assert len(error_logs) == 1
     assert error_logs[0]["max_attempts"] == 3
     assert "error" in error_logs[0]
@@ -235,7 +234,7 @@ def test_digizert_client_logs_event_dispatched(mock_event, mock_context):
             client = DigiZertClient("http://test-api/", "token")
             client.send_event(mock_event, mock_context)
     
-    dispatch_logs = [l for l in logs if l.get("event") == "Event dispatched"]
+    dispatch_logs = [log for log in logs if log.get("event") == "Event dispatched"]
     assert len(dispatch_logs) == 1
     assert dispatch_logs[0]["field"] == 42
     assert dispatch_logs[0]["worktype"] == 5
@@ -254,7 +253,7 @@ def test_tick_scheduler_logs_started(mock_context):
                         except KeyboardInterrupt:
                             pass
     
-    start_logs = [l for l in logs if l.get("event") == "TickScheduler started"]
+    start_logs = [log for log in logs if log.get("event") == "TickScheduler started"]
     assert len(start_logs) == 1
     assert start_logs[0]["field_count"] == 1
     assert start_logs[0]["tick_time"] == "06:00"
@@ -270,5 +269,5 @@ def test_tick_scheduler_logs_stopped(mock_context):
                 scheduler.scheduler.running = True
                 scheduler.stop()
     
-    stop_logs = [l for l in logs if l.get("event") == "TickScheduler stopped"]
+    stop_logs = [log for log in logs if log.get("event") == "TickScheduler stopped"]
     assert len(stop_logs) == 1

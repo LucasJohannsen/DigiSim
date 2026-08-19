@@ -1,12 +1,11 @@
 import os
 import json
 from dataclasses import dataclass
-from pathlib import Path
 import datetime
 from urllib.parse import urlparse
 
 from models.sim_context import SimContext
-from services.farm_sync_service import FarmSyncService, FieldData
+from services.farm_sync_service import FarmSyncService
 from utils.logger import get_logger
 
 logger = get_logger("config")

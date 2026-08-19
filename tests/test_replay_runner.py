@@ -1,8 +1,6 @@
 import datetime
 import json
-import os
 import pytest
-from unittest.mock import Mock, patch
 
 from models.sim_context import SimContext
 from scheduler.replay_runner import ReplayRunner
@@ -93,7 +91,7 @@ class TestReplayRunner:
                 output_target="stdout"
             )
             
-            events = runner.run()
+            runner.run()
             
             # Should process 10 days (inclusive)
             expected_days = (end_date - start_date).days + 1
@@ -116,7 +114,7 @@ class TestReplayRunner:
                 output_path=str(output_path)
             )
             
-            events = runner.run()
+            runner.run()
             
             # Check JSON file was created
             assert output_path.exists()
@@ -142,7 +140,7 @@ class TestReplayRunner:
                 event_bus=event_bus
             )
             
-            events = runner.run()
+            runner.run()
             
             # Domain events should be collected
             domain_events = event_bus.get_history()

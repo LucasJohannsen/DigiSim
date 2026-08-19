@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import json
 import pytest
@@ -22,7 +21,6 @@ def make_heartbeat(tmp_path: Path, age_hours: float) -> Path:
 
 def run_healthcheck(state_dir: str, max_age_hours: int = 25) -> int:
     """Run healthcheck.main() and return the exit code."""
-    import importlib
     import scripts.healthcheck as hc
 
     with patch.dict("os.environ", {"STATE_DIR": state_dir, "HEALTHCHECK_MAX_AGE_HOURS": str(max_age_hours)}):

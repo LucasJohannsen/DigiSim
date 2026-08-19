@@ -164,10 +164,10 @@ XFAIL_REASONS: dict[str, str] = {
     # KAR-040 (Befund B15/B3) wurde durch P3-3 (Issue #81) gefixt: Feste
     # Zielgabe 20-30 mm mit Clamping auf [10, 40] mm statt Defizit-basiert.
     # Marker entfernt.
-    # KAR-024: P2-3 fixt den Sikkation-nach-Ernte-Aspekt, aber der
-    # Quickdown-Abstand (69 d außerhalb [4,7]) bleibt bestehen – separater
-    # Befund, erst durch P2-4 (Regel-Engine, Issue #68) vollständig lösbar.
-    "KAR-024": "Befund B5/B6, Issue #57 – Quickdown-Abstand 69 d außerhalb [4,7] (Sikkation-nach-Ernte durch P2-3 gefixt, Abstands-Verletzung bleibt).",
+    # KAR-024 wurde durch Sikkation-Checker-Fix gefixt: medium() klassifiziert
+    # nur noch Quickdown/Shark als Sikkationsmittel, nicht alle Herbizide.
+    # Der "Abstand 69 d" war ein False-Positive (Bandur Artist vs. Quickdown).
+    # Marker entfernt.
 }
 
 

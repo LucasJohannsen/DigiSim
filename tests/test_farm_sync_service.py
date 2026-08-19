@@ -2,7 +2,7 @@ import pytest
 import httpx
 from unittest.mock import Mock, MagicMock, patch
 
-from services.farm_sync_service import FarmSyncService, FieldData, SyncResult
+from services.farm_sync_service import FarmSyncService, FieldData
 
 
 def test_load_farm_fields_success():

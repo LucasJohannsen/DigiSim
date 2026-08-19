@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
-import datetime
+from typing import Dict, Any
 
 
 class DataSourceAdapter(ABC):
