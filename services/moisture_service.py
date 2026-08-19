@@ -9,6 +9,12 @@ import numpy as np
 
 import datetime
 from models.sim_context import SimContext
+from services.providers.synthetic_moisture_provider import (
+    SyntheticMoistureProvider,
+)
+from utils.logger import get_logger
+
+logger = get_logger("moisture_service")
 
 
 # download moisture data
@@ -203,8 +209,9 @@ class MoistureDataService:
             vwc_30 = vwc_20_30
 
         DWD-Sentinel-Werte (-9999) werden durch NaN ersetzt und anschließend
-        interpoliert (forward-fill + backward-fill). Falls alle Werte NaN sind,
-        wird auf synthetische Default-Werte (40% nFK) zurückgefallen.
+        interpoliert (forward-fill + backward-fill). Falls alle Werte NaN sind
+        (keine DWD-Daten verfügbar), wird auf SyntheticMoistureProvider
+        zurückgefallen (saisonale Variation, nicht konstant).
 
         Returns:
             dict mit 'coords', 'dates', 'depth_15', 'depth_30' (jeweils Listen
@@ -227,6 +234,19 @@ class MoistureDataService:
         min_len = min(len(vwc_0_10), len(vwc_20_30))
         vwc_0_10 = vwc_0_10[:min_len]
         vwc_20_30 = vwc_20_30[:min_len]
+
+        # Falls alle Werte NaN (DWD nicht verfügbar): Synthetic Fallback
+        if np.all(np.isnan(vwc_0_10)) or np.all(np.isnan(vwc_20_30)):
+            logger.warning(
+                "DWD moisture data all sentinel (-9999), using "
+                "SyntheticMoistureProvider for year %d",
+                year,
+            )
+            field_coords = getattr(self.context, 'field_coords', None)
+            synthetic = SyntheticMoistureProvider(seed=42)
+            return synthetic.get_moisture_data_dual_depth(
+                year=year, coords=field_coords,
+            )
 
         # NaN-Werte interpolieren (forward-fill + backward-fill)
         vwc_0_10 = self._interpolate_nan(vwc_0_10)
