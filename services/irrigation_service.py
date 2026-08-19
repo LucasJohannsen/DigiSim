@@ -190,7 +190,7 @@ class IrrigationSimulator:
             application_category='water',
             application_name='Irrigation',
             application_amount=round(application_amount, 2),
-            application_unit=None,  # mm – DataUnit hat keine mm-Einheit, später auf DigiZert-Seite anpassen
+            application_unit=12,  # Kubikmeter (DataUnit pk=12)
             worktype_text='Bewässerung',
             machine="Regner 5000",
         )

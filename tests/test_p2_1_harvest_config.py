@@ -77,7 +77,7 @@ class TestPlantingPlanConfig:
         assert p.min_days_to_target == -5
         assert p.max_days_to_target == -1
         assert p.application_amount == 0.5
-        assert int(p.application_unit) == 3
+        assert int(p.application_unit) == 2  # kg (DataUnit pk=2)
 
     def test_p_duengung_not_in_crop_management(self) -> None:
         """B14-Fix: P-Düngung darf nicht mehr in ``crop_management`` liegen."""
