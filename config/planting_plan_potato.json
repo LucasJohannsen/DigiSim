@@ -105,7 +105,7 @@
                         "application_name": "Belana",
                         "application_category": 29,
                         "application_amount": 2.4,
-                        "application_unit": 3
+                        "application_unit": 2
                     }
                 ]
             }
@@ -159,7 +159,7 @@
                         "application_name": "Quickdown",
                         "application_category": 26,
                         "application_amount": 0.8,
-                        "application_unit": 2
+                        "application_unit": 9
                     },
                     {
                         "sequence": 2,

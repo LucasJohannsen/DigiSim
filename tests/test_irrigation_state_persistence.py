@@ -156,7 +156,43 @@ def test_irrigation_simulator_apply_malformed_state(sim_context, moisture_data):
     }
     
     simulator.apply_state(malformed_state)
-    
+
     # Arrays should be reset to correct length
     assert len(simulator.irrigation) == 365
     assert len(simulator.updated_moisture) == 365
+
+
+def test_irrigation_count_guard_blocks_after_max(sim_context, moisture_data):
+    """Test that irrigation_count guard blocks further irrigation after max reached."""
+    simulator = IrrigationSimulator(sim_context, moisture_data, max_irrigation_count=3)
+
+    # Trigger 3 irrigations explicitly (bypass candidate logic)
+    for i in range(3):
+        date = datetime.date(2022, 5, 1 + i * 15)
+        simulator.apply_irrigation(date=date, irrigation_amount=20.0)
+
+    assert simulator.irrigation_count == 3
+
+    # 4th irrigation via get_candidate_operations should be blocked
+    candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 30))
+    assert candidates == []
+
+
+def test_irrigation_count_persisted(sim_context, moisture_data):
+    """Test that irrigation_count is saved and restored via get_state/apply_state."""
+    sim1 = IrrigationSimulator(sim_context, moisture_data, max_irrigation_count=5)
+    sim1.apply_irrigation(date=datetime.date(2022, 5, 1), irrigation_amount=20.0)
+    sim1.apply_irrigation(date=datetime.date(2022, 5, 20), irrigation_amount=15.0)
+
+    state = sim1.get_state()
+    assert state["irrigation_count"] == 2
+
+    sim2 = IrrigationSimulator(sim_context, moisture_data, max_irrigation_count=5)
+    sim2.apply_state(state)
+    assert sim2.irrigation_count == 2
+
+
+def test_irrigation_count_default_is_5(sim_context, moisture_data):
+    """Test that default max_irrigation_count is 5."""
+    simulator = IrrigationSimulator(sim_context, moisture_data)
+    assert simulator.max_irrigation_count == 5

@@ -140,7 +140,7 @@ class ProtectionPlanService:
                 application_category=protection.type,
                 application_name=f"{protection.name} ({protection.amount})",
                 application_amount=application_amount,
-                application_unit=2,
+                application_unit=9,  # Liter (DataUnit pk=9) – PSM ist flüssig
                 # P3-4 (Issue #82): Fälligkeits-Metadaten aus der Konfiguration.
                 is_critical=protection.is_critical,
                 due_window_days=protection.due_window_days,

@@ -42,6 +42,7 @@ class IrrigationSimulator:
         max_application_mm: float = 40.0,
         seasonal_max_mm: float = 170.0,
         post_irrigation_block_days: int = 10,
+        max_irrigation_count: int = 5,
     ):
         self.context = context
         self.moisture_data = moisture_data
@@ -58,6 +59,9 @@ class IrrigationSimulator:
         self.max_application_mm = max_application_mm
         self.seasonal_max_mm = seasonal_max_mm
         self.post_irrigation_block_days = post_irrigation_block_days
+        # Guard: max. Beregnungen pro Saison (z. B. 5 – Uelzen erlaubt 4)
+        self.max_irrigation_count = max_irrigation_count
+        self.irrigation_count: int = 0
         self.seasonal_sum_mm: float = 0.0
         self._last_irrigation_date: datetime.date | None = None
 
@@ -216,6 +220,10 @@ class IrrigationSimulator:
         if self.seasonal_sum_mm >= self.seasonal_max_mm:
             return []
 
+        # 1b. Anzahl-Limit: max. N Beregnungen pro Saison (Guard, z. B. 5)
+        if self.irrigation_count >= self.max_irrigation_count:
+            return []
+
         # 2. Post-Irrigation-Block: 10 Tage nach letzter Beregnung keine neue
         if self._last_irrigation_date is not None:
             block_until = self._last_irrigation_date + datetime.timedelta(
@@ -296,12 +304,19 @@ class IrrigationSimulator:
         # P3-3 (Issue #81): Saisonale Summe und Post-Irrigation-Block tracken
         self.seasonal_sum_mm += irrigation_amount
         self._last_irrigation_date = date
+        self.irrigation_count += 1
 
         if self.seasonal_sum_mm >= self.seasonal_max_mm:
             logger.info(
                 "Saisonale Beregnungssumme %s mm erreicht Obergrenze %s mm – "
                 "keine weiteren Beregnungen",
                 self.seasonal_sum_mm, self.seasonal_max_mm,
+            )
+
+        if self.irrigation_count >= self.max_irrigation_count:
+            logger.info(
+                "Beregnungsanzahl %d erreicht Obergrenze %d – keine weiteren Beregnungen",
+                self.irrigation_count, self.max_irrigation_count,
             )
 
     def trigger_irrigation(self, date: datetime.date, irrigation_amount: float = None) -> FieldOperationEvent:
@@ -382,6 +397,7 @@ class IrrigationSimulator:
             "irrigation": self.irrigation.tolist(),
             "updated_moisture": self.updated_moisture.tolist(),
             "seasonal_sum_mm": self.seasonal_sum_mm,
+            "irrigation_count": self.irrigation_count,
             "last_irrigation_date": (
                 self._last_irrigation_date.isoformat()
                 if self._last_irrigation_date is not None
@@ -406,8 +422,9 @@ class IrrigationSimulator:
             if len(self.updated_moisture) != len(self.moisture):
                 self.updated_moisture = self.moisture.copy()
 
-            # P3-3: Restore seasonal sum and last irrigation date
+            # P3-3: Restore seasonal sum, count and last irrigation date
             self.seasonal_sum_mm = float(state.get("seasonal_sum_mm", 0.0))
+            self.irrigation_count = int(state.get("irrigation_count", 0))
             last_date_str = state.get("last_irrigation_date")
             if last_date_str:
                 # Handle both date ("2026-08-03") and datetime ("2026-08-03T00:00:00") formats
