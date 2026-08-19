@@ -89,6 +89,15 @@ def simulation() -> dict[str, Any]:
     und Kreiseln (19,2 h → 2 Events) erzeugen jeweils +1 Event → +2
     Integration Events, +2 OperationApplied Domain Events. Neue Baseline:
     28 Integration / 1648 Domain Events (+2 / +2).
+    Nach P3-7 (Issue #85) wird ``growth_duration`` von 90 auf 110 Tage
+    angepasst und ``harvest_period_months`` als Validierung aktiviert: der
+    Erntetermin wird bei Abweichung auf das Fenster [9,10] korrigiert (nur
+    nach hinten). Die Ernte verschiebt sich von August auf September
+    (Roden 03.09.), sodass der Protection-Plan später beschnitten wird –
+    zwei weitere Spritz-Operationen passen vor die Ernte (+2 ausgeführte
+    Ops, +1 KAR-030 Guard-Rejection durch mehr Spritz-Kandidaten bei
+    Regen/Wind). Neue Baseline: 30 Integration / 1654 Domain Events
+    (+2 / +6).
 
     Returns:
         Dict mit ``events`` (Integration Events), ``domain_events``,
@@ -187,21 +196,25 @@ class TestFixtureBaseline:
     """Sichert, dass die Fixture die Referenz-Baseline reproduziert."""
 
     def test_integration_event_count_matches_baseline(self, simulation):
-        """Baseline: 28 Integration Events (nach P3-5, Issue #83).
+        """Baseline: 30 Integration Events (nach P3-7, Issue #85).
 
-        Vor P3-5 (P3-4, Issue #82) waren es 26 Events. P3-5 teilt lange
-        Operationen (> 18 h) auf mehrere Tage auf: Separieren (34,8 h → 2)
-        und Kreiseln (19,2 h → 2) erzeugen jeweils +1 Event.
+        Vor P3-7 (P3-5, Issue #83) waren es 28 Events. P3-7 verschiebt die
+        Ernte von August auf September (growth_duration 90→110 plus
+        harvest_period_months-Validierung): zwei weitere Spritz-Operationen
+        passen vor die spätere Ernte → +2 Integration Events.
         """
-        assert len(simulation["events"]) == 28
+        assert len(simulation["events"]) == 30
 
     def test_domain_event_count_matches_baseline(self, simulation):
-        """Baseline: 1648 Domain Events (nach P3-5, Issue #83).
+        """Baseline: 1654 Domain Events (nach P3-7, Issue #85).
 
-        Vor P3-5 (P3-4, Issue #82) waren es 1646 Domain Events. P3-5
-        erzeugt +2 Integration Events → +2 OperationApplied Domain Events.
+        Vor P3-7 (P3-5, Issue #83) waren es 1648 Domain Events. P3-7
+        verschiebt die Ernte auf September: +2 ausgeführte Spritz-Ops
+        (+2 OperationApplied), +1 KAR-030 Guard-Rejection (+1
+        OperationRejected) sowie angepasste Protection-Pruning-Metadaten
+        → +6 Domain Events.
         """
-        assert len(simulation["domain_events"]) == 1648
+        assert len(simulation["domain_events"]) == 1654
 
     def test_fixture_is_deterministic(self, simulation):
         """Zweite Ausführung mit gleichem Seed liefert gleiche Event-Anzahl."""
@@ -412,21 +425,22 @@ class TestGuardSafetyNet:
     def test_guard_rejects_weather_violations(self, simulation):
         """Guard lehnt Wetter-Verstöße ab (KAR-030/031, Befund B8).
 
-        Erwartet 17 Guard-Rejections (12× KAR-030 Spritzen bei Regen/Wind,
-        5× KAR-031 Beregnung bei Regenprognose). Vor P3-4 (Issue #82) waren
-        es 15 Rejections (10× KAR-030 + 5× KAR-031). P3-4 aktiviert
-        DeadlineAwarePriorityStrategy: überfällige kritische Fungizide
-        werden bei High-Prio-Konkurrenz ausgeführt → +2 KAR-030-Rejections
-        (mehr Spritz-Kandidaten, die bei Regen/Wind vom Guard abgelehnt
-        werden). Dies bestätigt, dass die Wetter-Guards fachlich greifen.
+        Erwartet 18 Guard-Rejections (13× KAR-030 Spritzen bei Regen/Wind,
+        5× KAR-031 Beregnung bei Regenprognose). Vor P3-7 (Issue #85) waren
+        es 17 Rejections (12× KAR-030 + 5× KAR-031). P3-7 verschiebt die
+        Ernte auf September (growth_duration 90→110 plus
+        harvest_period_months-Validierung): ein weiterer Spritz-Kandidat
+        passt vor die spätere Ernte und wird bei Regen/Wind vom Guard
+        abgelehnt → +1 KAR-030-Rejection. Dies bestätigt, dass die
+        Wetter-Guards fachlich greifen.
         """
         guard_rejections = [
             e for e in simulation["domain_events"]
             if e.event_type == "OperationRejected"
             and "KAR-" in str(e.payload.get("reason", ""))
         ]
-        assert len(guard_rejections) == 17, (
-            f"Erwartet 17 Guard-Rejections (Wetter-Guards), got "
+        assert len(guard_rejections) == 18, (
+            f"Erwartet 18 Guard-Rejections (Wetter-Guards), got "
             f"{len(guard_rejections)}. Gründe: "
             + "; ".join(
                 e.payload["reason"] for e in guard_rejections[:5]

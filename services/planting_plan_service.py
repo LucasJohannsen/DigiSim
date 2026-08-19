@@ -13,9 +13,12 @@ from models.planting_plan import (
 from models.domain_events import create_crop_cycle_scheduled
 import models.sim_context as sim_context
 from utils import sim_helper
+from utils.logger import get_logger
 
 
 _DEFAULT_LEAD_TIME_DAYS = 30
+
+logger = get_logger("planting_plan_service")
 
 
 class PlantingPlanService:
@@ -240,15 +243,85 @@ class PlantingPlanService:
 
                     elif next_phase.phase_name == FieldOperationPhases.HARVESTING.value:
                         # get actual planting date of last op in the planting phase
-                        actual_planting_date = max(op.actual_date for op in sim_helper.get_operations_by_phase(self.planting_plan, "sowing_planting"))
+                        # (P3-7, Issue #85): Filter gegen None actual_date, damit
+                        # max() nicht bei fehlenden Actuals abstürzt.
+                        actual_planting_date = max(
+                            (op.actual_date for op in sim_helper.get_operations_by_phase(
+                                self.planting_plan, "sowing_planting"
+                            ) if op.actual_date),
+                            default=None,
+                        )
 
-                        # set harvest date from planting date plus the harvest period
-                        harvest_date = actual_planting_date + timedelta(days=self.planting_plan.grow_duration)
-                        
-                        #print(f"Next phase '{next_phase.phase_name}' will start on {harvest_date.strftime('%Y-%m-%d')}")
+                        if actual_planting_date is None:
+                            # Ohne actual_planting_date kann kein Erntetermin
+                            # berechnet werden – Harvest-Phase bleibt ungeplant.
+                            pass
+                        else:
+                            # P3-7 (Issue #85): growth_duration primär,
+                            # harvest_period_months als Validierung (Korrektur
+                            # nur nach hinten, nicht unter biologische Reife).
+                            harvest_date = self._compute_harvest_date(
+                                actual_planting_date
+                            )
+                            self.update_planned_operations_startdates(
+                                next_phase.phase_name, harvest_date
+                            )
 
-                        self.update_planned_operations_startdates(next_phase.phase_name, harvest_date)
-                    
+    def _compute_harvest_date(self, actual_planting_date: datetime) -> datetime:
+        """Berechnet den Erntetermin (P3-7, Issue #85, Befund B12).
+
+        ``growth_duration`` ist die **primäre Quelle**:
+        ``harvest_date = actual_planting_date + grow_duration``.
+
+        ``harvest_period_months`` dient als **Validierung**: fällt der
+        berechnete Erntetermin außerhalb des konfigurierten Erntefensters,
+        wird er auf das früheste zulässige Datum im ersten Fenstermonat
+        verschoben. Die Korrektur erfolgt **ausschließlich nach hinten** –
+        ein Termin wird nie vor die biologische Reife (growth_duration-
+        Mindesttermin) verlegt. Liegt der berechnete Termin nach dem Fenster
+        (z. B. November bei Fenster [9,10]), bleibt er unverändert.
+
+        Args:
+            actual_planting_date: Tatsächliches Legedatum (datetime).
+
+        Returns:
+            Geplanter Erntetermin (datetime), ggf. korrigiert.
+        """
+        assert self.planting_plan is not None  # type narrowing (s. update_phase_status)
+        # PRIMÄR: harvest_date aus growth_duration
+        harvest_date = actual_planting_date + timedelta(
+            days=self.planting_plan.grow_duration
+        )
+
+        # VALIDIERUNG: harvest_period_months als Korrektur-Fenster
+        harvest_period_months = self.planting_plan.harvest_period_months
+        if not harvest_period_months:
+            return harvest_date
+
+        harvest_months_list = list(harvest_period_months)  # Tuple → List
+        if harvest_date.month in harvest_months_list:
+            return harvest_date
+
+        # Erntetermin liegt außerhalb des Fensters → verschieben
+        target_month = harvest_months_list[0]
+        harvest_year = actual_planting_date.year
+        if target_month < actual_planting_date.month:
+            harvest_year += 1
+        # Frühestes zulässiges Datum im Zielmonat
+        corrected = datetime(harvest_year, target_month, 1)
+        # Nur verschieben, wenn es NACH dem growth_duration-Mindest-
+        # termin liegt (nicht vorverlegen unter biologische Reife).
+        if corrected > harvest_date:
+            logger.info(
+                "Erntetermin aus growth_duration (%s) außerhalb "
+                "harvest_period_months %s -> korrigiert auf %s",
+                harvest_date, harvest_months_list, corrected
+            )
+            return corrected
+        # Termin liegt nach dem Fenster → keine Rück-Korrektur (nur nach
+        # hinten), biologische Reife bleibt gewahrt.
+        return harvest_date
+
     def get_phase_status(self, phase_name: FieldOperationPhases) -> FieldOperationStatus:
         """
         Get the status of a specific phase in the planting plan.
