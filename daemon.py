@@ -9,16 +9,72 @@ from dotenv import load_dotenv
 from config.settings import DaemonConfig, load_and_validate_config, load_sim_contexts
 from scheduler.fast_forward_runner import FastForwardRunner
 from services.digizert_client import DigiZertClient
+from services.digizert_data_client import DigiZertDataClient
+from services.data_transfer_service import DataTransferService
+from services.moisture_service import MoistureDataService
+from services.providers.dwd_weather_provider import DWDWeatherDataProvider
+from services.weather_service import WeatherDataService
 from services.retry_dispatcher import RetryDispatcher
 from scheduler.tick_scheduler import TickScheduler
 from utils.logger import get_logger, setup_logging
 from utils.state_manager import StateManager
 
 
+def _transfer_field_data(
+    data_client: DigiZertDataClient,
+    transfer_service: DataTransferService,
+    field_id: int,
+    start_date: datetime.date,
+    end_date: datetime.date,
+    year: int,
+) -> None:
+    """Überträgt WeatherData + SoilMoistureData für ein Feld an DigiZert.
+
+    Wird im Bootstrap (ganze Saison) und im Daily-Mode (aktueller Tag) aufgerufen.
+    Sensoren werden idempotent angelegt, Daten als Bulk gesendet.
+    """
+    logger = get_logger("data_transfer")
+
+    # 1. Sensoren anlegen (idempotent)
+    data_client.ensure_weather_sensor(field_id)
+    data_client.ensure_soil_moisture_sensor(field_id, depth=15)
+    data_client.ensure_soil_moisture_sensor(field_id, depth=30)
+
+    # 2. WeatherData senden
+    weather_measurements = transfer_service.collect_weather_measurements(
+        start_date=start_date,
+        end_date=end_date,
+    )
+    if weather_measurements:
+        data_client.send_weather_data(field_id, weather_measurements)
+        logger.info(
+            "WeatherData transferred",
+            field_id=field_id,
+            n=len(weather_measurements),
+        )
+
+    # 3. SoilMoistureData senden (15cm + 30cm)
+    soil_data = transfer_service.collect_soil_moisture_measurements(
+        start_date=start_date,
+        end_date=end_date,
+        year=year,
+    )
+    for depth, measurements in soil_data.items():
+        if measurements:
+            data_client.send_soil_moisture_data(field_id, depth, measurements)
+            logger.info(
+                "SoilMoistureData transferred",
+                field_id=field_id,
+                depth=depth,
+                n=len(measurements),
+            )
+
+
 def _run_bootstrap(
     config: DaemonConfig,
     state_manager: StateManager,
     dispatcher: RetryDispatcher | None,
+    data_client: DigiZertDataClient | None = None,
 ) -> None:
     """Fast-Forward Bootstrap: simuliere von SEASON_START_DATE bis heute.
 
@@ -74,6 +130,26 @@ def _run_bootstrap(
 
         # State speichern – der FastForwardRunner haelt den finalen Runner.
         state_manager.save(runner.calendar_runner, today)
+
+        # S2/S3: WeatherData + SoilMoistureData transfer (Feature-Flag)
+        if data_client and data_client.enabled:
+            weather_svc = WeatherDataService(
+                context=ctx,
+                provider=DWDWeatherDataProvider(),
+            )
+            moisture_svc = MoistureDataService(context=ctx)
+            transfer_svc = DataTransferService(
+                weather_service=weather_svc,
+                moisture_service=moisture_svc,
+            )
+            _transfer_field_data(
+                data_client=data_client,
+                transfer_service=transfer_svc,
+                field_id=ctx.field_id,
+                start_date=season_start,
+                end_date=today,
+                year=season_start.year,
+            )
 
         total_events += len(events)
         logger.info(
@@ -138,8 +214,18 @@ def main() -> None:
     )
     dispatcher.process_queue()
 
+    # S2/S3: Data-Transfer-Client (D3/D4 – Feature-Flag, default off)
+    data_client = DigiZertDataClient(
+        api_base_url=config.api_base_url,
+        api_token=config.api_token,
+        timeout=config.api_timeout,
+        enabled=config.data_transfer_enabled,
+    )
+    if data_client.enabled:
+        logger.info("Data transfer enabled (D3/D4)")
+
     if bootstrap:
-        _run_bootstrap(config, state_manager, dispatcher)
+        _run_bootstrap(config, state_manager, dispatcher, data_client)
         if bootstrap_only:
             logger.info("Bootstrap completed, exiting (--bootstrap-only)")
             return

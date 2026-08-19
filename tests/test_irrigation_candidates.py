@@ -106,7 +106,8 @@ class TestCandidateGeneration:
         # Verify values
         assert event.worktype == 15
         assert event.area == sim_context.field_size
-        assert event.application_unit == 12  # Kubikmeter (DataUnit pk=12)
+        assert event.application_unit == 'mm'  # D2: Neue DataUnit "mm"
+        assert event.application_category == 35  # D2: DropdownData irrigation
         assert event.field == sim_context.field_id
 
     def test_candidate_generation_does_not_apply_side_effects(self, sim_context, moisture_data_dry):

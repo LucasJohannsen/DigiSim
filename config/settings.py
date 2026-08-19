@@ -43,6 +43,7 @@ class DaemonConfig:
     max_concurrent_fields: int
     api_base_url: str = ""
     field_filter_ids: list[int] | None = None
+    data_transfer_enabled: bool = False
 
     def __post_init__(self) -> None:
         if not self.api_base_url:
@@ -83,6 +84,8 @@ def load_and_validate_config() -> DaemonConfig:
         farms_config_path=os.getenv("FARMS_CONFIG_PATH", "./config/farms.json"),
         max_concurrent_fields=int(os.getenv("MAX_CONCURRENT_FIELDS", "10")),
         field_filter_ids=_parse_field_filter_ids(os.getenv("FIELD_FILTER_IDS")),
+        data_transfer_enabled=os.getenv("DIGIZERT_DATA_TRANSFER_ENABLED", "false").lower()
+        in ("true", "1", "yes"),
     )
 
 

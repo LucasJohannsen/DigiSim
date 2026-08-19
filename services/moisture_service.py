@@ -193,3 +193,41 @@ class MoistureDataService:
             'dates': [datetime.date(year, 1, 1) + datetime.timedelta(days=i) for i in range(len(moisture_object['moisture_data']))],
             'moisture_data': moisture_object['moisture_data']
         }
+
+    def get_moisture_data_dual_depth(self, **kwargs) -> dict:
+        """Lädt Bodenfeuchte für 0-10cm und 20-30cm und interpoliert auf 15cm/30cm.
+
+        DigiZert (NFK-Zertifikat) benötigt depth=15 und depth=30.
+        DWD liefert 0-10 und 20-30. Interpolation:
+            vwc_15 = (vwc_0_10 + vwc_20_30) / 2
+            vwc_30 = vwc_20_30
+
+        Returns:
+            dict mit 'coords', 'dates', 'depth_15', 'depth_30' (jeweils Listen
+            von täglichen VWC-Werten in %).
+        """
+        year = kwargs.get('year', YEAR)
+
+        data_shallow = self.get_moisture_data(year=year, depth_range='0-10')
+        data_deep = self.get_moisture_data(year=year, depth_range='20-30')
+
+        vwc_0_10 = np.array(data_shallow['moisture_data'], dtype=float)
+        vwc_20_30 = np.array(data_deep['moisture_data'], dtype=float)
+
+        # Längen angleichen (Schaltjahr-Unterschiede o.ä.)
+        min_len = min(len(vwc_0_10), len(vwc_20_30))
+        vwc_0_10 = vwc_0_10[:min_len]
+        vwc_20_30 = vwc_20_30[:min_len]
+
+        # Interpolation
+        vwc_15 = (vwc_0_10 + vwc_20_30) / 2.0
+        vwc_30 = vwc_20_30
+
+        dates = data_shallow['dates'][:min_len]
+
+        return {
+            'coords': data_shallow['coords'],
+            'dates': dates,
+            'depth_15': vwc_15.tolist(),
+            'depth_30': vwc_30.tolist(),
+        }

@@ -187,10 +187,10 @@ class IrrigationSimulator:
             durationWorked=duration_seconds,
             fuel=float(round(application_amount * fuel_factor, 2)),
             application_type='irrigation',
-            application_category=None,  # Kein DropdownData-Eintrag für irrigation
+            application_category=35,  # D2: DropdownData irrigation
             application_name='Irrigation',
             application_amount=round(application_amount, 2),
-            application_unit=12,  # Kubikmeter (DataUnit pk=12)
+            application_unit='mm',  # D2: Neue DataUnit "mm"
             worktype_text='Bewässerung',
             machine="Regner 5000",
         )
