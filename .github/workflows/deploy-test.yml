@@ -26,6 +26,8 @@ jobs:
             # Repo auf test-Branch aktualisieren (für docker-compose.yml mit image: Tag)
             # Lokale Änderungen verwerfen (deploy-only, config liegt in .env + config/)
             git fetch origin
+            git checkout -- . 2>/dev/null || true
+            git clean -fd 2>/dev/null || true
             git checkout test 2>/dev/null || git checkout -b test origin/test
             git reset --hard origin/test
             # Neues Image pullen und Container starten
