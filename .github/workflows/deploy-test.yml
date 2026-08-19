@@ -21,11 +21,13 @@ jobs:
           username: ${{ secrets.TEST_SSH_USER }}
           key: ${{ secrets.TEST_SSH_KEY }}
           script: |
+            set -e
             cd ${{ secrets.TEST_DEPLOY_PATH }}
             # Repo auf test-Branch aktualisieren (für docker-compose.yml mit image: Tag)
+            # Lokale Änderungen verwerfen (deploy-only, config liegt in .env + config/)
             git fetch origin
             git checkout test 2>/dev/null || git checkout -b test origin/test
-            git pull origin test
+            git reset --hard origin/test
             # Neues Image pullen und Container starten
             docker compose pull
             docker compose up -d
