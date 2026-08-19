@@ -399,7 +399,11 @@ class CalendarDrivenRunner:
         if self._moisture_service_factory is not None:
             ms = self._moisture_service_factory()
         else:
-            ms = MoistureDataService(context=self.context, min_moisture_level=200)
+            # P3-6 (Issue #84): min_moisture_level=200 entfernt – toter
+            # Parameter. MoistureDataService speichert ihn, nutzt ihn aber
+            # nicht. IrrigationSimulator nutzt 50 % nFK (Fallback), da
+            # SimContext kein min_moisture_level-Feld hat.
+            ms = MoistureDataService(context=self.context)
         self.irrigation_service = IrrigationSimulator(
             context=self.context,
             moisture_data=ms.get_moisture_data(year=simulation_year, depth_range='0-10')
