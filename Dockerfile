@@ -18,6 +18,7 @@ COPY services/ ./services/
 COPY scheduler/ ./scheduler/
 COPY models/ ./models/
 COPY config/ ./config/
+COPY scripts/ ./scripts/
 
 RUN mkdir -p /app/state /app/retry_queue /app/logs
 

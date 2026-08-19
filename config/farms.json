@@ -2,77 +2,79 @@
     "farms": [
         {
             "id": 7,
-            "name": "DigiZert Betrieb 7",
+            "name": "ClarksonFarm",
             "fields": [
                 {
-                    "id": 999901,
-                    "name": "kleiner_Kirschgarten",
-                    "distance_to_barn": 0.44,
-                    "area": 2.31,
-                    "soil_type": "clay"
-                },
-                {
-                    "id": 999902,
-                    "name": "Reinau",
-                    "distance_to_barn": 0.69,
-                    "area": 11.58,
-                    "soil_type": "sand"
-                },
-                {
-                    "id": 999903,
+                    "id": 999911,
                     "name": "Geisberg",
-                    "distance_to_barn": 3.27,
-                    "area": 4.19,
-                    "soil_type": "loam"
+                    "distance_to_barn": 1.0,
+                    "area": 1.74,
+                    "soil_type": "loam",
+                    "coords": {"lon": 7.9356, "lat": 49.5218}
                 },
                 {
-                    "id": 999904,
-                    "name": "grosser_Kirschgarten",
-                    "distance_to_barn": 0.52,
-                    "area": 7.17,
-                    "soil_type": "sand"
+                    "id": 999912,
+                    "name": "Rausche",
+                    "distance_to_barn": 1.0,
+                    "area": 5.44,
+                    "soil_type": "loam",
+                    "coords": {"lon": 7.9056, "lat": 49.5374}
                 },
                 {
-                    "id": 999905,
-                    "name": "Ziegelhuette",
-                    "distance_to_barn": 3.57,
-                    "area": 4.33,
-                    "soil_type": "loam"
+                    "id": 999914,
+                    "name": "Hubertsacker",
+                    "distance_to_barn": 1.0,
+                    "area": 5.66,
+                    "soil_type": "loam",
+                    "coords": {"lon": 7.8806, "lat": 49.5349}
                 },
                 {
-                    "id": 999906,
-                    "name": "Langaecker",
-                    "distance_to_barn": 5.54,
-                    "area": 2.59,
-                    "soil_type": "clay"
-                },
-                {
-                    "id": 999907,
+                    "id": 999915,
                     "name": "Ober_der_Schule",
-                    "distance_to_barn": 2.21,
-                    "area": 2.7,
-                    "soil_type": "clay"
+                    "distance_to_barn": 1.0,
+                    "area": 4.00,
+                    "soil_type": "loam",
+                    "coords": {"lon": 7.9200, "lat": 49.5250}
                 },
                 {
-                    "id": 999908,
-                    "name": "Am_Feldweg_erste_Gewane",
-                    "distance_to_barn": 1.84,
-                    "area": 1.38,
-                    "soil_type": "clay"
+                    "id": 999916,
+                    "name": "Gonbacher_Weg",
+                    "distance_to_barn": 1.0,
+                    "area": 2.93,
+                    "soil_type": "loam",
+                    "coords": {"lon": 7.9214, "lat": 49.5269}
                 },
                 {
-                    "id": 999909,
+                    "id": 999917,
                     "name": "Am_alten_Schlag",
-                    "distance_to_barn": 1.96,
-                    "area": 3.74,
-                    "soil_type": "loam"
+                    "distance_to_barn": 1.0,
+                    "area": 1.95,
+                    "soil_type": "loam",
+                    "coords": {"lon": 7.9025, "lat": 49.5224}
                 },
                 {
-                    "id": 999910,
-                    "name": "Lange_Gewanne",
-                    "distance_to_barn": 3.49,
-                    "area": 2.78,
-                    "soil_type": "clay"
+                    "id": 999918,
+                    "name": "Langaecker",
+                    "distance_to_barn": 1.0,
+                    "area": 1.92,
+                    "soil_type": "loam",
+                    "coords": {"lon": 7.8237, "lat": 49.5458}
+                },
+                {
+                    "id": 999919,
+                    "name": "grosser_Kirschgarten",
+                    "distance_to_barn": 1.0,
+                    "area": 9.78,
+                    "soil_type": "loam",
+                    "coords": {"lon": 7.9021, "lat": 49.5355}
+                },
+                {
+                    "id": 999920,
+                    "name": "kleiner_Kirschgarten",
+                    "distance_to_barn": 1.0,
+                    "area": 6.44,
+                    "soil_type": "loam",
+                    "coords": {"lon": 7.8999, "lat": 49.5360}
                 }
             ]
         }

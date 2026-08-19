@@ -247,7 +247,8 @@ def test_sigterm_registers_shutdown_handler(monkeypatch):
          patch('daemon.RetryDispatcher'), \
          patch('daemon.TickScheduler', return_value=mock_scheduler), \
          patch('signal.signal', side_effect=capture_signal), \
-         patch.object(mock_scheduler, 'start', return_value=None):
+         patch.object(mock_scheduler, 'start', return_value=None), \
+         patch('sys.argv', ['daemon.py']):
         
         mock_config.return_value = Mock(
             log_level="INFO", log_file=None, farm_id=7,
