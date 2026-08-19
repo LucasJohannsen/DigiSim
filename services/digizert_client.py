@@ -5,6 +5,24 @@ from utils.logger import get_logger
 
 logger = get_logger("digizert_client")
 
+# Mapping numerischer Unit-Codes zu String-Einheiten für die DigiZert-API.
+# Quelle: config/planting_plan_potato.json, services/irrigation_service.py
+_UNIT_CODE_TO_STR: dict[int, str] = {
+    2: "L/ha",    # Pflanzenschutzmittel (flüssig)
+    3: "kg/ha",   # Dünger, Saatgut
+    4: "L/ha",    # Pflanzenschutzmittel (flüssig, Winterweizen)
+    12: "mm",     # Beregnungswasser
+}
+
+
+def _unit_to_str(unit: int | str | None) -> str | None:
+    """Konvertiere numerischen Unit-Code zu String-Einheit."""
+    if unit is None:
+        return None
+    if isinstance(unit, str):
+        return unit
+    return _UNIT_CODE_TO_STR.get(unit, str(unit))
+
 
 class DigiZertClient:
     def __init__(
@@ -23,7 +41,7 @@ class DigiZertClient:
             "Authorization": f"Token {self.api_token}",
             "Content-Type": "application/json"
         }
-        
+
         response = httpx.post(
             self.api_url,
             json=payload,
@@ -49,6 +67,6 @@ class DigiZertClient:
                 "application_category": event.application_category,
                 "application_name": event.application_name,
                 "application_amount": event.application_amount,
-                "application_unit": event.application_unit,
+                "application_unit": _unit_to_str(event.application_unit),
             }
         }

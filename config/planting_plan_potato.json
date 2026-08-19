@@ -498,7 +498,7 @@
                 {
                     "day": 31,
                     "type": 27,
-                    "name": "Carrial Flex",
+                    "name": "Carial Flex",
                     "amount": "0.6",
                     "is_critical": true,
                     "due_window_days": 5
