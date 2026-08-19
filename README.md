@@ -1,4 +1,5 @@
-[![CI](https://github.com/LucasJohannsen/DigiSim/actions/workflows/ci.yml/badge.svg)](https://github.com/LucasJohannsen/DigiSim/actions/workflows/ci.yml)
+[![CI](https://github.com/LucasJohannsen/DigiSim/actions/workflows/ci.yml/badge.svg?branch=dev)](https://github.com/LucasJohannsen/DigiSim/actions/workflows/ci.yml)
+[![Docker](https://github.com/LucasJohannsen/DigiSim/actions/workflows/docker.yml/badge.svg?branch=test)](https://github.com/LucasJohannsen/DigiSim/actions/workflows/docker.yml)
 
 ## Inhaltsverzeichnis
 
@@ -16,6 +17,10 @@
       - [Persistente Daten](#persistente-daten)
       - [Image-Größe](#image-größe)
       - [Troubleshooting](#troubleshooting)
+   - [CI/CD Pipeline](#cicd-pipeline)
+      - [Branch-Modell](#branch-modell)
+      - [Pipeline-Schritte](#pipeline-schritte)
+      - [Server-Setup](#server-setup)
    - [Einrichtung der Konfiguration](#einrichtung-der-konfiguration)
       - [Manuelle Konfiguration](#manuelle-konfiguration)
       - [Konfiguration über JSON-Datei](#konfiguration-über-json-datei)
@@ -192,6 +197,46 @@ ls -la retry_queue/
 # Prüfe Volume-Mounts
 docker inspect digisim | grep -A 10 Mounts
 ```
+
+
+## CI/CD Pipeline
+
+DigiSim nutzt eine automatisierte CI/CD-Pipeline mit GitHub Actions.
+
+### Branch-Modell
+
+| Branch | Schutz | Zweck | Deploy |
+|---|---|---|---|
+| `dev` | protected (CI muss grün) | Entwicklung | — |
+| `test` | protected (CI + PR erforderlich) | Auslieferung auf Server | Docker-Deploy |
+
+**Flow:** `dev` → PR → `test` → automatischer Docker-Build + Deploy
+
+### Pipeline-Schritte
+
+1. **CI** (`.github/workflows/ci.yml`) — läuft auf PRs nach `dev` und `test`:
+   - `uv sync --frozen` (Lockfile-Drift-Schutz)
+   - `ruff check` + `ruff format --check` (Linting)
+   - `mypy` (Type-Check, non-blocking in Phase 1)
+   - `pytest` (Test-Suite)
+
+2. **Docker Build & Push** (`.github/workflows/docker.yml`) — bei Push auf `test`:
+   - Baut das Image und pusht nach `ghcr.io/lucasjohannsen/digisim:latest`
+   - GitHub Actions Cache für schnelle Rebuilds
+
+3. **Deploy** (`.github/workflows/deploy-test.yml`) — nach erfolgreichem Docker-Build:
+   - SSH auf den Server
+   - `git reset --hard origin/test` (docker-compose.yml aktualisieren)
+   - `docker compose pull` (neues Image vom GHCR)
+   - `docker compose up -d` (Container neustarten)
+   - Health-Check (max 120s, sonst Logs + Fail)
+
+### Server-Setup
+
+- **Host:** Docker-Container auf Ubuntu 24.04
+- **Image:** `ghcr.io/lucasjohannsen/digisim:latest` (via `docker compose pull`)
+- **GHCR-Login:** `docker login ghcr.io` (mit GitHub PAT, `read:packages` scope)
+- **Secrets:** `TEST_SSH_HOST`, `TEST_SSH_USER`, `TEST_SSH_KEY`, `TEST_DEPLOY_PATH`
 
 
 ## Einrichtung der Konfiguration
