@@ -170,6 +170,26 @@ class CalendarDrivenRunner:
         ) or []
         
         # Execute selected operations
+        # P3-5 (Issue #83): Irrigation kann mehrere Teil-Events (Tage)
+        # umfassen. Diese werden als Gruppe behandelt: apply_irrigation
+        # wird einmal mit der Gesamtmenge aufgerufen, alle Teil-Events
+        # werden geloggt.
+        irrigation_selected = [
+            op for op in selected_ops if op in irrigation_candidates
+        ]
+        if irrigation_selected:
+            total_irrigation_amount = sum(
+                op.application_amount for op in irrigation_selected
+            )
+            try:
+                self.irrigation_service.apply_irrigation(
+                    date=date,
+                    irrigation_amount=total_irrigation_amount,
+                )
+                all_events.extend(irrigation_selected)
+            except Exception as e:
+                logger.error("Irrigation execution failed", date=date, error=str(e))
+
         for op in selected_ops:
             if op in planting_ops:
                 all_events.extend(
@@ -179,16 +199,7 @@ class CalendarDrivenRunner:
                 all_events.extend(
                     self.protection_plan_service.get_events_for_ops([op], date)
                 )
-            elif op in irrigation_candidates:
-                # Irrigation candidate confirmed - apply side-effects
-                try:
-                    self.irrigation_service.apply_irrigation(
-                        date=date,
-                        irrigation_amount=op.application_amount
-                    )
-                    all_events.append(op)
-                except Exception as e:
-                    logger.error("Irrigation execution failed", date=date, error=str(e))
+            # Irrigation wurde oben als Gruppe behandelt.
         
         # Log integration events and emit OperationApplied domain events
         for event in all_events:

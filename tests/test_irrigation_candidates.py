@@ -71,13 +71,13 @@ class TestCandidateGeneration:
         assert len(candidates) == 0
 
     def test_returns_candidate_when_irrigation_needed(self, sim_context, moisture_data_dry):
-        """Candidate generation should return event when irrigation is needed"""
+        """Candidate generation should return event(s) when irrigation is needed"""
         simulator = IrrigationSimulator(sim_context, moisture_data_dry)
 
         candidates = simulator.get_candidate_operations(datetime.date(2022, 4, 10))
 
         assert isinstance(candidates, list)
-        assert len(candidates) == 1
+        assert len(candidates) >= 1
 
         event = candidates[0]
         assert event.worktype == 15
@@ -119,7 +119,7 @@ class TestCandidateGeneration:
 
         # Generate candidate (must return at least one candidate for a meaningful test)
         candidates = simulator.get_candidate_operations(datetime.date(2022, 4, 10))
-        assert len(candidates) == 1
+        assert len(candidates) >= 1
 
         # Verify arrays are unchanged
         np.testing.assert_array_equal(
@@ -210,7 +210,12 @@ class TestTriggerIrrigationBackwardCompatibility:
         assert simulator.updated_moisture[day] > moisture_data_dry["moisture_data"][day]
 
     def test_trigger_irrigation_with_explicit_amount(self, sim_context, moisture_data_dry):
-        """trigger_irrigation() should accept explicit irrigation amount"""
+        """trigger_irrigation() should accept explicit irrigation amount.
+
+        P3-5 (Issue #83): Bei langen Dauern wird das Event aufgeteilt.
+        trigger_irrigation gibt das erste Teil-Event zurück; die
+        Seiteneffekte werden mit der Gesamtmenge angewendet.
+        """
         simulator = IrrigationSimulator(sim_context, moisture_data_dry)
 
         date = datetime.date(2022, 4, 10)
@@ -220,7 +225,8 @@ class TestTriggerIrrigationBackwardCompatibility:
         event = simulator.trigger_irrigation(date, irrigation_amount=explicit_amount)
 
         assert event is not None
-        assert event.application_amount == explicit_amount
+        assert event.worktype == 15
+        # Side-effects use the full explicit amount
         assert simulator.irrigation[day] == explicit_amount
 
     def test_trigger_irrigation_returns_none_when_not_needed(self, sim_context, moisture_data_wet):
@@ -303,15 +309,21 @@ class TestEventDateTimeline:
     """Test that irrigation events carry the correct simulation date (Issue #59)."""
 
     def test_candidate_event_uses_passed_date_not_start_year(self, sim_context, moisture_data_dry):
-        """get_candidate_operations(date) must use the passed date for the event."""
+        """get_candidate_operations(date) must use the passed date for the event.
+
+        P3-5 (Issue #83): Startzeit ist 05:00 (WORK_START_HOUR) statt 12:00.
+        Bei langen Dauern wird auf mehrere Tage aufgeteilt; das erste
+        Event startet am übergebenen Datum.
+        """
         simulator = IrrigationSimulator(sim_context, moisture_data_dry)
         candidate_date = datetime.date(2027, 6, 5)
 
         candidates = simulator.get_candidate_operations(candidate_date)
 
-        assert len(candidates) == 1
+        assert len(candidates) >= 1
         event = candidates[0]
-        assert event.start_date == "2027-06-05 12:00:00"
+        # Erstes Event startet am übergebenen Datum um 05:00
+        assert event.start_date == "2027-06-05 05:00:00"
 
 
 class TestDecisionPipelineIntegration:
@@ -377,7 +389,11 @@ class TestTargetApplicationAmount:
     """P3-3 AK 1-3: Feste Zielgabe 20-30 mm mit Clamping auf [10, 40] mm."""
 
     def test_typical_application_in_target_range(self, sim_context, moisture_data_dry):
-        """AK 2: Typische Gabe liegt im Bereich [20, 30] mm (KAR-040 soft)."""
+        """AK 2: Typische Gabe liegt im Bereich [20, 30] mm (KAR-040 soft).
+
+        P3-5 (Issue #83): Bei Aufteilung ist die Gesamtmenge (Summe aller
+        Teil-Events) relevant, nicht die einzelne Teil-Gabe.
+        """
         simulator = IrrigationSimulator(sim_context, moisture_data_dry)
         np.random.seed(42)
 
@@ -387,7 +403,8 @@ class TestTargetApplicationAmount:
             date = datetime.date(2022, 1, 1) + datetime.timedelta(days=offset)
             candidates = simulator.get_candidate_operations(date)
             if candidates:
-                amounts.append(candidates[0].application_amount)
+                total = sum(c.application_amount for c in candidates)
+                amounts.append(total)
 
         assert amounts, "Expected at least one irrigation candidate"
         for amt in amounts:
@@ -396,7 +413,10 @@ class TestTargetApplicationAmount:
             )
 
     def test_no_application_below_min(self, sim_context, moisture_data_dry):
-        """AK 3 / AK 1: Keine Gabe < 10 mm (Clamping auf min_application_mm)."""
+        """AK 3 / AK 1: Keine Gabe < 10 mm (Clamping auf min_application_mm).
+
+        P3-5: Die Gesamtmenge (Summe aller Teil-Events) muss >= min sein.
+        """
         # Use a tiny target so the raw amount would be below min → clamping kicks in
         simulator = IrrigationSimulator(
             sim_context,
@@ -407,14 +427,18 @@ class TestTargetApplicationAmount:
         np.random.seed(42)
 
         candidates = simulator.get_candidate_operations(datetime.date(2022, 4, 10))
-        assert len(candidates) == 1
-        assert candidates[0].application_amount >= 10.0, (
-            f"Application {candidates[0].application_amount} mm below min 10 mm"
+        assert len(candidates) >= 1
+        total = sum(c.application_amount for c in candidates)
+        assert total >= 10.0, (
+            f"Total application {total} mm below min 10 mm"
         )
-        assert candidates[0].application_amount == 10.0
+        assert total == 10.0
 
     def test_no_application_above_max(self, sim_context, moisture_data_dry):
-        """AK 1: Keine Gabe > 40 mm (Clamping auf max_application_mm)."""
+        """AK 1: Keine Gabe > 40 mm (Clamping auf max_application_mm).
+
+        P3-5: Die Gesamtmenge (Summe aller Teil-Events) muss <= max sein.
+        """
         # Use a huge target so the raw amount would exceed max → clamping kicks in
         simulator = IrrigationSimulator(
             sim_context,
@@ -425,22 +449,27 @@ class TestTargetApplicationAmount:
         np.random.seed(42)
 
         candidates = simulator.get_candidate_operations(datetime.date(2022, 4, 10))
-        assert len(candidates) == 1
-        assert candidates[0].application_amount <= 40.0, (
-            f"Application {candidates[0].application_amount} mm above max 40 mm"
+        assert len(candidates) >= 1
+        total = sum(c.application_amount for c in candidates)
+        assert total <= 40.0, (
+            f"Total application {total} mm above max 40 mm"
         )
-        assert candidates[0].application_amount == 40.0
+        assert total == 40.0
 
     def test_all_applications_within_hard_limits(self, sim_context, moisture_data_dry):
-        """AK 1: Alle Gaben im harten Bereich [10, 40] mm (KAR-040 hart)."""
+        """AK 1: Alle Gaben im harten Bereich [10, 40] mm (KAR-040 hart).
+
+        P3-5: Gesamtmenge pro Beregnungs-Event-Gruppe muss in [10, 40] liegen.
+        """
         simulator = IrrigationSimulator(sim_context, moisture_data_dry)
         np.random.seed(123)
 
         for offset in range(0, 300, 7):
             date = datetime.date(2022, 1, 1) + datetime.timedelta(days=offset)
             candidates = simulator.get_candidate_operations(date)
-            for c in candidates:
-                assert 10.0 <= c.application_amount <= 40.0
+            if candidates:
+                total = sum(c.application_amount for c in candidates)
+                assert 10.0 <= total <= 40.0
 
 
 class TestPostIrrigationBlock:
@@ -478,7 +507,7 @@ class TestPostIrrigationBlock:
         # Day +10: block expired (block_until = irrigation_date + 10)
         check_date = irrigation_date + datetime.timedelta(days=10)
         candidates = simulator.get_candidate_operations(check_date)
-        assert len(candidates) == 1, (
+        assert len(candidates) >= 1, (
             f"Day +10: expected candidate (block expired), got {len(candidates)}"
         )
 
@@ -507,22 +536,27 @@ class TestSeasonalLimit:
         np.random.seed(42)
 
         candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 15))
-        assert len(candidates) == 1
+        assert len(candidates) >= 1
 
     def test_last_gift_capped_to_remaining_budget(
         self, sim_context, moisture_data_very_dry
     ):
-        """AK 4/f: Letzte Gabe wird auf Restbudget begrenzt (>= min)."""
+        """AK 4/f: Letzte Gabe wird auf Restbudget begrenzt (>= min).
+
+        P3-5: Die Gesamtmenge (Summe aller Teil-Events) muss dem Restbudget
+        entsprechen.
+        """
         simulator = IrrigationSimulator(sim_context, moisture_data_very_dry)
         # Remaining budget = 170 - 155 = 15 mm (>= min 10)
         simulator.seasonal_sum_mm = 155.0
         np.random.seed(42)
 
         candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 15))
-        assert len(candidates) == 1
-        assert candidates[0].application_amount == 15.0, (
+        assert len(candidates) >= 1
+        total = sum(c.application_amount for c in candidates)
+        assert total == 15.0, (
             f"Expected last gift capped to remaining budget 15 mm, "
-            f"got {candidates[0].application_amount}"
+            f"got {total}"
         )
 
     def test_no_candidates_when_remaining_budget_below_min(

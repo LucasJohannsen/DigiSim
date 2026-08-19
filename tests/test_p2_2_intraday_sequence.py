@@ -178,7 +178,10 @@ class TestPlantingPlanServiceIntradaySequence:
     """Tests für die sequenzkonforme Uhrzeitvergabe im PlantingPlanService."""
 
     def test_single_op_full_window(self, basic_context):
-        """AK3: 1 Operation -> Uhrzeit im vollen Fenster [06:00, 17:00]."""
+        """AK3: 1 Operation -> Uhrzeit im Fenster [05:00, 20:00].
+
+        P3-5 (Issue #83): PlantingPlanService übergibt explizit [05:00, 20:00].
+        """
         random.seed(42)
         with patch.object(PlantingPlanService, "initialize_planting_plan"):
             service = PlantingPlanService(
@@ -189,8 +192,8 @@ class TestPlantingPlanServiceIntradaySequence:
         events = service.get_events_for_ops([op], _TEST_DATE)
         assert len(events) == 1
         start = datetime.datetime.strptime(events[0].start_date, "%Y-%m-%d %H:%M:%S")
-        assert start.time() >= datetime.time(6, 0)
-        assert start.time() <= datetime.time(17, 0)
+        assert start.time() >= datetime.time(5, 0)
+        assert start.time() <= datetime.time(20, 0)
 
     def test_two_single_calls_same_day_monotonic(self, basic_context):
         """AK1: Zwei EINZEL-Calls [op1], [op2] mit seq1<seq2 -> event1 < event2.
@@ -263,7 +266,10 @@ class TestPlantingPlanServiceIntradaySequence:
         assert t1 < t2
 
     def test_all_times_within_window(self, basic_context):
-        """AK4: Alle Uhrzeiten bleiben im Fenster [06:00, 17:00]."""
+        """AK4: Alle Uhrzeiten bleiben im Fenster [05:00, 20:00].
+
+        P3-5 (Issue #83): PlantingPlanService übergibt explizit [05:00, 20:00].
+        """
         random.seed(42)
         with patch.object(PlantingPlanService, "initialize_planting_plan"):
             service = PlantingPlanService(
@@ -274,8 +280,8 @@ class TestPlantingPlanServiceIntradaySequence:
         for op in ops:
             events = service.get_events_for_ops([op], _TEST_DATE)
             t = datetime.datetime.strptime(events[0].start_date, "%Y-%m-%d %H:%M:%S")
-            assert datetime.time(6, 0) <= t.time() <= datetime.time(17, 0), (
-                f"Uhrzeit {t.time()} ausserhalb [06:00, 17:00]"
+            assert datetime.time(5, 0) <= t.time() <= datetime.time(20, 0), (
+                f"Uhrzeit {t.time()} ausserhalb [05:00, 20:00]"
             )
 
 
@@ -306,7 +312,10 @@ class TestProtectionPlanServiceIntradaySequence:
         assert t1 < t2
 
     def test_single_op_full_window(self, basic_context):
-        """1 Operation -> Uhrzeit im vollen Fenster [06:00, 17:00]."""
+        """1 Operation -> Uhrzeit im vollen Fenster [06:00, 17:00].
+
+        P3-5: ProtectionPlanService behält Default-Fenster (keine Verschiebung).
+        """
         random.seed(42)
         with patch.object(ProtectionPlanService, "plan_protections"):
             service = ProtectionPlanService(

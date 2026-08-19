@@ -162,6 +162,12 @@ def assign_sequential_time(
     Issue #66 / P2-2). Der Aufrufer verwaltet den Cursor ``min_start`` aus dem
     zuletzt vergebenen Zeitpunkt desselben Tages.
 
+    P3-5 (Issue #83): ``PlantingPlanService`` übergibt explizit ein erweitertes
+    Fenster ``[05:00, 20:00]`` (KAR-045 ``start_hour_range: [5, 20]``), um
+    längere Arbeitszeiten zu ermöglichen. Die Defaults bleiben auf
+    ``[06:00, 17:00]``, um den Zufallszustand für ``ProtectionPlanService``
+    nicht zu verschieben (Befund B7 / KAR-021).
+
     Garantie: Der Rückgabewert liegt **strikt nach** ``min_start`` (mindestens
     1 Sekunde später), sofern das Restfenster >= 1 Minute ist. Dadurch bleibt
     die Intra-Tages-Sequenz bei aufeinanderfolgenden Einzel-Calls erhalten

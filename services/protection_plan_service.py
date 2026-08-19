@@ -224,6 +224,8 @@ class ProtectionPlanService:
             # vergebenen Zeitpunkt pro Kalendertag. Bei jedem Call wird die
             # Uhrzeit im Restfenster [cursor, 17:00] gezogen und strikt nach
             # dem Cursor platziert -> Intra-Tages-Sequenz bleibt erhalten.
+            # P3-5 (Issue #83): Defaults bleiben auf [06:00, 17:00], um den
+            # Zufallszustand nicht zu verschieben (KAR-021).
             last_dt = self._last_assigned_time.get(date_key)
             min_start = last_dt.time() if last_dt is not None else time(6, 0)
             operation.actual_datetime = sim_helper.assign_sequential_time(

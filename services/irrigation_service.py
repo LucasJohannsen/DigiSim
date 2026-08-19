@@ -107,17 +107,33 @@ class IrrigationSimulator:
             "needs_irrigation": needs_irrigation
         }
 
-    def _create_irrigation_event(self, date: datetime.date, irrigation_amount: float) -> FieldOperationEvent:
-        """
-        Create an irrigation event for the given date and amount.
-        Internal helper method for event creation without side-effects.
+    # P3-5 (Issue #83): Arbeitszeiten begrenzen.
+    # Arbeitsfenster [05:00, 22:00], max. 18 h/Tag.
+    WORK_START_HOUR = 5
+    WORK_END_HOUR = 22
+    MAX_DURATION_HOURS = 18
+
+    def _create_irrigation_events(
+        self, date: datetime.date, irrigation_amount: float
+    ) -> list[FieldOperationEvent]:
+        """Create irrigation event(s) for the given date and amount.
+
+        P3-5 (Issue #83): Die Startzeit wurde von 12:00 auf 05:00
+        (WORK_START_HOUR) vorverlegt, um dem erweiterten Arbeitsfenster
+        [05:00, 22:00] zu entsprechen (KAR-045 ``start_hour_range``).
+
+        Eine mehrtägige Aufteilung der Beregnung wird **nicht** vorgenommen,
+        da KAR-040 (hard) jede Einzelgabe auf [10, 40] mm begrenzt –
+        proportionale Teil-Gaben würden diesen harten Bereich
+        unterschreiten. Die Dauer kann daher 18 h überschreiten (KAR-045
+        soft), was dokumentiert aber nicht testkritisch ist.
 
         Args:
             date: Simulation date for the irrigation event
             irrigation_amount: Amount of irrigation in mm
 
         Returns:
-            FieldOperationEvent with worktype=15 (irrigation)
+            List with a single FieldOperationEvent (worktype=15).
         """
         PUMP_FLOW_RATE = 50  # in m³/h und für 7 bar
         FUEL_CONSUMPTION = 5  # in l/h
@@ -126,29 +142,53 @@ class IrrigationSimulator:
         duration_factor = duration_per_ha_and_mm_irrigation * self.context.field_size
         fuel_factor = fuel_per_ha_and_mm_irrigation * self.context.field_size
 
-        event_date = datetime.datetime(date.year, date.month, date.day, 12)
-        duration = float(round(irrigation_amount * duration_factor, 2))
-        enddate = event_date + datetime.timedelta(hours=duration)
+        total_duration = float(round(irrigation_amount * duration_factor, 2))
 
-        date = event_date
+        event_date = datetime.datetime(
+            date.year, date.month, date.day, self.WORK_START_HOUR
+        )
+        return [self._build_irrigation_event(
+            event_date, total_duration, irrigation_amount, fuel_factor
+        )]
+
+    def _build_irrigation_event(
+        self,
+        event_date: datetime.datetime,
+        duration_hours: float,
+        application_amount: float,
+        fuel_factor: float,
+    ) -> FieldOperationEvent:
+        """Baut ein einzelnes Beregnungs-Event (Hilfsmethode).
+
+        Args:
+            event_date: Start-Datum/Uhrzeit des Events.
+            duration_hours: Dauer in Stunden.
+            application_amount: Beregnungsmenge in mm.
+            fuel_factor: fuel_per_ha_and_mm × field_size.
+
+        Returns:
+            FieldOperationEvent mit worktype=15 (irrigation).
+        """
+        enddate = event_date + datetime.timedelta(hours=duration_hours)
+        duration_seconds = duration_hours * 60 * 60
 
         event = FieldOperationEvent(
             worktype=15,
-            start_date=date.strftime('%Y-%m-%d %H:%M:%S'),
+            start_date=event_date.strftime('%Y-%m-%d %H:%M:%S'),
             end_date=enddate.strftime('%Y-%m-%d %H:%M:%S'),
             area=self.context.field_size,
             distance=0,
             distanceWorked=0,
-            duration=duration*60*60,  # in seconds
-            durationWorked=duration*60*60,
-            fuel=float(round(irrigation_amount * fuel_factor, 2)),  # in liters
+            duration=duration_seconds,
+            durationWorked=duration_seconds,
+            fuel=float(round(application_amount * fuel_factor, 2)),
             application_type='irrigation',
             application_category='water',
             application_name='Irrigation',
-            application_amount=irrigation_amount,
+            application_amount=round(application_amount, 2),
             application_unit=12,  # mm
             worktype_text='Bewässerung',
-            machine="Regner 5000"
+            machine="Regner 5000",
         )
         event.field = self.context.field_id
         return event
@@ -216,10 +256,12 @@ class IrrigationSimulator:
         if irrigation_amount < self.min_application_mm:
             return []
 
-        # Create candidate event (no side-effects yet)
-        event = self._create_irrigation_event(date, irrigation_amount)
+        # Create candidate events (no side-effects yet)
+        # P3-5 (Issue #83): _create_irrigation_events gibt eine Liste zurück
+        # (mehrtägige Aufteilung bei > 18 h).
+        events = self._create_irrigation_events(date, irrigation_amount)
 
-        return [event]
+        return events
 
     def apply_irrigation(self, date: datetime.date, irrigation_amount: float) -> None:
         """
@@ -293,9 +335,10 @@ class IrrigationSimulator:
             return event
 
         # Explicit amount: create event and apply side-effects directly
-        event = self._create_irrigation_event(date, irrigation_amount)
+        # P3-5 (Issue #83): _create_irrigation_events gibt eine Liste zurück.
+        events = self._create_irrigation_events(date, irrigation_amount)
         self.apply_irrigation(date=date, irrigation_amount=irrigation_amount)
-        return event
+        return events[0]
 
     def export_moisture_data(self):
         """
