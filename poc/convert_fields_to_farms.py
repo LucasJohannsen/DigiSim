@@ -11,9 +11,8 @@ Usage:
 """
 
 import json
-import os
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Dict, Any
 import math
 
 def calculate_distance_to_barn(field_center: Dict[str, float], barn_location: Dict[str, float] = None) -> float:
@@ -133,13 +132,13 @@ def main():
     total_area = sum(field["area"] for farm in farms_data["farms"] for field in farm["fields"])
     
     print("\n✅ Konvertierung abgeschlossen!")
-    print(f"📊 Statistiken:")
+    print("📊 Statistiken:")
     print(f"   • Betriebe: {len(farms_data['farms'])}")
     print(f"   • Felder: {total_fields}")
     print(f"   • Gesamtfläche: {total_area:.2f} ha")
     
     # Zeige erste 3 Felder als Vorschau
-    print(f"\n🔍 Vorschau der ersten Felder:")
+    print("\n🔍 Vorschau der ersten Felder:")
     for farm in farms_data["farms"][:1]:  # Nur erster Betrieb
         for field in farm["fields"][:3]:  # Nur erste 3 Felder
             print(f"   • {field['name']}: {field['area']} ha, {field['soil_type']}, {field['distance_to_barn']} km zur Scheune")

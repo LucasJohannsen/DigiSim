@@ -22,7 +22,7 @@ def main():
     # Load soil data for a specific field
     soil_data = adapter.get_data(field_id="12345")
     
-    print(f"Soil parameters for field 12345:")
+    print("Soil parameters for field 12345:")
     print(f"  Source: {soil_data['source']}")
     print(f"  Soil type: {soil_data['soil_type']}")
     print(f"  Field capacity: {soil_data['field_capacity']} % nFK")

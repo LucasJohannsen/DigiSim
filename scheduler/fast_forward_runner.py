@@ -203,7 +203,7 @@ class FastForwardRunner:
             )
             os.makedirs(export_dir, exist_ok=True)
             
-            end_date = self.context.start_date + datetime.timedelta(days=self.n_days - 1)
+            self.context.start_date + datetime.timedelta(days=self.n_days - 1)
             filename = (
                 f"fast_forward_{self.context.field_id}_"
                 f"{self.n_days}days_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.json"

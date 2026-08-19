@@ -1,8 +1,6 @@
 import pytest
-import asyncio
 import datetime
 from unittest.mock import Mock, patch
-from pathlib import Path
 
 from scheduler.tick_scheduler import TickScheduler
 from models.sim_context import SimContext
@@ -159,7 +157,7 @@ async def test_tick_summary_logs_success_count(tmp_path, multiple_contexts, capl
             scheduler = TickScheduler(multiple_contexts, state_dir=str(tmp_path))
             await scheduler.daily_tick()
     
-    summary_logs = [l for l in logs if l.get("event") == "Tick summary"]
+    summary_logs = [log for log in logs if log.get("event") == "Tick summary"]
     assert len(summary_logs) == 1
     assert summary_logs[0]["successful"] == 3
     assert summary_logs[0]["total"] == 5

@@ -1,5 +1,4 @@
 import cmd
-import simpy
 import sys
 import datetime
 

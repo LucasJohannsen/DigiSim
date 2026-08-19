@@ -1,5 +1,4 @@
 import json
-import datetime
 
 from models.planting_plan import FieldOperationEvent
 from models.sim_context import SimContext

@@ -1,7 +1,6 @@
 import datetime
 import json
-from pathlib import Path
-from unittest.mock import Mock, patch
+from unittest.mock import Mock
 import pytest
 import httpx
 from tenacity import wait_none
@@ -9,7 +8,6 @@ from tenacity import wait_none
 from models.planting_plan import FieldOperationEvent
 from models.sim_context import SimContext
 from services.retry_dispatcher import RetryDispatcher
-from services.digizert_client import DigiZertClient
 
 
 @pytest.fixture

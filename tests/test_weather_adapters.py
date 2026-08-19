@@ -1,6 +1,5 @@
 import datetime
-import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 
 from services.weather_adapters import OpenMeteoWeatherAdapter, DWDWeatherAdapter
 

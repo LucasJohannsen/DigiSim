@@ -28,7 +28,7 @@ def main():
         end_date=datetime.date(2024, 12, 31)
     )
     
-    print(f"\nWeather data retrieved:")
+    print("\nWeather data retrieved:")
     print(f"  Source: {weather_data['source']}")
     print(f"  Days: {len(weather_data['dates'])}")
     print(f"  Avg precipitation: {sum(weather_data['precipitation'])/len(weather_data['precipitation']):.1f} mm/day")

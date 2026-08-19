@@ -1,4 +1,4 @@
-from typing import Callable, Any
+from typing import Callable
 from models.domain_events import DomainEvent
 
 

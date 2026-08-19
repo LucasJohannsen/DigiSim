@@ -1,15 +1,10 @@
 import random
 from datetime import datetime, time, timedelta
-from typing import Optional, Tuple
+from typing import Optional
 
-from services.planting_plan_loader import PlantingPlanLoader
 from models.planting_plan import (
-    FieldOperationStatus,
-    FieldOperationCycle,
     FieldOperation,
     FieldOperationEvent,
-    TargetDates,
-    FieldOperationPhases,
     PlantingPlan
 )
 from models.domain_events import create_protection_operations_pruned

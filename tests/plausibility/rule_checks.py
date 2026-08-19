@@ -763,22 +763,26 @@ def _check_siccation_limits(
     """KAR-024: Sikkations-Grenzen (Shark ≤1×, Quickdown ≤2×, Abstand 4-7 d, letzte Gabe ≥14 d vor Roden).
 
     Hinweis: Die Unterscheidung Shark vs. Quickdown erfolgt heuristisch am
-    ``application_name`` (Substring 'shark'/'quickdown'). Ist der Name nicht
-    verfügbar, werden alle Sikkations-Events als 'quickdown' gewertet.
+    ``application_name`` (Substring 'shark'/'quickdown'). Nur Events mit
+    'quickdown' oder 'shark' im Namen werden als Sikkationsmittel gewertet –
+    andere Herbizide (Bandur Artist, Boxer etc.) sind keine Sikkation.
     """
     rid = rule["id"]
     sev = rule["severity"]
     check = rule["check"]
     out: list[Violation] = []
-    sikkation = _events_with_wt_cat(cycle, WT_SPRITZEN, CAT_HERBIZID)
-    sikkation = sorted([e for e in sikkation if e["start"]], key=lambda e: e["start"])
+    all_herbizid = _events_with_wt_cat(cycle, WT_SPRITZEN, CAT_HERBIZID)
+    all_herbizid = sorted([e for e in all_herbizid if e["start"]], key=lambda e: e["start"])
 
-    def medium(ev: dict[str, Any]) -> str:
+    def medium(ev: dict[str, Any]) -> str | None:
         name = (ev.get("name") or "").lower()
         if "shark" in name:
             return "shark"
-        return "quickdown"
+        if "quickdown" in name:
+            return "quickdown"
+        return None  # kein Sikkationsmittel (z. B. Vorauflauf-Herbizid)
 
+    sikkation = [e for e in all_herbizid if medium(e) is not None]
     shark = [e for e in sikkation if medium(e) == "shark"]
     quickdown = [e for e in sikkation if medium(e) == "quickdown"]
 

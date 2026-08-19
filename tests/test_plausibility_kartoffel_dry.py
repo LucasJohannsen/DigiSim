@@ -118,15 +118,11 @@ def rules() -> list[dict[str, Any]]:
 
 # KAR-040: B3 (Gaben zu klein) – wurde durch P3-3 (Issue #81) gefixt:
 # Feste Zielgabe 20-30 mm mit Clamping auf [10, 40] mm. Marker entfernt.
-# KAR-024: B5/B6 – Quickdown-Abstand außerhalb [4,7] (derselbe Befund wie
-# in der Baseline-Suite; im Dry-Szenario 66 d statt 69 d, gleiche Ursache).
-XFAIL_REASONS: dict[str, str] = {
-    "KAR-024": (
-        "Befund B5/B6, Issue #57 – Quickdown-Abstand 66 d außerhalb [4,7] "
-        "(im Dry-Szenario; gleiche Ursache wie Baseline-Suite, wo der "
-        "Abstand 69 d beträgt)."
-    ),
-}
+# KAR-024 wurde durch Sikkation-Checker-Fix gefixt: medium() klassifiziert
+# nur noch Quickdown/Shark als Sikkationsmittel, nicht alle Herbizide.
+# Der "Abstand 66 d" war ein False-Positive (Bandur Artist vs. Quickdown).
+# Marker entfernt.
+XFAIL_REASONS: dict[str, str] = {}
 
 
 def _rule_params(rules: list[dict[str, Any]]) -> list[Any]:
