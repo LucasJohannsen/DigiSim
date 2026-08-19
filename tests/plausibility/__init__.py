@@ -9,6 +9,7 @@ FastForward-Simulation gegen das maschinenlesbare Fachregelwerk
 
 from tests.plausibility.rule_checks import (
     Violation,
+    WeatherLookup,
     check_rule,
     load_rules,
     normalize_events,
@@ -17,6 +18,7 @@ from tests.plausibility.rule_checks import (
 
 __all__ = [
     "Violation",
+    "WeatherLookup",
     "check_rule",
     "load_rules",
     "normalize_events",
