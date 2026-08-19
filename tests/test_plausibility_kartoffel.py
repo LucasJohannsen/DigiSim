@@ -84,6 +84,11 @@ def simulation() -> dict[str, Any]:
     Konkurrenz ausgeführt statt unterdrückt → +2 ausgeführte Spritz-
     Operationen, +2 KAR-030 Guard-Rejections (17 statt 15). Neue
     Baseline: 26 Integration / 1646 Domain Events (+12 Domain Events).
+    Nach P3-5 (Issue #83) werden lange Operationen (> 18 h) auf mehrere
+    Tage aufgeteilt (Befund B10, KAR-045). Separieren (34,8 h → 2 Events)
+    und Kreiseln (19,2 h → 2 Events) erzeugen jeweils +1 Event → +2
+    Integration Events, +2 OperationApplied Domain Events. Neue Baseline:
+    28 Integration / 1648 Domain Events (+2 / +2).
 
     Returns:
         Dict mit ``events`` (Integration Events), ``domain_events``,
@@ -182,26 +187,21 @@ class TestFixtureBaseline:
     """Sichert, dass die Fixture die Referenz-Baseline reproduziert."""
 
     def test_integration_event_count_matches_baseline(self, simulation):
-        """Baseline: 26 Integration Events (nach P3-4, Issue #82).
+        """Baseline: 28 Integration Events (nach P3-5, Issue #83).
 
-        Vor P3-4 (P3-3, Issue #81) waren es 26 Events. P3-4 aktiviert
-        DeadlineAwarePriorityStrategy: überfällige kritische Fungizide
-        werden bei High-Prio-Konkurrenz ausgeführt. Die zusätzlichen
-        Spritz-Kandidaten werden teils vom Wetter-Guard abgelehnt (KAR-030),
-        teils ausgeführt → netto 0 Änderung bei Integration Events.
+        Vor P3-5 (P3-4, Issue #82) waren es 26 Events. P3-5 teilt lange
+        Operationen (> 18 h) auf mehrere Tage auf: Separieren (34,8 h → 2)
+        und Kreiseln (19,2 h → 2) erzeugen jeweils +1 Event.
         """
-        assert len(simulation["events"]) == 26
+        assert len(simulation["events"]) == 28
 
     def test_domain_event_count_matches_baseline(self, simulation):
-        """Baseline: 1646 Domain Events (nach P3-4, Issue #82).
+        """Baseline: 1648 Domain Events (nach P3-5, Issue #83).
 
-        Vor P3-4 (P3-3, Issue #81) waren es 1634 Domain Events. P3-4
-        aktiviert DeadlineAwarePriorityStrategy: überfällige kritische
-        Fungizid-Spritzungen werden bei High-Prio-Konkurrenz ausgeführt
-        statt unterdrückt → +2 ausgeführte Spritz-Operationen, +2 KAR-030
-        Guard-Rejections (17 statt 15) → netto +12 Domain Events.
+        Vor P3-5 (P3-4, Issue #82) waren es 1646 Domain Events. P3-5
+        erzeugt +2 Integration Events → +2 OperationApplied Domain Events.
         """
-        assert len(simulation["domain_events"]) == 1646
+        assert len(simulation["domain_events"]) == 1648
 
     def test_fixture_is_deterministic(self, simulation):
         """Zweite Ausführung mit gleichem Seed liefert gleiche Event-Anzahl."""

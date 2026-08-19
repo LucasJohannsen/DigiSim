@@ -1,5 +1,6 @@
 import random
 from datetime import datetime, time, timedelta
+from math import ceil
 from typing import Optional
 
 from services.planting_plan_loader import PlantingPlanLoader
@@ -289,12 +290,24 @@ class PlantingPlanService:
         return next_operations
     
 
+    # P3-5 (Issue #83): Arbeitszeiten begrenzen – mehrtägige Aufteilung.
+    # Arbeitsfenster [05:00, 22:00], max. 18 h/Tag. Lange Operationen
+    # werden auf mehrere Tage aufgeteilt (Befund B10, KAR-045).
+    WORK_START_HOUR = 5
+    WORK_END_HOUR = 22
+    MAX_DURATION_HOURS = 18
+    # KAR-046 (hard): Genau 1 Event mit wt=26 (Legen) und wt=27 (Roden)
+    # pro Zyklus. Diese Operationen dürfen nicht aufgeteilt werden, da
+    # sonst die Event-Anzahl steigt. Die Dauer bleibt > 18 h (KAR-045
+    # soft), aber ein hard-Regelverstoß wird vermieden.
+    _SINGLE_EVENT_WORKTYPES: set[int] = {26, 27}
+
     def get_events_for_ops(self, operations: list[FieldOperation], date:datetime) -> list[FieldOperationEvent]:
 
         # get active phase
         events = []
 
-        # Intra-Tages-Sequenz-Cursor (Befund B7, Issue #66 / P2-2):
+        # Intra-Tags-Sequenz-Cursor (Befund B7, Issue #66 / P2-2):
         # date wird vom CalendarDrivenRunner als datetime übergeben; der
         # Cursor-Key ist das Kalenderdatum, damit der Zustand nicht über
         # Tagesgrenzen wirkt.
@@ -309,40 +322,125 @@ class PlantingPlanService:
             operation.actual_date = date
             print(f"    {operation.operation}: {operation.actual_date.strftime('%Y-%m-%d %H:%M:%S')}")
 
-            event = FieldOperationEvent()
+            # P3-5 (Issue #83): Gesamtdauer berechnen und ggf. aufteilen
+            total_duration_hours = operation.duration_per_ha * self.context.field_size
 
-            # Sequenzkonforme Uhrzeitvergabe via zustandsbehaftetem Zeit-Cursor
-            # (Befund B7, Issue #66 / P2-2): Der Cursor speichert den zuletzt
-            # vergebenen Zeitpunkt pro Kalendertag. Bei jedem Call wird die
-            # Uhrzeit im Restfenster [cursor, 17:00] gezogen und strikt nach
-            # dem Cursor platziert -> Intra-Tages-Sequenz bleibt erhalten.
-            last_dt = self._last_assigned_time.get(date_key)
-            min_start = last_dt.time() if last_dt is not None else time(6, 0)
-            operation.actual_datetime = sim_helper.assign_sequential_time(
-                date, min_start=min_start
-            )
-            self._last_assigned_time[date_key] = operation.actual_datetime
+            if total_duration_hours > self.MAX_DURATION_HOURS and operation.worktype not in self._SINGLE_EVENT_WORKTYPES:
+                # Mehrtägige Aufteilung (Befund B10, KAR-045)
+                num_days = ceil(total_duration_hours / self.MAX_DURATION_HOURS)
+                duration_per_day = total_duration_hours / num_days
 
-            event.start_date = operation.actual_datetime.strftime('%Y-%m-%d %H:%M:%S')
-            event.end_date = (operation.actual_datetime + timedelta(hours=operation.duration_per_ha * self.context.field_size)).strftime('%Y-%m-%d %H:%M:%S')
-            event.area = self.context.field_size
-            event.fuel =  round(self.context.field_size * operation.fuel_consumption,2)
-            event.worktype = operation.worktype
-            event.worktype_text = operation.operation
-            event.duration = round(operation.duration_per_ha * self.context.field_size*60*60,2) # Umrechnung in Sekunden
-            event.durationWorked = round(event.duration * 0.95,2)
-            event.distance = round(self.context.field_size * 10/ operation.working_width,2) if operation.working_width > 0 else 0
-            event.distanceWorked = round(event.distance * 0.95,2)
-            event.application_type = operation.application_type
-            event.application_name = operation.application_name
-            event.application_category = operation.application_category
-            event.application_amount = round(operation.application_amount * self.context.field_size, 2)
-            event.application_unit = operation.application_unit
-            event.field = self.context.field_id
+                for day_idx in range(num_days):
+                    op_date = date + timedelta(days=day_idx)
+                    op_date_key = op_date.date() if isinstance(op_date, datetime) else op_date
 
-            # variations for e.g. fuel consumption (in the range of 0.9 to 1.1 if set to 0.1 --> 10% variation in both directions)
-            event.fuel = round(event.fuel * fuel_variation_factor, 2)
+                    # Sequenzkonforme Uhrzeit pro Tag via Cursor.
+                    # P3-5: Nur der erste Aufteilungs-Tag verbraucht Zufalls-
+                    # Zahlen (wie die ursprüngliche Einzel-Op). Folgende Tage
+                    # erhalten einen deterministischen Start (06:00), um den
+                    # Zufallszustand für ProtectionPlanService nicht zu
+                    # verschieben (KAR-021).
+                    last_dt = self._last_assigned_time.get(op_date_key)
+                    if day_idx == 0:
+                        min_start = last_dt.time() if last_dt is not None else time(6, 0)
+                        op_datetime = sim_helper.assign_sequential_time(
+                            op_date, min_start=min_start
+                        )
+                    else:
+                        # Deterministisch: 06:00 (kein Zufallsverbrauch)
+                        base = last_dt.time() if last_dt is not None else time(6, 0)
+                        op_datetime = datetime.combine(
+                            op_date.date() if isinstance(op_date, datetime) else op_date,
+                            base,
+                        )
+                    self._last_assigned_time[op_date_key] = op_datetime
 
-            events.append(event)
-        
+                    # Proportionaler Anteil für diesen Tag
+                    fraction = duration_per_day / total_duration_hours
+                    event = self._create_event_for_day(
+                        operation, op_datetime, duration_per_day, fraction, fuel_variation_factor
+                    )
+                    events.append(event)
+            else:
+                # Einzelne Operation (bestehende Logik)
+                last_dt = self._last_assigned_time.get(date_key)
+                min_start = last_dt.time() if last_dt is not None else time(6, 0)
+                operation.actual_datetime = sim_helper.assign_sequential_time(
+                    date, min_start=min_start
+                )
+                self._last_assigned_time[date_key] = operation.actual_datetime
+
+                event = self._create_single_event(operation, fuel_variation_factor)
+                events.append(event)
+
         return events
+
+    def _create_single_event(
+        self,
+        operation: FieldOperation,
+        fuel_variation_factor: float,
+    ) -> FieldOperationEvent:
+        """Erstellt ein einzelnes Event für eine Operation ≤ 18 h (bestehende Logik)."""
+        event = FieldOperationEvent()
+        event.start_date = operation.actual_datetime.strftime('%Y-%m-%d %H:%M:%S')
+        event.end_date = (operation.actual_datetime + timedelta(hours=operation.duration_per_ha * self.context.field_size)).strftime('%Y-%m-%d %H:%M:%S')
+        event.area = self.context.field_size
+        event.fuel = round(self.context.field_size * operation.fuel_consumption, 2)
+        event.worktype = operation.worktype
+        event.worktype_text = operation.operation
+        event.duration = round(operation.duration_per_ha * self.context.field_size * 60 * 60, 2)  # Sekunden
+        event.durationWorked = round(event.duration * 0.95, 2)
+        event.distance = round(self.context.field_size * 10 / operation.working_width, 2) if operation.working_width > 0 else 0
+        event.distanceWorked = round(event.distance * 0.95, 2)
+        event.application_type = operation.application_type
+        event.application_name = operation.application_name
+        event.application_category = operation.application_category
+        event.application_amount = round(operation.application_amount * self.context.field_size, 2)
+        event.application_unit = operation.application_unit
+        event.field = self.context.field_id
+        event.fuel = round(event.fuel * fuel_variation_factor, 2)
+        return event
+
+    def _create_event_for_day(
+        self,
+        operation: FieldOperation,
+        op_datetime: datetime,
+        duration_hours: float,
+        fraction: float,
+        fuel_variation_factor: float,
+    ) -> FieldOperationEvent:
+        """Erstellt ein Event für einen Teil einer mehrtägigen Operation.
+
+        P3-5 (Issue #83): Proportionale Aufteilung von Fläche, Menge und
+        Kraftstoff auf die einzelnen Tage.
+
+        Args:
+            operation: Die ursprüngliche FieldOperation.
+            op_datetime: Start-Zeitpunkt für diesen Tag.
+            duration_hours: Dauer dieses Teil-Events in Stunden.
+            fraction: Anteil an der Gesamtdauer (0 < fraction ≤ 1).
+            fuel_variation_factor: Zufallsvariation für Kraftstoffverbrauch.
+
+        Returns:
+            FieldOperationEvent mit proportionalen Werten.
+        """
+        event = FieldOperationEvent()
+        event.start_date = op_datetime.strftime('%Y-%m-%d %H:%M:%S')
+        end_datetime = op_datetime + timedelta(hours=duration_hours)
+        event.end_date = end_datetime.strftime('%Y-%m-%d %H:%M:%S')
+        event.area = round(self.context.field_size * fraction, 2)
+        event.fuel = round(self.context.field_size * operation.fuel_consumption * fraction, 2)
+        event.worktype = operation.worktype
+        event.worktype_text = operation.operation
+        event.duration = round(duration_hours * 60 * 60, 2)  # Sekunden
+        event.durationWorked = round(event.duration * 0.95, 2)
+        event.distance = round(self.context.field_size * 10 / operation.working_width * fraction, 2) if operation.working_width > 0 else 0
+        event.distanceWorked = round(event.distance * 0.95, 2)
+        event.application_type = operation.application_type
+        event.application_name = operation.application_name
+        event.application_category = operation.application_category
+        event.application_amount = round(operation.application_amount * self.context.field_size * fraction, 2)
+        event.application_unit = operation.application_unit
+        event.field = self.context.field_id
+        event.fuel = round(event.fuel * fuel_variation_factor, 2)
+        return event
