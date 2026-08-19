@@ -3,6 +3,7 @@ import json
 from models.planting_plan import FieldOperationEvent
 from models.sim_context import SimContext
 
+
 class EventLogger:
     def __init__(self):
         self.events = []
@@ -17,7 +18,7 @@ class EventLogger:
         # anfügen
         self.events.append(event)
 
-    def save(self, filepath, context:SimContext=None):
+    def save(self, filepath, context: SimContext = None):
 
         data = {
             "field": {
@@ -25,13 +26,12 @@ class EventLogger:
                 "name": context.field_name,
                 "area": context.field_size,
             },
-            "harvest_cycle": 
-            {
+            "harvest_cycle": {
                 "id": 0,
                 "start_date": "",
                 "end_date": "",
             },
-            "operations": []
+            "operations": [],
         }
 
         for event in self.events:
@@ -56,14 +56,14 @@ class EventLogger:
                     "application_name": event.application_name,
                     "application_amount": event.application_amount,
                     "application_unit": event.application_unit,
-                    "worktype_text": event.worktype_text
-                }
+                    "worktype_text": event.worktype_text,
+                },
             }
             data["operations"].append(op)
 
-
         with open(filepath, "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
+
 
 class LogEvent:
     def __init__(self, details=None, event_type=None):

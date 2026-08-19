@@ -65,9 +65,7 @@ class SyntheticWeatherDataProvider:
 
             # Saisonale Temperatur: Sinus-Kurve, Peak bei Tag ~200 (Mitte Juli).
             # Basis 10°C, Amplitude 15°C → Range ca. -5°C bis 25°C (Durchschnitt).
-            temp_avg = 10.0 + 15.0 * math.sin(
-                2.0 * math.pi * (day_of_year - 80) / 365.0
-            )
+            temp_avg = 10.0 + 15.0 * math.sin(2.0 * math.pi * (day_of_year - 80) / 365.0)
             temp_noise = rng.uniform(-3.0, 3.0)
             temp_max = temp_avg + 5.0 + temp_noise
             temp_min = temp_avg - 5.0 + temp_noise

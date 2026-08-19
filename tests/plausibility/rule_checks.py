@@ -23,8 +23,9 @@ from __future__ import annotations
 import datetime
 import json
 import os
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable, TypeAlias
+from typing import Any
 
 from services.weather_service import WeatherData
 
@@ -32,7 +33,7 @@ from services.weather_service import WeatherData
 #: Provider (z. B. ``SyntheticWeatherDataProvider``) generiert und an
 #: ``check_rule`` übergeben, damit die Wetter-Checker dieselben Daten sehen
 #: wie die Guards zur Laufzeit.
-WeatherLookup: TypeAlias = dict[datetime.date, WeatherData]
+type WeatherLookup = dict[datetime.date, WeatherData]
 
 # ---------------------------------------------------------------------------
 # Konstanten / Pfade
@@ -302,18 +303,12 @@ def _check_phase_order(
     soil_wts = order[0]  # [5,6,7,28]
 
     soil_dates = group_dates(soil_wts)
-    planting_dates = [
-        e["start"] for e in _events_with_wt(cycle, WT_LEGEN) if e["start"]
-    ]
+    planting_dates = [e["start"] for e in _events_with_wt(cycle, WT_LEGEN) if e["start"]]
     sikkation_dates = [
-        e["start"]
-        for e in _events_with_wt_cat(cycle, WT_SPRITZEN, CAT_HERBIZID)
-        if e["start"]
+        e["start"] for e in _events_with_wt_cat(cycle, WT_SPRITZEN, CAT_HERBIZID) if e["start"]
     ]
     harvest_dates = [e["start"] for e in _events_with_wt(cycle, WT_RODEN) if e["start"]]
-    storage_dates = [
-        e["start"] for e in _events_with_wt(cycle, WT_VERLADEN) if e["start"]
-    ]
+    storage_dates = [e["start"] for e in _events_with_wt(cycle, WT_VERLADEN) if e["start"]]
 
     anchors: list[tuple[str, datetime.datetime | None]] = [
         ("Bodenbearbeitung_max", max(soil_dates) if soil_dates else None),
@@ -324,7 +319,7 @@ def _check_phase_order(
     ]
     # Aufsteigende Reihenfolge der vorhandenen Anker prüfen
     present = [(name, d) for name, d in anchors if d is not None]
-    for (n1, d1), (n2, d2) in zip(present, present[1:]):
+    for (n1, d1), (n2, d2) in zip(present, present[1:], strict=False):
         if d1 >= d2:
             out.append(
                 Violation(
@@ -432,15 +427,11 @@ def _check_requires_prior_event(
         prior_events = _events_with_wt_cat(
             cycle, prior["worktype"], prior.get("application_category")
         )
-        prior_dates = [
-            p["start"] for p in prior_events if p["start"] and p["start"] < e["start"]
-        ]
+        prior_dates = [p["start"] for p in prior_events if p["start"] and p["start"] < e["start"]]
         alt_dates: list[datetime.datetime] = []
         if alt_prior is not None:
             alt_events = _events_with_wt(cycle, alt_prior["worktype"])
-            alt_dates = [
-                p["start"] for p in alt_events if p["start"] and p["start"] < e["start"]
-            ]
+            alt_dates = [p["start"] for p in alt_events if p["start"] and p["start"] < e["start"]]
         if not prior_dates and not alt_dates:
             out.append(
                 Violation(
@@ -477,8 +468,7 @@ def _check_no_worktype_before(
                 Violation(
                     rule_id=rid,
                     severity=sev,
-                    message=f"wt={wt} ({e['start'].date()}) vor wt={before_wt} "
-                    f"({anchor.date()}).",
+                    message=f"wt={wt} ({e['start'].date()}) vor wt={before_wt} ({anchor.date()}).",
                     event_ref=_ref(e),
                 )
             )
@@ -675,17 +665,13 @@ def _check_chronology_consistency(
     sev = rule["severity"]
     max_gap = rule["check"].get("max_year_gap_within_cycle", 0)
     out: list[Violation] = []
-    sorted_cycle = sorted(
-        [e for e in cycle if e["start"] is not None], key=lambda e: e["start"]
-    )
-    for prev, cur in zip(sorted_cycle, sorted_cycle[1:]):
+    sorted_cycle = sorted([e for e in cycle if e["start"] is not None], key=lambda e: e["start"])
+    for prev, cur in zip(sorted_cycle, sorted_cycle[1:], strict=False):
         if cur["start"] <= prev["start"]:
             continue
         year_diff = cur["start"].year - prev["start"].year
         # Legitimer Jahreswechsel Dez→Jan (diff=1, Monat springt 12→1)
-        legit_jump = (
-            year_diff == 1 and prev["start"].month == 12 and cur["start"].month == 1
-        )
+        legit_jump = year_diff == 1 and prev["start"].month == 12 and cur["start"].month == 1
         if abs(year_diff) > max_gap and not legit_jump:
             out.append(
                 Violation(
@@ -762,7 +748,7 @@ def _check_gap_between_events(
     if cat is not None:
         events = [e for e in events if e["category"] == cat]
     events = sorted([e for e in events if e["start"]], key=lambda e: e["start"])
-    for prev, cur in zip(events, events[1:]):
+    for prev, cur in zip(events, events[1:], strict=False):
         delta = _days_between(cur["start"], prev["start"])
         if hard_min is not None and delta < hard_min:
             out.append(
@@ -811,9 +797,7 @@ def _check_siccation_limits(
     check = rule["check"]
     out: list[Violation] = []
     all_herbizid = _events_with_wt_cat(cycle, WT_SPRITZEN, CAT_HERBIZID)
-    all_herbizid = sorted(
-        [e for e in all_herbizid if e["start"]], key=lambda e: e["start"]
-    )
+    all_herbizid = sorted([e for e in all_herbizid if e["start"]], key=lambda e: e["start"])
 
     def medium(ev: dict[str, Any]) -> str | None:
         name = (ev.get("name") or "").lower()
@@ -844,7 +828,7 @@ def _check_siccation_limits(
             )
         )
     gap_min, gap_max = check["quickdown_gap_days"]
-    for prev, cur in zip(quickdown, quickdown[1:]):
+    for prev, cur in zip(quickdown, quickdown[1:], strict=False):
         delta = _days_between(cur["start"], prev["start"])
         if delta < gap_min or delta > gap_max:
             out.append(
@@ -897,11 +881,7 @@ def _check_amount_range(
                     event_ref=_ref(e),
                 )
             )
-        elif (
-            soft_min is not None
-            and soft_max is not None
-            and (amt < soft_min or amt > soft_max)
-        ):
+        elif soft_min is not None and soft_max is not None and (amt < soft_min or amt > soft_max):
             out.append(
                 Violation(
                     rule_id=rid,
@@ -1133,8 +1113,7 @@ def _check_weather_condition(
                     rule_id=rid,
                     severity=sev,
                     message=(
-                        f"Niederschlag {w.precipitation_mm} mm > "
-                        f"{max_precip} mm am {_ref(e)}."
+                        f"Niederschlag {w.precipitation_mm} mm > {max_precip} mm am {_ref(e)}."
                     ),
                     event_ref=_ref(e),
                 )
@@ -1144,9 +1123,7 @@ def _check_weather_condition(
                 Violation(
                     rule_id=rid,
                     severity=sev,
-                    message=(
-                        f"Wind {w.wind_speed_ms} m/s > {max_wind} m/s am {_ref(e)}."
-                    ),
+                    message=(f"Wind {w.wind_speed_ms} m/s > {max_wind} m/s am {_ref(e)}."),
                     event_ref=_ref(e),
                 )
             )
@@ -1155,10 +1132,7 @@ def _check_weather_condition(
                 Violation(
                     rule_id=rid,
                     severity=sev,
-                    message=(
-                        f"Temperatur {w.temperature_max_c} °C > {max_temp} °C "
-                        f"am {_ref(e)}."
-                    ),
+                    message=(f"Temperatur {w.temperature_max_c} °C > {max_temp} °C am {_ref(e)}."),
                     event_ref=_ref(e),
                 )
             )
@@ -1199,10 +1173,7 @@ def _check_soil_condition(
                 Violation(
                     rule_id=rid,
                     severity=sev,
-                    message=(
-                        f"nFK {w.soil_moisture_pct_nfk} % > {max_moisture} % "
-                        f"am {_ref(e)}."
-                    ),
+                    message=(f"nFK {w.soil_moisture_pct_nfk} % > {max_moisture} % am {_ref(e)}."),
                     event_ref=_ref(e),
                 )
             )
@@ -1330,8 +1301,7 @@ def _weather_skip(rule: dict[str, Any]) -> CheckResult:
         violations=[],
         weather_skip=True,
         skip_reason=(
-            f"{rule['id']}: Wetter-/Bodenkopplung erst nach P3 verfügbar "
-            "(Befund B4/B8, Issue #57)."
+            f"{rule['id']}: Wetter-/Bodenkopplung erst nach P3 verfügbar (Befund B4/B8, Issue #57)."
         ),
     )
 

@@ -1,7 +1,7 @@
-import os
-import json
-from dataclasses import dataclass
 import datetime
+import json
+import os
+from dataclasses import dataclass
 from urllib.parse import urlparse
 
 from models.sim_context import SimContext
@@ -25,6 +25,7 @@ def _parse_field_filter_ids(raw: str | None) -> list[int] | None:
 @dataclass
 class DaemonConfig:
     """Validierte Konfiguration für den Daemon-Start."""
+
     api_url: str
     api_token: str
     farm_id: int
@@ -85,7 +86,9 @@ def load_and_validate_config() -> DaemonConfig:
         crop_type=os.getenv("CROP_TYPE", "Potato"),
         variety=os.getenv("VARIETY", "Belana"),
         season_start_date=datetime.datetime.fromisoformat(
-            os.getenv("SEASON_START_DATE", str(datetime.datetime.now().replace(month=10, day=1).date()))
+            os.getenv(
+                "SEASON_START_DATE", str(datetime.datetime.now().replace(month=10, day=1).date())
+            )
         ),
         fuel_variation=float(os.getenv("FUEL_VARIATION", "0.1")),
         farms_config_path=os.getenv("FARMS_CONFIG_PATH", "./config/farms.json"),
@@ -99,7 +102,7 @@ def load_and_validate_config() -> DaemonConfig:
 def _load_coords_by_name(farms_config_path: str, farm_id: int) -> dict[str, tuple[float, float]]:
     """Lade Koordinaten aus farms.json, gematcht nach Feldname."""
     try:
-        with open(farms_config_path, "r") as f:
+        with open(farms_config_path) as f:
             data = json.load(f)
         farm = next((fr for fr in data["farms"] if fr["id"] == farm_id), None)
         if farm is None:
@@ -116,11 +119,9 @@ def _load_coords_by_name(farms_config_path: str, farm_id: int) -> dict[str, tupl
 
 def load_sim_contexts_from_api(config: DaemonConfig, state_manager=None) -> list[SimContext]:
     sync_service = FarmSyncService(
-        api_url=config.api_base_url,
-        api_token=config.api_token,
-        timeout=config.api_timeout
+        api_url=config.api_base_url, api_token=config.api_token, timeout=config.api_timeout
     )
-    
+
     api_fields = sync_service.load_farm_fields(config.farm_id)
 
     if config.field_filter_ids:
@@ -135,14 +136,14 @@ def load_sim_contexts_from_api(config: DaemonConfig, state_manager=None) -> list
     if state_manager:
         local_field_ids = state_manager.get_all_field_ids()
         sync_result = sync_service.sync_fields(api_fields, local_field_ids)
-        
+
         logger.info(
             "Field sync completed",
             new_fields=sync_result.new_fields,
             existing_fields=len(sync_result.existing_fields),
-            inactive_fields=sync_result.inactive_fields
+            inactive_fields=sync_result.inactive_fields,
         )
-    
+
     # Koordinaten aus farms.json nach Feldname matchen (standortbezogene
     # Wetterdaten). Fallback: None (WeatherService nutzt Default-Koordinate).
     coords_by_name = _load_coords_by_name(config.farms_config_path, config.farm_id)
@@ -150,23 +151,25 @@ def load_sim_contexts_from_api(config: DaemonConfig, state_manager=None) -> list
     contexts = []
     for field in api_fields:
         coords = coords_by_name.get(field.field_name)
-        contexts.append(SimContext(
-            field_id=field.field_id,
-            field_name=field.field_name,
-            field_size=field.field_size,
-            soil_type=field.soil_type,
-            crop_type=config.crop_type,
-            variety=config.variety,
-            start_date=config.season_start_date,
-            fuel_variation=config.fuel_variation,
-            field_coords=coords,
-        ))
-    
+        contexts.append(
+            SimContext(
+                field_id=field.field_id,
+                field_name=field.field_name,
+                field_size=field.field_size,
+                soil_type=field.soil_type,
+                crop_type=config.crop_type,
+                variety=config.variety,
+                start_date=config.season_start_date,
+                fuel_variation=config.fuel_variation,
+                field_coords=coords,
+            )
+        )
+
     return contexts
 
 
 def load_sim_contexts_from_json(config: DaemonConfig) -> list[SimContext]:
-    with open(config.farms_config_path, "r") as f:
+    with open(config.farms_config_path) as f:
         data = json.load(f)
 
     farm = next((f for f in data["farms"] if f["id"] == config.farm_id), None)
@@ -178,17 +181,19 @@ def load_sim_contexts_from_json(config: DaemonConfig) -> list[SimContext]:
         coords = field.get("coords")
         field_coords = (coords["lon"], coords["lat"]) if coords else None
 
-        contexts.append(SimContext(
-            field_id=field["id"],
-            field_name=field["name"],
-            field_size=field["area"],
-            soil_type=field["soil_type"],
-            crop_type=config.crop_type,
-            variety=config.variety,
-            start_date=config.season_start_date,
-            fuel_variation=config.fuel_variation,
-            field_coords=field_coords,
-        ))
+        contexts.append(
+            SimContext(
+                field_id=field["id"],
+                field_name=field["name"],
+                field_size=field["area"],
+                soil_type=field["soil_type"],
+                crop_type=config.crop_type,
+                variety=config.variety,
+                start_date=config.season_start_date,
+                fuel_variation=config.fuel_variation,
+                field_coords=field_coords,
+            )
+        )
     return contexts
 
 
@@ -198,5 +203,5 @@ def load_sim_contexts(config: DaemonConfig, state_manager=None) -> list[SimConte
             return load_sim_contexts_from_api(config, state_manager)
         except ValueError as e:
             logger.warning("API load failed, falling back to JSON", error=str(e))
-    
+
     return load_sim_contexts_from_json(config)

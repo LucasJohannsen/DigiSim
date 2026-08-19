@@ -1,5 +1,5 @@
 import uuid
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from datetime import datetime
 from typing import Any
 
@@ -8,10 +8,10 @@ from typing import Any
 class DomainEvent:
     """
     Base class for all domain events in the simulation.
-    
+
     Domain events represent significant occurrences within the simulation
     that are relevant for traceability, debugging, and potential replay.
-    
+
     Attributes:
         event_id: Unique identifier for this event (UUID)
         event_type: Type/name of the event (e.g., 'DailyTickStarted')
@@ -19,102 +19,93 @@ class DomainEvent:
         field_id: ID of the field this event relates to
         payload: Event-specific data
     """
+
     event_id: str
     event_type: str
     timestamp: datetime
     field_id: str
     payload: dict[str, Any]
-    
+
     def to_dict(self) -> dict[str, Any]:
         """
         Serialize the event to a dictionary.
-        
+
         Returns:
             Dictionary representation with ISO-formatted timestamp
         """
         data = asdict(self)
-        data['timestamp'] = self.timestamp.isoformat()
+        data["timestamp"] = self.timestamp.isoformat()
         return data
-    
+
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> 'DomainEvent':
+    def from_dict(cls, data: dict[str, Any]) -> "DomainEvent":
         """
         Deserialize an event from a dictionary.
-        
+
         Args:
             data: Dictionary with event data
-            
+
         Returns:
             DomainEvent instance
         """
         data_copy = data.copy()
-        if isinstance(data_copy.get('timestamp'), str):
-            data_copy['timestamp'] = datetime.fromisoformat(data_copy['timestamp'])
+        if isinstance(data_copy.get("timestamp"), str):
+            data_copy["timestamp"] = datetime.fromisoformat(data_copy["timestamp"])
         return cls(**data_copy)
 
 
-def create_daily_tick_started(
-    field_id: str,
-    date: datetime
-) -> DomainEvent:
+def create_daily_tick_started(field_id: str, date: datetime) -> DomainEvent:
     """
     Create a DailyTickStarted event.
-    
+
     Emitted at the beginning of each simulation tick.
-    
+
     Args:
         field_id: ID of the field being simulated
         date: The simulation date for this tick
-        
+
     Returns:
         DomainEvent with type 'DailyTickStarted'
     """
     return DomainEvent(
         event_id=str(uuid.uuid4()),
-        event_type='DailyTickStarted',
+        event_type="DailyTickStarted",
         timestamp=datetime.now(),
         field_id=field_id,
-        payload={
-            'date': date.isoformat() if isinstance(date, datetime) else str(date)
-        }
+        payload={"date": date.isoformat() if isinstance(date, datetime) else str(date)},
     )
 
 
 def create_daily_tick_completed(
-    field_id: str,
-    date: datetime,
-    events_dispatched: int
+    field_id: str, date: datetime, events_dispatched: int
 ) -> DomainEvent:
     """
     Create a DailyTickCompleted event.
-    
+
     Emitted at the end of each simulation tick.
-    
+
     Args:
         field_id: ID of the field being simulated
         date: The simulation date for this tick
         events_dispatched: Number of integration events dispatched during this tick
-        
+
     Returns:
         DomainEvent with type 'DailyTickCompleted'
     """
     return DomainEvent(
         event_id=str(uuid.uuid4()),
-        event_type='DailyTickCompleted',
+        event_type="DailyTickCompleted",
         timestamp=datetime.now(),
         field_id=field_id,
         payload={
-            'date': date.isoformat() if isinstance(date, datetime) else str(date),
-            'events_dispatched': events_dispatched
-        }
+            "date": date.isoformat() if isinstance(date, datetime) else str(date),
+            "events_dispatched": events_dispatched,
+        },
     )
 
 
 def create_crop_cycle_scheduled(
-    field_id: str,
-    date: datetime,
-    planned_planting_date: datetime,
-    crop_type: str
+    field_id: str, date: datetime, planned_planting_date: datetime, crop_type: str
 ) -> DomainEvent:
     """
     Create a CropCycleScheduled event.
@@ -135,26 +126,22 @@ def create_crop_cycle_scheduled(
     """
     return DomainEvent(
         event_id=str(uuid.uuid4()),
-        event_type='CropCycleScheduled',
+        event_type="CropCycleScheduled",
         timestamp=datetime.now(),
         field_id=field_id,
         payload={
-            'date': date.isoformat() if isinstance(date, datetime) else str(date),
-            'planned_planting_date': (
+            "date": date.isoformat() if isinstance(date, datetime) else str(date),
+            "planned_planting_date": (
                 planned_planting_date.isoformat()
                 if isinstance(planned_planting_date, datetime)
                 else str(planned_planting_date)
             ),
-            'crop_type': crop_type
-        }
+            "crop_type": crop_type,
+        },
     )
 
 
-def create_crop_cycle_started(
-    field_id: str,
-    date: datetime,
-    crop_type: str
-) -> DomainEvent:
+def create_crop_cycle_started(field_id: str, date: datetime, crop_type: str) -> DomainEvent:
     """
     Create a CropCycleStarted event.
 
@@ -170,145 +157,133 @@ def create_crop_cycle_started(
     """
     return DomainEvent(
         event_id=str(uuid.uuid4()),
-        event_type='CropCycleStarted',
+        event_type="CropCycleStarted",
         timestamp=datetime.now(),
         field_id=field_id,
         payload={
-            'date': date.isoformat() if isinstance(date, datetime) else str(date),
-            'crop_type': crop_type
-        }
+            "date": date.isoformat() if isinstance(date, datetime) else str(date),
+            "crop_type": crop_type,
+        },
     )
 
 
 def create_harvest_completed(
-    field_id: str,
-    date: datetime,
-    yield_estimate: float | None = None
+    field_id: str, date: datetime, yield_estimate: float | None = None
 ) -> DomainEvent:
     """
     Create a HarvestCompleted event.
-    
+
     Emitted when harvest operations are completed.
-    
+
     Args:
         field_id: ID of the field
         date: Date when harvest was completed
         yield_estimate: Optional estimated yield
-        
+
     Returns:
         DomainEvent with type 'HarvestCompleted'
     """
     return DomainEvent(
         event_id=str(uuid.uuid4()),
-        event_type='HarvestCompleted',
+        event_type="HarvestCompleted",
         timestamp=datetime.now(),
         field_id=field_id,
         payload={
-            'date': date.isoformat() if isinstance(date, datetime) else str(date),
-            'yield_estimate': yield_estimate
-        }
+            "date": date.isoformat() if isinstance(date, datetime) else str(date),
+            "yield_estimate": yield_estimate,
+        },
     )
 
 
 def create_operation_considered(
-    field_id: str,
-    date: datetime,
-    operation_type: str,
-    worktype: int
+    field_id: str, date: datetime, operation_type: str, worktype: int
 ) -> DomainEvent:
     """
     Create an OperationConsidered event.
-    
+
     Emitted when an operation is evaluated as a candidate for execution.
-    
+
     Args:
         field_id: ID of the field
         date: Date when the operation was considered
         operation_type: Type/name of the operation
         worktype: Worktype ID of the operation
-        
+
     Returns:
         DomainEvent with type 'OperationConsidered'
     """
     return DomainEvent(
         event_id=str(uuid.uuid4()),
-        event_type='OperationConsidered',
+        event_type="OperationConsidered",
         timestamp=datetime.now(),
         field_id=field_id,
         payload={
-            'date': date.isoformat() if isinstance(date, datetime) else str(date),
-            'operation_type': operation_type,
-            'worktype': worktype
-        }
+            "date": date.isoformat() if isinstance(date, datetime) else str(date),
+            "operation_type": operation_type,
+            "worktype": worktype,
+        },
     )
 
 
 def create_operation_approved(
-    field_id: str,
-    date: datetime,
-    operation_type: str,
-    worktype: int
+    field_id: str, date: datetime, operation_type: str, worktype: int
 ) -> DomainEvent:
     """
     Create an OperationApproved event.
-    
+
     Emitted when an operation is approved for execution by the DecisionManager.
-    
+
     Args:
         field_id: ID of the field
         date: Date when the operation was approved
         operation_type: Type/name of the operation
         worktype: Worktype ID of the operation
-        
+
     Returns:
         DomainEvent with type 'OperationApproved'
     """
     return DomainEvent(
         event_id=str(uuid.uuid4()),
-        event_type='OperationApproved',
+        event_type="OperationApproved",
         timestamp=datetime.now(),
         field_id=field_id,
         payload={
-            'date': date.isoformat() if isinstance(date, datetime) else str(date),
-            'operation_type': operation_type,
-            'worktype': worktype
-        }
+            "date": date.isoformat() if isinstance(date, datetime) else str(date),
+            "operation_type": operation_type,
+            "worktype": worktype,
+        },
     )
 
 
 def create_operation_rejected(
-    field_id: str,
-    date: datetime,
-    operation_type: str,
-    worktype: int,
-    reason: str
+    field_id: str, date: datetime, operation_type: str, worktype: int, reason: str
 ) -> DomainEvent:
     """
     Create an OperationRejected event.
-    
+
     Emitted when an operation is rejected by the DecisionManager.
-    
+
     Args:
         field_id: ID of the field
         date: Date when the operation was rejected
         operation_type: Type/name of the operation
         worktype: Worktype ID of the operation
         reason: Reason for rejection (e.g., 'low_priority', 'weather_constraint')
-        
+
     Returns:
         DomainEvent with type 'OperationRejected'
     """
     return DomainEvent(
         event_id=str(uuid.uuid4()),
-        event_type='OperationRejected',
+        event_type="OperationRejected",
         timestamp=datetime.now(),
         field_id=field_id,
         payload={
-            'date': date.isoformat() if isinstance(date, datetime) else str(date),
-            'operation_type': operation_type,
-            'worktype': worktype,
-            'reason': reason
-        }
+            "date": date.isoformat() if isinstance(date, datetime) else str(date),
+            "operation_type": operation_type,
+            "worktype": worktype,
+            "reason": reason,
+        },
     )
 
 
@@ -317,34 +292,34 @@ def create_operation_applied(
     date: datetime,
     operation_type: str,
     worktype: int,
-    integration_event_id: str | None = None
+    integration_event_id: str | None = None,
 ) -> DomainEvent:
     """
     Create an OperationApplied event.
-    
+
     Emitted when an operation has been successfully applied/executed.
-    
+
     Args:
         field_id: ID of the field
         date: Date when the operation was applied
         operation_type: Type/name of the operation
         worktype: Worktype ID of the operation
         integration_event_id: Optional ID of the corresponding integration event
-        
+
     Returns:
         DomainEvent with type 'OperationApplied'
     """
     return DomainEvent(
         event_id=str(uuid.uuid4()),
-        event_type='OperationApplied',
+        event_type="OperationApplied",
         timestamp=datetime.now(),
         field_id=field_id,
         payload={
-            'date': date.isoformat() if isinstance(date, datetime) else str(date),
-            'operation_type': operation_type,
-            'worktype': worktype,
-            'integration_event_id': integration_event_id
-        }
+            "date": date.isoformat() if isinstance(date, datetime) else str(date),
+            "operation_type": operation_type,
+            "worktype": worktype,
+            "integration_event_id": integration_event_id,
+        },
     )
 
 
@@ -381,14 +356,14 @@ def create_protection_operations_pruned(
     """
     return DomainEvent(
         event_id=str(uuid.uuid4()),
-        event_type='ProtectionOperationsPruned',
+        event_type="ProtectionOperationsPruned",
         timestamp=datetime.now(),
         field_id=field_id,
         payload={
-            'date': date.isoformat() if isinstance(date, datetime) else str(date),
-            'planned_count': planned_count,
-            'pruned_count': pruned_count,
-            'pruned_after_harvest': pruned_after_harvest,
-            'pruned_sikkation_too_late': pruned_sikkation_too_late,
-        }
+            "date": date.isoformat() if isinstance(date, datetime) else str(date),
+            "planned_count": planned_count,
+            "pruned_count": pruned_count,
+            "pruned_after_harvest": pruned_after_harvest,
+            "pruned_sikkation_too_late": pruned_sikkation_too_late,
+        },
     )

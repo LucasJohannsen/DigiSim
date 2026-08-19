@@ -15,9 +15,8 @@ import pytest
 
 from models.sim_context import SimContext
 from scheduler.calendar_driven_runner import CalendarDrivenRunner
-from services.weather_service import WeatherData, WeatherDataProvider, WeatherDataService
 from services.providers.synthetic_weather_provider import SyntheticWeatherDataProvider
-
+from services.weather_service import WeatherData, WeatherDataProvider, WeatherDataService
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -74,9 +73,7 @@ class TestSyntheticWeatherDataProvider:
         data = synthetic_provider.get_weather_data(2024, (52.5, 9.9))
         assert len(data) == 366
 
-    def test_dates_cover_full_year(
-        self, synthetic_provider: SyntheticWeatherDataProvider
-    ) -> None:
+    def test_dates_cover_full_year(self, synthetic_provider: SyntheticWeatherDataProvider) -> None:
         data = synthetic_provider.get_weather_data(2023, (52.5, 9.9))
         assert data[0].date == datetime.date(2023, 1, 1)
         assert data[-1].date == datetime.date(2023, 12, 31)
@@ -87,7 +84,7 @@ class TestSyntheticWeatherDataProvider:
         data1 = synthetic_provider.get_weather_data(2023, (52.5, 9.9))
         data2 = synthetic_provider.get_weather_data(2023, (52.5, 9.9))
         assert len(data1) == len(data2)
-        for d1, d2 in zip(data1, data2):
+        for d1, d2 in zip(data1, data2, strict=False):
             assert d1 == d2
 
     def test_different_seed_different_output(self) -> None:
@@ -96,7 +93,7 @@ class TestSyntheticWeatherDataProvider:
         data1 = p1.get_weather_data(2023, (52.5, 9.9))
         data2 = p2.get_weather_data(2023, (52.5, 9.9))
         # Wenigstens ein Tag muss unterschiedlich sein
-        diffs = [d1 != d2 for d1, d2 in zip(data1, data2)]
+        diffs = [d1 != d2 for d1, d2 in zip(data1, data2, strict=False)]
         assert any(diffs)
 
     def test_precipitation_non_negative(
@@ -132,16 +129,8 @@ class TestSyntheticWeatherDataProvider:
     ) -> None:
         """Saisonales Muster: Sommer (Jul/Aug) sollte wärmer sein als Winter (Jan/Dez)."""
         data = synthetic_provider.get_weather_data(2023, (52.5, 9.9))
-        summer_temps = [
-            d.temperature_max_c
-            for d in data
-            if d.date.month in (7, 8)
-        ]
-        winter_temps = [
-            d.temperature_max_c
-            for d in data
-            if d.date.month in (1, 12)
-        ]
+        summer_temps = [d.temperature_max_c for d in data if d.date.month in (7, 8)]
+        winter_temps = [d.temperature_max_c for d in data if d.date.month in (1, 12)]
         avg_summer = sum(summer_temps) / len(summer_temps)
         avg_winter = sum(winter_temps) / len(winter_temps)
         assert avg_summer > avg_winter
@@ -168,21 +157,15 @@ class TestWeatherDataService:
         assert isinstance(wd, WeatherData)
         assert wd.date == date
 
-    def test_get_weather_for_date_jan1(
-        self, weather_service: WeatherDataService
-    ) -> None:
+    def test_get_weather_for_date_jan1(self, weather_service: WeatherDataService) -> None:
         wd = weather_service.get_weather_for_date(datetime.date(2026, 1, 1))
         assert wd.date == datetime.date(2026, 1, 1)
 
-    def test_get_weather_for_date_dec31(
-        self, weather_service: WeatherDataService
-    ) -> None:
+    def test_get_weather_for_date_dec31(self, weather_service: WeatherDataService) -> None:
         wd = weather_service.get_weather_for_date(datetime.date(2026, 12, 31))
         assert wd.date == datetime.date(2026, 12, 31)
 
-    def test_caching_does_not_call_provider_twice(
-        self, basic_context: SimContext
-    ) -> None:
+    def test_caching_does_not_call_provider_twice(self, basic_context: SimContext) -> None:
         mock_provider = Mock(spec=WeatherDataProvider)
         mock_provider.get_weather_data.return_value = [
             WeatherData(
@@ -195,18 +178,14 @@ class TestWeatherDataService:
             )
             for i in range(365)
         ]
-        service = WeatherDataService(
-            context=basic_context, provider=mock_provider
-        )
+        service = WeatherDataService(context=basic_context, provider=mock_provider)
         service.get_weather_for_date(datetime.date(2026, 3, 1))
         service.get_weather_for_date(datetime.date(2026, 6, 15))
         service.get_weather_for_date(datetime.date(2026, 9, 30))
         # Provider should only be called once for the same year
         assert mock_provider.get_weather_data.call_count == 1
 
-    def test_different_years_separate_cache(
-        self, basic_context: SimContext
-    ) -> None:
+    def test_different_years_separate_cache(self, basic_context: SimContext) -> None:
         mock_provider = Mock(spec=WeatherDataProvider)
         mock_provider.get_weather_data.return_value = [
             WeatherData(
@@ -219,16 +198,12 @@ class TestWeatherDataService:
             )
             for i in range(365)
         ]
-        service = WeatherDataService(
-            context=basic_context, provider=mock_provider
-        )
+        service = WeatherDataService(context=basic_context, provider=mock_provider)
         service.get_weather_for_date(datetime.date(2026, 6, 15))
         service.get_weather_for_date(datetime.date(2027, 6, 15))
         assert mock_provider.get_weather_data.call_count == 2
 
-    def test_get_forecast_returns_n_days(
-        self, weather_service: WeatherDataService
-    ) -> None:
+    def test_get_forecast_returns_n_days(self, weather_service: WeatherDataService) -> None:
         date = datetime.date(2026, 6, 15)
         forecast = weather_service.get_forecast(date, 7)
         assert len(forecast) == 7
@@ -236,9 +211,7 @@ class TestWeatherDataService:
         for i, wd in enumerate(forecast):
             assert wd.date == date + datetime.timedelta(days=i)
 
-    def test_get_forecast_at_year_boundary(
-        self, weather_service: WeatherDataService
-    ) -> None:
+    def test_get_forecast_at_year_boundary(self, weather_service: WeatherDataService) -> None:
         """Forecast über Jahreswechsel: 30.12. → 7 Tage Forecast reicht ins Folgejahr."""
         date = datetime.date(2026, 12, 30)
         forecast = weather_service.get_forecast(date, 7)
@@ -272,13 +245,9 @@ class TestWeatherDataService:
         ]
         service = WeatherDataService(context=ctx, provider=mock_provider)
         service.get_weather_for_date(datetime.date(2026, 6, 15))
-        mock_provider.get_weather_data.assert_called_once_with(
-            2026, (48.1, 11.5)
-        )
+        mock_provider.get_weather_data.assert_called_once_with(2026, (48.1, 11.5))
 
-    def test_field_coords_default_when_none(
-        self, basic_context: SimContext
-    ) -> None:
+    def test_field_coords_default_when_none(self, basic_context: SimContext) -> None:
         mock_provider = Mock(spec=WeatherDataProvider)
         mock_provider.get_weather_data.return_value = [
             WeatherData(
@@ -291,9 +260,7 @@ class TestWeatherDataService:
             )
             for i in range(365)
         ]
-        service = WeatherDataService(
-            context=basic_context, provider=mock_provider
-        )
+        service = WeatherDataService(context=basic_context, provider=mock_provider)
         service.get_weather_for_date(datetime.date(2026, 6, 15))
         args, _ = mock_provider.get_weather_data.call_args
         assert args[1] == (52.5, 9.9)
@@ -349,7 +316,9 @@ class TestCalendarDrivenRunnerWeatherIntegration:
         assert runner._weather_service_factory is factory
 
     def test_cycle_context_contains_current_weather(
-        self, basic_context: SimContext, mock_planting_plan_service: Mock,
+        self,
+        basic_context: SimContext,
+        mock_planting_plan_service: Mock,
         mock_protection_plan_service: Mock,
     ) -> None:
         """Nach _initialize_services enthält CycleContext current_weather."""
@@ -359,12 +328,15 @@ class TestCalendarDrivenRunnerWeatherIntegration:
         )
         factory = Mock(return_value=ws)
 
-        with patch(
-            "scheduler.calendar_driven_runner.PlantingPlanService",
-            return_value=mock_planting_plan_service,
-        ), patch(
-            "scheduler.calendar_driven_runner.ProtectionPlanService",
-            return_value=mock_protection_plan_service,
+        with (
+            patch(
+                "scheduler.calendar_driven_runner.PlantingPlanService",
+                return_value=mock_planting_plan_service,
+            ),
+            patch(
+                "scheduler.calendar_driven_runner.ProtectionPlanService",
+                return_value=mock_protection_plan_service,
+            ),
         ):
             runner = CalendarDrivenRunner(
                 basic_context,
@@ -379,7 +351,9 @@ class TestCalendarDrivenRunnerWeatherIntegration:
         assert isinstance(ctx.current_weather, WeatherData)
 
     def test_cycle_context_contains_weather_forecast(
-        self, basic_context: SimContext, mock_planting_plan_service: Mock,
+        self,
+        basic_context: SimContext,
+        mock_planting_plan_service: Mock,
         mock_protection_plan_service: Mock,
     ) -> None:
         """Nach _initialize_services enthält CycleContext weather_forecast."""
@@ -389,12 +363,15 @@ class TestCalendarDrivenRunnerWeatherIntegration:
         )
         factory = Mock(return_value=ws)
 
-        with patch(
-            "scheduler.calendar_driven_runner.PlantingPlanService",
-            return_value=mock_planting_plan_service,
-        ), patch(
-            "scheduler.calendar_driven_runner.ProtectionPlanService",
-            return_value=mock_protection_plan_service,
+        with (
+            patch(
+                "scheduler.calendar_driven_runner.PlantingPlanService",
+                return_value=mock_planting_plan_service,
+            ),
+            patch(
+                "scheduler.calendar_driven_runner.ProtectionPlanService",
+                return_value=mock_protection_plan_service,
+            ),
         ):
             runner = CalendarDrivenRunner(
                 basic_context,

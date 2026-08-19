@@ -99,9 +99,7 @@ class DryMoistureDataService(MoistureDataService):
         end = datetime.date(year, 12, 31)
         n_days = (end - start).days + 1
 
-        dates: list[datetime.date] = [
-            start + datetime.timedelta(days=i) for i in range(n_days)
-        ]
+        dates: list[datetime.date] = [start + datetime.timedelta(days=i) for i in range(n_days)]
 
         # Sägezahn-Verlauf in der Vegetationsperiode, konstant 60 % sonst.
         veg_day_index = 0

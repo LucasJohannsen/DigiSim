@@ -65,9 +65,7 @@ class DataTransferService:
                 )
                 measurements.append(
                     WeatherMeasurement(
-                        timestamp=datetime.datetime.combine(
-                            current, datetime.time(0, 0)
-                        ),
+                        timestamp=datetime.datetime.combine(current, datetime.time(0, 0)),
                         rain_fall=wd.precipitation_mm,
                         temperature=temperature,
                     )

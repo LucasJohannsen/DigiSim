@@ -1,6 +1,7 @@
 services:
   digisim:
     build: .
+    image: ghcr.io/lucasjohannsen/digisim:latest
     container_name: digisim
     restart: unless-stopped
     env_file: .env
@@ -9,7 +10,7 @@ services:
       - ./retry_queue:/app/retry_queue
       - ./logs:/app/logs
       - ./config:/app/config:ro
-      - ./dwd_data:/app/dwd_data:ro
+      - ./dwd_data:/app/dwd_data
     environment:
       - STATE_DIR=/app/state
       - LOG_FILE=/app/logs/digisim.log

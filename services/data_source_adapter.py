@@ -1,52 +1,52 @@
 from abc import ABC, abstractmethod
-from typing import Dict, Any
+from typing import Any
 
 
 class DataSourceAdapter(ABC):
     """
     Abstract base class for external data source adapters.
-    
+
     Provides a common interface for integrating external data sources
     (weather, sensors, soil parameters) into DigiSim.
-    
+
     All adapters should:
     - Implement fallback to default/static data if unavailable
     - Handle errors gracefully
     - Return data in standardized format
     - Support configuration via constructor
     """
-    
+
     @abstractmethod
     def is_available(self) -> bool:
         """
         Check if the data source is available.
-        
+
         Returns:
             True if data source can be accessed, False otherwise
         """
         pass
-    
+
     @abstractmethod
-    def get_data(self, **kwargs) -> Dict[str, Any]:
+    def get_data(self, **kwargs) -> dict[str, Any]:
         """
         Fetch data from the external source.
-        
+
         Args:
             **kwargs: Source-specific parameters
-            
+
         Returns:
             Dictionary with standardized data format
         """
         pass
-    
+
     @abstractmethod
-    def get_fallback_data(self, **kwargs) -> Dict[str, Any]:
+    def get_fallback_data(self, **kwargs) -> dict[str, Any]:
         """
         Get fallback data when external source is unavailable.
-        
+
         Args:
             **kwargs: Source-specific parameters
-            
+
         Returns:
             Dictionary with fallback data in same format as get_data()
         """
@@ -56,7 +56,7 @@ class DataSourceAdapter(ABC):
 class WeatherDataAdapter(DataSourceAdapter):
     """
     Abstract adapter for weather data sources.
-    
+
     Standardized output format:
     {
         'dates': [datetime.date, ...],
@@ -66,13 +66,14 @@ class WeatherDataAdapter(DataSourceAdapter):
         'evapotranspiration': [float, ...]  # mm per day (optional)
     }
     """
+
     pass
 
 
 class SoilDataAdapter(DataSourceAdapter):
     """
     Abstract adapter for soil parameter data.
-    
+
     Standardized output format:
     {
         'soil_type': str,
@@ -82,13 +83,14 @@ class SoilDataAdapter(DataSourceAdapter):
         'ph': float  # (optional)
     }
     """
+
     pass
 
 
 class SensorDataAdapter(DataSourceAdapter):
     """
     Abstract adapter for sensor data.
-    
+
     Standardized output format:
     {
         'sensor_id': str,
@@ -100,4 +102,5 @@ class SensorDataAdapter(DataSourceAdapter):
         }
     }
     """
+
     pass

@@ -29,16 +29,15 @@ from services.providers.synthetic_weather_provider import (
     SyntheticWeatherDataProvider,
 )
 from services.weather_service import WeatherDataService
-
 from tests.plausibility.dry_moisture_stub import DryMoistureDataService
 from tests.plausibility.rule_checks import (
     CheckResult,
     WeatherLookup,
+    check_rule,
     hard_violations,
     load_rules,
     normalize_events,
     segment_cycles,
-    check_rule,
     soft_violations,
 )
 
@@ -203,7 +202,7 @@ class TestDryMoistureService:
         data = stub.get_moisture_data(year=2026, depth_range="0-10")
         moisture = data["moisture_data"]
         dates = data["dates"]
-        for d, m in zip(dates, moisture):
+        for d, m in zip(dates, moisture, strict=False):
             if 5 <= d.month <= 9:
                 assert m < 50, f"{d}: nFK={m} >= 50 in Vegetationsperiode (Mai–Sep)."
 
@@ -223,7 +222,7 @@ class TestDryMoistureService:
         data = stub.get_moisture_data(year=2026, depth_range="0-10")
         moisture = data["moisture_data"]
         dates = data["dates"]
-        for d, m in zip(dates, moisture):
+        for d, m in zip(dates, moisture, strict=False):
             if d.month < 5 or d.month > 9:
                 assert m >= 50, f"{d}: nFK={m} < 50 außerhalb Vegetationsperiode."
 
@@ -257,9 +256,7 @@ class TestDryFixture:
     def test_dry_season_has_irrigation_events(self, dry_simulation) -> None:
         """AK 2: Dry-Saison enthält >= 1 Beregnungs-Event (wt=15)."""
         irrigation = [e for e in dry_simulation["events"] if e.worktype == 15]
-        assert len(irrigation) >= 1, (
-            f"Erwartet >= 1 Beregnungs-Event, got {len(irrigation)}."
-        )
+        assert len(irrigation) >= 1, f"Erwartet >= 1 Beregnungs-Event, got {len(irrigation)}."
 
     def test_irrigation_in_vegetation_period(self, dry_simulation) -> None:
         """AK 2: Beregnungs-Events liegen in der Vegetationsperiode (Mai–Sep)."""
@@ -271,9 +268,7 @@ class TestDryFixture:
                 month = int(start[5:7])
             else:
                 month = start.month
-            assert 5 <= month <= 9, (
-                f"Beregnung außerhalb Mai–Sep: {start} (Monat {month})."
-            )
+            assert 5 <= month <= 9, f"Beregnung außerhalb Mai–Sep: {start} (Monat {month})."
 
     def test_dry_fixture_is_deterministic(self, dry_simulation) -> None:
         """Zweite Ausführung mit gleichem Seed liefert gleiche Event-Anzahl."""
@@ -299,12 +294,9 @@ class TestDryFixture:
         with contextlib.redirect_stdout(buf):
             events = runner.run()
         assert len(events) == len(dry_simulation["events"]), (
-            f"Nicht deterministisch: {len(events)} vs "
-            f"{len(dry_simulation['events'])} Events."
+            f"Nicht deterministisch: {len(events)} vs {len(dry_simulation['events'])} Events."
         )
-        assert [e.start_date for e in events] == [
-            e.start_date for e in dry_simulation["events"]
-        ]
+        assert [e.start_date for e in events] == [e.start_date for e in dry_simulation["events"]]
 
 
 # ---------------------------------------------------------------------------
@@ -351,7 +343,6 @@ class TestKartoffelRegelnDry:
                 + "; ".join(v.message for v in result.violations)
             )
         else:
-            assert hard == [], (
-                f"{rule_id}: {len(hard)} harte Verletzung(en) – "
-                + "; ".join(v.message for v in hard)
+            assert hard == [], f"{rule_id}: {len(hard)} harte Verletzung(en) – " + "; ".join(
+                v.message for v in hard
             )

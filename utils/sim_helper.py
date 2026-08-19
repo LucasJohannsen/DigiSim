@@ -1,16 +1,17 @@
 import calendar
+import json
 import random
 from datetime import datetime, time, timedelta
-import json
 
-from models.planting_plan import PlantingPlan, FieldOperation
+from models.planting_plan import FieldOperation, PlantingPlan
+
 
 # get random date between start and end period
 def get_random_date(start_month, end_month, year):
 
     # Convert month to a date in the year 2023 (or any arbitrary year)
     start_date = datetime(year, start_month, 1)
-    end_date = datetime(year, end_month+1, 1)
+    end_date = datetime(year, end_month + 1, 1)
 
     # Calculate the number of days between the two dates
     delta_days = (end_date - start_date).days
@@ -19,7 +20,15 @@ def get_random_date(start_month, end_month, year):
     random_days = random.randint(0, delta_days)
 
     # Return the random date
-    return start_date + timedelta(days=random_days) + timedelta(hours=random.randint(0, 23), minutes=random.randint(0, 59), seconds=random.randint(0, 59))
+    return (
+        start_date
+        + timedelta(days=random_days)
+        + timedelta(
+            hours=random.randint(0, 23),
+            minutes=random.randint(0, 59),
+            seconds=random.randint(0, 59),
+        )
+    )
 
 
 def resolve_planting_year(
@@ -94,17 +103,21 @@ def get_random_planting_date(
         # correct, but guards against degenerate inputs.
         delta_days = 0
     random_days = random.randint(0, delta_days)
-    return window_start + timedelta(days=random_days) + timedelta(
-        hours=random.randint(0, 23),
-        minutes=random.randint(0, 59),
-        seconds=random.randint(0, 59),
+    return (
+        window_start
+        + timedelta(days=random_days)
+        + timedelta(
+            hours=random.randint(0, 23),
+            minutes=random.randint(0, 59),
+            seconds=random.randint(0, 59),
+        )
     )
 
+
 def get_random_date_in_range(min_days_offset, max_days_offset, target_date) -> datetime:
-    
     """
     Get a random date within a specified range of days from a target date.
-    
+
     :param min_days_offset: Minimum number of days to offset from the target date.
     :param max_days_offset: Maximum number of days to offset from the target date.
     :param target_date: The target date to offset from.
@@ -117,7 +130,7 @@ def get_random_date_in_range(min_days_offset, max_days_offset, target_date) -> d
 def get_operations_by_phase(planting_plan: PlantingPlan, phase_name: str) -> list[FieldOperation]:
     """
     Get the operations for a specific phase in the planting plan.
-    
+
     :param planting_plan: The PlantingPlan object containing the phases and operations.
     :param phase_name: The name of the phase to retrieve operations for.
     :return: A list of FieldOperations for the specified phase.
@@ -127,28 +140,31 @@ def get_operations_by_phase(planting_plan: PlantingPlan, phase_name: str) -> lis
             return phase.operations
     return []
 
+
 def get_protection_categories():
     # read the file in config/categories.json
-    
-    with open('config/category.json', 'r') as file:
+
+    with open("config/category.json") as file:
         data = json.load(file)
         # If data is a list of categories, just return it
         return data
-    
+
+
 def sanitize_filename(filename: str) -> str:
     """
     Sanitize a filename by removing invalid characters and truncating to 50 characters.
-    
+
     :param filename: The original filename to sanitize.
     :return: A sanitized version of the filename.
     """
     # Remove invalid characters and truncate to 50 characters
     MAX_FILENAME_LENGTH = 50
     ALLOWED_FILENAME_CHARS = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-. "
-    
-    sanitized = ''.join(c for c in filename if c.isalnum() or c in ALLOWED_FILENAME_CHARS).rstrip()
-    sanitized = sanitized.replace(' ', '_')
+
+    sanitized = "".join(c for c in filename if c.isalnum() or c in ALLOWED_FILENAME_CHARS).rstrip()
+    sanitized = sanitized.replace(" ", "_")
     return sanitized[:MAX_FILENAME_LENGTH]
+
 
 def assign_sequential_time(
     date: datetime,

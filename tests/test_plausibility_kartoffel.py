@@ -27,14 +27,13 @@ import pytest
 from events.domain_event_bus import DomainEventBus
 from models.sim_context import SimContext
 from scheduler.fast_forward_runner import FastForwardRunner
-
 from tests.plausibility.rule_checks import (
     CheckResult,
+    check_rule,
     hard_violations,
     load_rules,
     normalize_events,
     segment_cycles,
-    check_rule,
     soft_violations,
 )
 
@@ -230,16 +229,12 @@ class TestFixtureBaseline:
             field_name=_FIELD_NAME,
             fuel_variation=0.1,
         )
-        runner = FastForwardRunner(
-            context=ctx, n_days=_N_DAYS, output_target="stdout"
-        )
+        runner = FastForwardRunner(context=ctx, n_days=_N_DAYS, output_target="stdout")
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             events = runner.run()
         assert len(events) == len(simulation["events"])
-        assert [e.start_date for e in events] == [
-            e.start_date for e in simulation["events"]
-        ]
+        assert [e.start_date for e in events] == [e.start_date for e in simulation["events"]]
 
     def test_no_network_access(self, simulation, monkeypatch):
         """Stellt sicher, dass die Simulation keinen Netzwerkzugriff benötigt.
@@ -265,9 +260,7 @@ class TestFixtureBaseline:
             field_name=_FIELD_NAME,
             fuel_variation=0.1,
         )
-        runner = FastForwardRunner(
-            context=ctx, n_days=30, output_target="stdout"
-        )
+        runner = FastForwardRunner(context=ctx, n_days=30, output_target="stdout")
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             runner.run()
@@ -320,9 +313,8 @@ class TestKartoffelRegeln:
                 + "; ".join(v.message for v in result.violations)
             )
         else:
-            assert hard == [], (
-                f"{rule_id}: {len(hard)} harte Verletzung(en) – "
-                + "; ".join(v.message for v in hard)
+            assert hard == [], f"{rule_id}: {len(hard)} harte Verletzung(en) – " + "; ".join(
+                v.message for v in hard
             )
 
 
@@ -336,13 +328,8 @@ class TestDomainEventChecks:
 
     def test_crop_cycle_started_emitted_once(self, simulation):
         """Genau 1× CropCycleStarted je Lauf (1 Zyklus in der Baseline)."""
-        started = [
-            e for e in simulation["domain_events"]
-            if e.event_type == "CropCycleStarted"
-        ]
-        assert len(started) == 1, (
-            f"Erwartet genau 1 CropCycleStarted, got {len(started)}."
-        )
+        started = [e for e in simulation["domain_events"] if e.event_type == "CropCycleStarted"]
+        assert len(started) == 1, f"Erwartet genau 1 CropCycleStarted, got {len(started)}."
 
     def test_harvest_completed_emitted_once_per_cycle(self, simulation):
         """Genau 1× HarvestCompleted je Zyklus (deckt B13 ab).
@@ -353,27 +340,20 @@ class TestDomainEventChecks:
         Event der Harvest-Phase (worktypes 14/27/58 = Herbizid/Roden/
         Lagerung).
         """
-        completed = [
-            e for e in simulation["domain_events"]
-            if e.event_type == "HarvestCompleted"
-        ]
-        assert len(completed) == 1, (
-            f"Erwartet genau 1 HarvestCompleted, got {len(completed)}."
-        )
+        completed = [e for e in simulation["domain_events"] if e.event_type == "HarvestCompleted"]
+        assert len(completed) == 1, f"Erwartet genau 1 HarvestCompleted, got {len(completed)}."
 
         # AK 1 (Issue #69): HarvestCompleted.date == Datum der letzten
         # Harvest-Operation. Vor dem Fix wurde das Event erst am Folgetag
         # erkannt und mit date=X+1 emittiert.
         harvest_worktypes = {14, 27, 58}  # Herbizid, Roden, Lagerung
         harvest_op_events = [
-            e for e in simulation["domain_events"]
-            if e.event_type == "OperationApplied"
-            and e.payload.get("worktype") in harvest_worktypes
+            e
+            for e in simulation["domain_events"]
+            if e.event_type == "OperationApplied" and e.payload.get("worktype") in harvest_worktypes
         ]
         assert harvest_op_events, "Keine Harvest-OperationApplied-Events."
-        last_harvest_op = max(
-            harvest_op_events, key=lambda e: e.payload["date"]
-        )
+        last_harvest_op = max(harvest_op_events, key=lambda e: e.payload["date"])
         assert completed[0].payload["date"] == last_harvest_op.payload["date"], (
             f"HarvestCompleted.date {completed[0].payload['date']} != "
             f"letzter Harvest-Op {last_harvest_op.payload['date']}"
@@ -385,18 +365,14 @@ class TestDomainEventChecks:
         Nach Fix von B2 (Issue #58) liegt der Legetermin im Startjahr
         (2026-04/05), nicht mehr in ``start_year+1``.
         """
-        planting = [
-            e for e in simulation["events"] if e.worktype == 26
-        ]
+        planting = [e for e in simulation["events"] if e.worktype == 26]
         assert planting, "Kein Lege-Event in der Simulation."
         start = planting[0].start_date
         if isinstance(start, str):
             year = int(start[:4])
         else:
             year = start.year
-        assert year == _START_DATE.year, (
-            f"Lege-Event im Jahr {year}, erwartet {_START_DATE.year}."
-        )
+        assert year == _START_DATE.year, f"Lege-Event im Jahr {year}, erwartet {_START_DATE.year}."
 
 
 # ---------------------------------------------------------------------------
@@ -435,22 +411,17 @@ class TestGuardSafetyNet:
         Wetter-Guards fachlich greifen.
         """
         guard_rejections = [
-            e for e in simulation["domain_events"]
-            if e.event_type == "OperationRejected"
-            and "KAR-" in str(e.payload.get("reason", ""))
+            e
+            for e in simulation["domain_events"]
+            if e.event_type == "OperationRejected" and "KAR-" in str(e.payload.get("reason", ""))
         ]
         assert len(guard_rejections) == 18, (
             f"Erwartet 18 Guard-Rejections (Wetter-Guards), got "
             f"{len(guard_rejections)}. Gründe: "
-            + "; ".join(
-                e.payload["reason"] for e in guard_rejections[:5]
-            )
+            + "; ".join(e.payload["reason"] for e in guard_rejections[:5])
         )
         # Alle Rejections müssen von Wetter-Guards stammen (KAR-030/031)
-        rule_ids = {
-            e.payload["reason"].split(":")[0]
-            for e in guard_rejections
-        }
+        rule_ids = {e.payload["reason"].split(":")[0] for e in guard_rejections}
         assert rule_ids <= {"KAR-030", "KAR-031", "KAR-032", "KAR-035"}, (
             f"Unerwartete Guard-Regel-IDs: {rule_ids}"
         )
@@ -476,8 +447,6 @@ class TestWeatherRulesSkipped:
     ) -> None:
         rule = next(r for r in rules if r["id"] == rule_id)
         result = check_rule(rule, simulation["cycles"])
-        assert result.weather_skip, (
-            f"{rule_id} sollte als Wetterregel übersprungen werden."
-        )
+        assert result.weather_skip, f"{rule_id} sollte als Wetterregel übersprungen werden."
         assert result.skip_reason, f"{rule_id} benötigt eine Skip-Begründung."
         pytest.skip(result.skip_reason)

@@ -1,9 +1,12 @@
 """
 Tests for IrrigationSimulator state persistence (Issue #33)
 """
-import pytest
-import numpy as np
+
 import datetime
+
+import numpy as np
+import pytest
+
 from models.sim_context import SimContext
 from services.irrigation_service import IrrigationSimulator
 
@@ -18,7 +21,7 @@ def sim_context():
         start_date=datetime.datetime(2022, 1, 1),
         crop_type="Potato",
         variety="Belana",
-        fuel_variation=0.1
+        fuel_variation=0.1,
     )
 
 
@@ -27,12 +30,8 @@ def moisture_data():
     """Create sample moisture data for 365 days"""
     dates = [datetime.date(2022, 1, 1) + datetime.timedelta(days=i) for i in range(365)]
     moisture_values = [60.0] * 365  # Start with 60% moisture
-    
-    return {
-        "coords": {"lat": 52.0, "lon": 13.0},
-        "dates": dates,
-        "moisture_data": moisture_values
-    }
+
+    return {"coords": {"lat": 52.0, "lon": 13.0}, "dates": dates, "moisture_data": moisture_values}
 
 
 def test_irrigation_simulator_get_state(sim_context, moisture_data):
@@ -88,7 +87,9 @@ def test_irrigation_simulator_continuity_after_restore(sim_context, moisture_dat
         date = sim_context.start_date + datetime.timedelta(days=day)
         status = simulator_continuous.get_status_for_day(date)
         if status["needs_irrigation"]:
-            simulator_continuous.trigger_irrigation(date, irrigation_amount=status["irrigation_needed"])
+            simulator_continuous.trigger_irrigation(
+                date, irrigation_amount=status["irrigation_needed"]
+            )
 
     continuous_state_day30 = simulator_continuous.get_state()
 
@@ -100,7 +101,9 @@ def test_irrigation_simulator_continuity_after_restore(sim_context, moisture_dat
         date = sim_context.start_date + datetime.timedelta(days=day)
         status = simulator_restored.get_status_for_day(date)
         if status["needs_irrigation"]:
-            simulator_restored.trigger_irrigation(date, irrigation_amount=status["irrigation_needed"])
+            simulator_restored.trigger_irrigation(
+                date, irrigation_amount=status["irrigation_needed"]
+            )
 
     # Save and restore state
     saved_state = simulator_restored.get_state()
@@ -112,7 +115,9 @@ def test_irrigation_simulator_continuity_after_restore(sim_context, moisture_dat
         date = sim_context.start_date + datetime.timedelta(days=day)
         status = simulator_restored.get_status_for_day(date)
         if status["needs_irrigation"]:
-            simulator_restored.trigger_irrigation(date, irrigation_amount=status["irrigation_needed"])
+            simulator_restored.trigger_irrigation(
+                date, irrigation_amount=status["irrigation_needed"]
+            )
 
     restored_state_day30 = simulator_restored.get_state()
 
@@ -121,25 +126,25 @@ def test_irrigation_simulator_continuity_after_restore(sim_context, moisture_dat
         np.array(continuous_state_day30["irrigation"]),
         np.array(restored_state_day30["irrigation"]),
         decimal=2,
-        err_msg="Irrigation arrays should match after restore"
+        err_msg="Irrigation arrays should match after restore",
     )
 
     np.testing.assert_array_almost_equal(
         np.array(continuous_state_day30["updated_moisture"]),
         np.array(restored_state_day30["updated_moisture"]),
         decimal=2,
-        err_msg="Updated moisture arrays should match after restore"
+        err_msg="Updated moisture arrays should match after restore",
     )
 
 
 def test_irrigation_simulator_apply_empty_state(sim_context, moisture_data):
     """Test that apply_state handles None/empty state gracefully"""
     simulator = IrrigationSimulator(sim_context, moisture_data)
-    
+
     # Should not raise error
     simulator.apply_state(None)
     simulator.apply_state({})
-    
+
     # Arrays should be initialized to defaults
     assert len(simulator.irrigation) == 365
     assert len(simulator.updated_moisture) == 365
@@ -148,13 +153,13 @@ def test_irrigation_simulator_apply_empty_state(sim_context, moisture_data):
 def test_irrigation_simulator_apply_malformed_state(sim_context, moisture_data):
     """Test that apply_state handles malformed state by resetting to defaults"""
     simulator = IrrigationSimulator(sim_context, moisture_data)
-    
+
     # Apply state with wrong array lengths
     malformed_state = {
         "irrigation": [1.0, 2.0, 3.0],  # Too short
-        "updated_moisture": [50.0, 51.0]  # Too short
+        "updated_moisture": [50.0, 51.0],  # Too short
     }
-    
+
     simulator.apply_state(malformed_state)
 
     # Arrays should be reset to correct length

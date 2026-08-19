@@ -19,34 +19,35 @@ Fungizid-Spritztermine und -Abstände werden aus der ISIP-Datenbank bezogen (reg
 ```python
 # services/isip_protection_service.py
 
+
 class IsipProtectionService:
     """Bezieht Fungizid-Spritztermine und -Abstände aus der ISIP-Datenbank.
-    
+
     ISIP (Informationssystem Integrierte Pflanzenproduktion) liefert
     regionsspezifische Spritzfenster und Warnhinweise für Pflanzenschutz-
     maßnahmen. DigiZert hält die API-Zugangsdaten.
     """
-    
+
     def __init__(
         self,
         context: SimContext,
         api_credentials: dict[str, str],  # aus config/isip_config.json
-        event_bus: Optional[DomainEventBus] = None
+        event_bus: Optional[DomainEventBus] = None,
     ):
         self.context = context
         self.api_credentials = api_credentials
         self.event_bus = event_bus
         self._cache: dict[str, list[dict]] = {}
-    
+
     def get_fungicide_schedule(
         self,
         crop: str,
         variety: str,
         region: str,  # aus field_coords abgeleitet
-        season_year: int
+        season_year: int,
     ) -> list[dict]:
         """Liefert ISIP-Spritztermine für Fungizide einer Saison.
-        
+
         Returns:
             Liste von dicts mit Keys:
             - product_name: str
@@ -58,14 +59,12 @@ class IsipProtectionService:
         # API-Aufruf an ISIP (via DigiZert-Proxy oder direkt)
         # Caching pro (crop, variety, region, year)
         ...
-    
+
     def apply_isip_schedule(
-        self,
-        operations: list[FieldOperation],
-        season_year: int
+        self, operations: list[FieldOperation], season_year: int
     ) -> list[FieldOperation]:
         """Überschreibt geplante Fungizid-Termine mit ISIP-Daten.
-        
+
         Nur Fungizide (application_category=27) mit use_isip_schedule=true
         werden überschrieben. Andere Protection-Operationen bleiben
         an der konfigurierten Planung.
@@ -74,7 +73,7 @@ class IsipProtectionService:
             crop=self.context.crop_type,
             variety=self.context.variety,
             region=self._region_from_coords(),
-            season_year=season_year
+            season_year=season_year,
         )
         # Matche nach product_name, setze planned_date + due_window_days
         ...
@@ -91,19 +90,17 @@ class ProtectionPlanService:
         planting_plan: PlantingPlan,
         harvest_date: datetime.date,
         event_bus: DomainEventBus,
-        isip_service: IsipProtectionService | None = None  # NEU (P3-8)
+        isip_service: IsipProtectionService | None = None,  # NEU (P3-8)
     ):
         # ...
         self.isip_service = isip_service
         if self.isip_service is not None:
             self._apply_isip_schedule()
-    
+
     def _apply_isip_schedule(self) -> None:
         """Überschreibt Fungizid-Termine mit ISIP-Daten, falls verfügbar."""
         season_year = self.start_date.year
-        self.operations = self.isip_service.apply_isip_schedule(
-            self.operations, season_year
-        )
+        self.operations = self.isip_service.apply_isip_schedule(self.operations, season_year)
 ```
 
 ### Konfiguration
@@ -144,11 +141,11 @@ class CalendarDrivenRunner:
         self,
         context: SimContext,
         event_bus: Optional[DomainEventBus] = None,
-        isip_service: Optional[IsipProtectionService] = None  # NEU (P3-8)
+        isip_service: Optional[IsipProtectionService] = None,  # NEU (P3-8)
     ):
         # ...
         self._isip_service = isip_service
-    
+
     def _initialize_services(self, current_date: datetime.date) -> None:
         # ...
         self.protection_plan_service = ProtectionPlanService(

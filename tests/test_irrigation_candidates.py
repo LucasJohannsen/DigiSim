@@ -8,9 +8,12 @@ This test suite verifies:
 4. Proper separation of concerns in the decision pipeline
 5. Correct event date from the passed simulation date (Issue #59)
 """
-import pytest
-import numpy as np
+
 import datetime
+
+import numpy as np
+import pytest
+
 from models.sim_context import SimContext
 from services.irrigation_service import IrrigationSimulator
 
@@ -26,7 +29,7 @@ def sim_context():
         start_date=datetime.datetime(2022, 1, 1),
         crop_type="Potato",
         variety="Belana",
-        fuel_variation=0.1
+        fuel_variation=0.1,
     )
 
 
@@ -37,11 +40,7 @@ def moisture_data_dry():
     # Low moisture levels that trigger irrigation
     moisture_values = [30.0] * 365  # Below default threshold of 50
 
-    return {
-        "coords": [52.0, 13.0],
-        "dates": dates,
-        "moisture_data": moisture_values
-    }
+    return {"coords": [52.0, 13.0], "dates": dates, "moisture_data": moisture_values}
 
 
 @pytest.fixture
@@ -51,11 +50,7 @@ def moisture_data_wet():
     # High moisture levels, no irrigation needed
     moisture_values = [80.0] * 365  # Above threshold
 
-    return {
-        "coords": [52.0, 13.0],
-        "dates": dates,
-        "moisture_data": moisture_values
-    }
+    return {"coords": [52.0, 13.0], "dates": dates, "moisture_data": moisture_values}
 
 
 class TestCandidateGeneration:
@@ -81,8 +76,8 @@ class TestCandidateGeneration:
 
         event = candidates[0]
         assert event.worktype == 15
-        assert event.worktype_text == 'Bewässerung'
-        assert event.application_type == 'irrigation'
+        assert event.worktype_text == "Bewässerung"
+        assert event.application_type == "irrigation"
         assert event.application_amount > 0
 
     def test_candidate_has_correct_attributes(self, sim_context, moisture_data_dry):
@@ -93,20 +88,20 @@ class TestCandidateGeneration:
         event = candidates[0]
 
         # Verify all required attributes
-        assert hasattr(event, 'worktype')
-        assert hasattr(event, 'start_date')
-        assert hasattr(event, 'end_date')
-        assert hasattr(event, 'area')
-        assert hasattr(event, 'duration')
-        assert hasattr(event, 'fuel')
-        assert hasattr(event, 'application_amount')
-        assert hasattr(event, 'application_unit')
-        assert hasattr(event, 'field')
+        assert hasattr(event, "worktype")
+        assert hasattr(event, "start_date")
+        assert hasattr(event, "end_date")
+        assert hasattr(event, "area")
+        assert hasattr(event, "duration")
+        assert hasattr(event, "fuel")
+        assert hasattr(event, "application_amount")
+        assert hasattr(event, "application_unit")
+        assert hasattr(event, "field")
 
         # Verify values
         assert event.worktype == 15
         assert event.area == sim_context.field_size
-        assert event.application_unit == 'mm'  # D2: Neue DataUnit "mm"
+        assert event.application_unit == "mm"  # D2: Neue DataUnit "mm"
         assert event.application_category == 35  # D2: DropdownData irrigation
         assert event.field == sim_context.field_id
 
@@ -126,12 +121,12 @@ class TestCandidateGeneration:
         np.testing.assert_array_equal(
             simulator.irrigation,
             original_irrigation,
-            err_msg="Candidate generation should NOT modify irrigation array"
+            err_msg="Candidate generation should NOT modify irrigation array",
         )
         np.testing.assert_array_equal(
             simulator.updated_moisture,
             original_updated_moisture,
-            err_msg="Candidate generation should NOT modify updated_moisture array"
+            err_msg="Candidate generation should NOT modify updated_moisture array",
         )
 
     def test_handles_out_of_range_day_gracefully(self, sim_context, moisture_data_dry):
@@ -192,7 +187,9 @@ class TestApplyIrrigation:
 class TestTriggerIrrigationBackwardCompatibility:
     """Test that trigger_irrigation() still works (backward compatibility)"""
 
-    def test_trigger_irrigation_combines_candidate_and_side_effects(self, sim_context, moisture_data_dry):
+    def test_trigger_irrigation_combines_candidate_and_side_effects(
+        self, sim_context, moisture_data_dry
+    ):
         """trigger_irrigation() should create event AND apply side-effects"""
         simulator = IrrigationSimulator(sim_context, moisture_data_dry)
 
@@ -246,7 +243,9 @@ class TestTriggerIrrigationBackwardCompatibility:
 class TestCandidateAndApplySeparation:
     """Test the separation of candidate generation and side-effect application"""
 
-    def test_candidate_then_apply_produces_same_result_as_trigger(self, sim_context, moisture_data_dry):
+    def test_candidate_then_apply_produces_same_result_as_trigger(
+        self, sim_context, moisture_data_dry
+    ):
         """Using get_candidate + apply should produce same result as trigger_irrigation"""
         # Simulator 1: Use new pattern (candidate + apply)
         sim1 = IrrigationSimulator(sim_context, moisture_data_dry)
@@ -270,7 +269,9 @@ class TestCandidateAndApplySeparation:
         assert sim1.updated_moisture[day] > moisture_data_dry["moisture_data"][day]
         assert sim2.updated_moisture[day] > moisture_data_dry["moisture_data"][day]
 
-    def test_multiple_candidates_can_be_generated_before_applying(self, sim_context, moisture_data_dry):
+    def test_multiple_candidates_can_be_generated_before_applying(
+        self, sim_context, moisture_data_dry
+    ):
         """Should be able to generate multiple candidates before applying any"""
         simulator = IrrigationSimulator(sim_context, moisture_data_dry)
 
@@ -298,7 +299,9 @@ class TestCandidateAndApplySeparation:
 
         # Now apply one
         if candidates_day_101:
-            simulator.apply_irrigation(date=date_101, irrigation_amount=candidates_day_101[0].application_amount)
+            simulator.apply_irrigation(
+                date=date_101, irrigation_amount=candidates_day_101[0].application_amount
+            )
 
         # Only day 101 should have irrigation applied
         assert simulator.irrigation[day_100] == 0
@@ -430,9 +433,7 @@ class TestTargetApplicationAmount:
         candidates = simulator.get_candidate_operations(datetime.date(2022, 4, 10))
         assert len(candidates) >= 1
         total = sum(c.application_amount for c in candidates)
-        assert total >= 10.0, (
-            f"Total application {total} mm below min 10 mm"
-        )
+        assert total >= 10.0, f"Total application {total} mm below min 10 mm"
         assert total == 10.0
 
     def test_no_application_above_max(self, sim_context, moisture_data_dry):
@@ -452,9 +453,7 @@ class TestTargetApplicationAmount:
         candidates = simulator.get_candidate_operations(datetime.date(2022, 4, 10))
         assert len(candidates) >= 1
         total = sum(c.application_amount for c in candidates)
-        assert total <= 40.0, (
-            f"Total application {total} mm above max 40 mm"
-        )
+        assert total <= 40.0, f"Total application {total} mm above max 40 mm"
         assert total == 40.0
 
     def test_all_applications_within_hard_limits(self, sim_context, moisture_data_dry):
@@ -476,9 +475,7 @@ class TestTargetApplicationAmount:
 class TestPostIrrigationBlock:
     """P3-3 AK 5: Post-Irrigation-Block (10 Tage nach Beregnung)."""
 
-    def test_no_candidates_for_10_days_after_irrigation(
-        self, sim_context, moisture_data_very_dry
-    ):
+    def test_no_candidates_for_10_days_after_irrigation(self, sim_context, moisture_data_very_dry):
         """Nach apply_irrigation() werden für 10 Tage keine Kandidaten erzeugt."""
         simulator = IrrigationSimulator(sim_context, moisture_data_very_dry)
         np.random.seed(42)
@@ -516,21 +513,15 @@ class TestPostIrrigationBlock:
 class TestSeasonalLimit:
     """P3-3 AK 4: Saisonale Obergrenze 170 mm (hard-stop)."""
 
-    def test_no_candidates_after_seasonal_max_reached(
-        self, sim_context, moisture_data_very_dry
-    ):
+    def test_no_candidates_after_seasonal_max_reached(self, sim_context, moisture_data_very_dry):
         """AK 4: Nach Erreichen von 170 mm keine weiteren Kandidaten."""
         simulator = IrrigationSimulator(sim_context, moisture_data_very_dry)
         simulator.seasonal_sum_mm = 170.0
 
         candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 15))
-        assert candidates == [], (
-            "Expected no candidates after seasonal max (170 mm) reached"
-        )
+        assert candidates == [], "Expected no candidates after seasonal max (170 mm) reached"
 
-    def test_candidates_when_below_seasonal_max(
-        self, sim_context, moisture_data_very_dry
-    ):
+    def test_candidates_when_below_seasonal_max(self, sim_context, moisture_data_very_dry):
         """Unter 170 mm werden noch Kandidaten erzeugt."""
         simulator = IrrigationSimulator(sim_context, moisture_data_very_dry)
         simulator.seasonal_sum_mm = 100.0
@@ -539,9 +530,7 @@ class TestSeasonalLimit:
         candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 15))
         assert len(candidates) >= 1
 
-    def test_last_gift_capped_to_remaining_budget(
-        self, sim_context, moisture_data_very_dry
-    ):
+    def test_last_gift_capped_to_remaining_budget(self, sim_context, moisture_data_very_dry):
         """AK 4/f: Letzte Gabe wird auf Restbudget begrenzt (>= min).
 
         P3-5: Die Gesamtmenge (Summe aller Teil-Events) muss dem Restbudget
@@ -555,10 +544,7 @@ class TestSeasonalLimit:
         candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 15))
         assert len(candidates) >= 1
         total = sum(c.application_amount for c in candidates)
-        assert total == 15.0, (
-            f"Expected last gift capped to remaining budget 15 mm, "
-            f"got {total}"
-        )
+        assert total == 15.0, f"Expected last gift capped to remaining budget 15 mm, got {total}"
 
     def test_no_candidates_when_remaining_budget_below_min(
         self, sim_context, moisture_data_very_dry
@@ -570,9 +556,7 @@ class TestSeasonalLimit:
         np.random.seed(42)
 
         candidates = simulator.get_candidate_operations(datetime.date(2022, 6, 15))
-        assert candidates == [], (
-            "Expected no candidates when remaining budget (5 mm) < min (10 mm)"
-        )
+        assert candidates == [], "Expected no candidates when remaining budget (5 mm) < min (10 mm)"
 
 
 class TestSeasonalSumTracking:
