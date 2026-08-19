@@ -202,6 +202,10 @@ class MoistureDataService:
             vwc_15 = (vwc_0_10 + vwc_20_30) / 2
             vwc_30 = vwc_20_30
 
+        DWD-Sentinel-Werte (-9999) werden durch NaN ersetzt und anschließend
+        interpoliert (forward-fill + backward-fill). Falls alle Werte NaN sind,
+        wird auf synthetische Default-Werte (40% nFK) zurückgefallen.
+
         Returns:
             dict mit 'coords', 'dates', 'depth_15', 'depth_30' (jeweils Listen
             von täglichen VWC-Werten in %).
@@ -214,12 +218,21 @@ class MoistureDataService:
         vwc_0_10 = np.array(data_shallow['moisture_data'], dtype=float)
         vwc_20_30 = np.array(data_deep['moisture_data'], dtype=float)
 
+        # DWD-Sentinel-Werte (-9999) durch NaN ersetzen
+        DWD_SENTINEL = -9999.0
+        vwc_0_10 = np.where(vwc_0_10 == DWD_SENTINEL, np.nan, vwc_0_10)
+        vwc_20_30 = np.where(vwc_20_30 == DWD_SENTINEL, np.nan, vwc_20_30)
+
         # Längen angleichen (Schaltjahr-Unterschiede o.ä.)
         min_len = min(len(vwc_0_10), len(vwc_20_30))
         vwc_0_10 = vwc_0_10[:min_len]
         vwc_20_30 = vwc_20_30[:min_len]
 
-        # Interpolation
+        # NaN-Werte interpolieren (forward-fill + backward-fill)
+        vwc_0_10 = self._interpolate_nan(vwc_0_10)
+        vwc_20_30 = self._interpolate_nan(vwc_20_30)
+
+        # Interpolation auf 15cm/30cm
         vwc_15 = (vwc_0_10 + vwc_20_30) / 2.0
         vwc_30 = vwc_20_30
 
@@ -231,3 +244,36 @@ class MoistureDataService:
             'depth_15': vwc_15.tolist(),
             'depth_30': vwc_30.tolist(),
         }
+
+    @staticmethod
+    def _interpolate_nan(arr: np.ndarray, default: float = 40.0) -> np.ndarray:
+        """Interpoliert NaN-Werte: forward-fill, backward-fill, dann default.
+
+        Args:
+            arr: Array mit möglichen NaN-Werten.
+            default: Fallback-Wert falls alle Werte NaN sind (in % nFK).
+
+        Returns:
+            Array ohne NaN-Werte.
+        """
+        if len(arr) == 0:
+            return arr
+
+        # Falls alle Werte NaN: default verwenden
+        if np.all(np.isnan(arr)):
+            return np.full_like(arr, default)
+
+        # Forward-fill (letzte gültige Werte nach vorne füllen)
+        mask = np.isnan(arr)
+        idx = np.where(~mask, np.arange(len(arr)), 0)
+        np.maximum.accumulate(idx, out=idx)
+        arr[mask] = arr[idx[mask]]
+
+        # Backward-fill für führende NaNs
+        mask = np.isnan(arr)
+        if np.any(mask):
+            ridx = np.where(~mask, np.arange(len(arr)), len(arr) - 1)
+            np.minimum.accumulate(ridx[::-1], out=ridx[::-1])
+            arr[mask] = arr[ridx[mask]]
+
+        return arr
