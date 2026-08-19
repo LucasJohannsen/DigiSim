@@ -13,6 +13,7 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 
 COPY daemon.py ./
+COPY events/ ./events/
 COPY utils/ ./utils/
 COPY services/ ./services/
 COPY scheduler/ ./scheduler/
