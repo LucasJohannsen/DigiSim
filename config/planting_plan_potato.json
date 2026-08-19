@@ -27,7 +27,7 @@
                     },
                     {
                         "sequence": 2,
-                        "operation": "Kreiseln",
+                        "operation": "Kreiseln (Eggen)",
                         "min_days_to_target": -22,
                         "max_days_to_target": -15,
                         "duration_per_ha": 0.96,
