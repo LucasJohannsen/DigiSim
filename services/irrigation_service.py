@@ -410,6 +410,8 @@ class IrrigationSimulator:
             self.seasonal_sum_mm = float(state.get("seasonal_sum_mm", 0.0))
             last_date_str = state.get("last_irrigation_date")
             if last_date_str:
-                self._last_irrigation_date = datetime.date.fromisoformat(last_date_str)
+                # Handle both date ("2026-08-03") and datetime ("2026-08-03T00:00:00") formats
+                parsed = datetime.datetime.fromisoformat(last_date_str)
+                self._last_irrigation_date = parsed.date() if isinstance(parsed, datetime.datetime) else parsed
             else:
                 self._last_irrigation_date = None
