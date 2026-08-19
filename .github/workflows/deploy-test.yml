@@ -22,6 +22,11 @@ jobs:
           key: ${{ secrets.TEST_SSH_KEY }}
           script: |
             cd ${{ secrets.TEST_DEPLOY_PATH }}
+            # Repo auf test-Branch aktualisieren (für docker-compose.yml mit image: Tag)
+            git fetch origin
+            git checkout test 2>/dev/null || git checkout -b test origin/test
+            git pull origin test
+            # Neues Image pullen und Container starten
             docker compose pull
             docker compose up -d
             # Warte auf Health-Check (max 120s)
