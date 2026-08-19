@@ -9,7 +9,7 @@
         9,
         10
     ],
-    "growth_duration": 90,
+    "growth_duration": 110,
     "phases": [
         {
             "soil_preparation": {

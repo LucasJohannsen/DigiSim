@@ -89,14 +89,21 @@ class TestIrrigationCandidatePipeline:
             test_date = sim_context.start_date + datetime.timedelta(days=60)
             runner._initialize_services(test_date)
 
-            # Isolate irrigation behavior: suppress planting candidates so that
-            # only irrigation competes in the DecisionManager. After the B2 fix
-            # (Issue #58), planting is scheduled in the start year, so soil-prep
-            # ops would otherwise be due on this date and win priority over
-            # irrigation (which is the correct behavior, but not what this test
-            # isolates).
+            # Isolate irrigation behavior: suppress planting AND protection
+            # candidates so that only irrigation competes in the
+            # DecisionManager. After the B2 fix (Issue #58), planting is
+            # scheduled in the start year, so soil-prep ops would otherwise
+            # be due on this date and win priority over irrigation (which is
+            # the correct behavior, but not what this test isolates).
+            # Protection candidates are suppressed too, because the randomly
+            # selected protection plan (random.choice, no seed here) may have
+            # a spray due on this date that would win priority over irrigation
+            # – P3-7 (Issue #85) shifted harvest later (growth_duration
+            # 90->110), so fewer protection ops are pruned and more compete.
             with patch.object(
                 runner.planting_plan_service, 'get_next_operations', return_value=[]
+            ), patch.object(
+                runner.protection_plan_service, 'get_next_operations', return_value=[]
             ):
                 events = runner.tick(test_date)
 
