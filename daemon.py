@@ -13,6 +13,7 @@ from scheduler.tick_scheduler import TickScheduler
 from services.data_transfer_service import DataTransferService
 from services.digizert_client import DigiZertClient
 from services.digizert_data_client import DigiZertDataClient
+from services.isip_pressure_service import ISIPPressureService
 from services.moisture_service import MoistureDataService
 from services.providers.dwd_weather_provider import DWDWeatherDataProvider
 from services.retry_dispatcher import RetryDispatcher
@@ -113,10 +114,27 @@ def _run_bootstrap(
 
     total_events = 0
     for ctx in contexts:
+        # P4: ISIP-Service pro Feld (für Bootstrap-Modus)
+        isip_svc = (
+            ISIPPressureService(
+                api_base_url=config.data_api_base_url,
+                api_token=config.api_token,
+                field_id=ctx.field_id,
+                timeout=config.api_timeout,
+                enabled=config.isip_pressure_gating_enabled,
+            )
+            if config.isip_pressure_gating_enabled
+            else None
+        )
+        # ISIP-Saison-Daten prefetchen (Batch-Modus)
+        if isip_svc and isip_svc.enabled:
+            isip_svc.fetch_season(season_start, today)
+
         runner = FastForwardRunner(
             context=ctx,
             n_days=n_days,
             output_target="stdout",
+            isip_service=isip_svc,
         )
 
         # Stdout vom FastForwardRunner unterdrücken (Beeinträchtigt Logs nicht).
@@ -225,6 +243,22 @@ def main() -> None:
     if data_client.enabled:
         logger.info("Data transfer enabled (D3/D4)")
 
+    # P4: ISIP-Druck-Gating – Factory erstellt pro Feld einen ISIPService
+    isip_enabled = config.isip_pressure_gating_enabled
+    if isip_enabled:
+        logger.info("ISIP pressure gating enabled")
+
+    def _isip_service_factory(ctx) -> ISIPPressureService | None:
+        if not isip_enabled:
+            return None
+        return ISIPPressureService(
+            api_base_url=config.data_api_base_url,
+            api_token=config.api_token,
+            field_id=ctx.field_id,
+            timeout=config.api_timeout,
+            enabled=True,
+        )
+
     if bootstrap:
         _run_bootstrap(config, state_manager, dispatcher, data_client)
         if bootstrap_only:
@@ -246,6 +280,7 @@ def main() -> None:
         state_dir=config.state_dir,
         event_dispatcher=dispatcher,
         max_concurrent_fields=config.max_concurrent_fields,
+        isip_service_factory=_isip_service_factory,
     )
 
     def _shutdown(signum, frame):

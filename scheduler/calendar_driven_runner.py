@@ -15,6 +15,7 @@ from models.sim_context import SimContext
 from scheduler.decision_manager import CycleContext, DeadlineAwarePriorityStrategy, DecisionManager
 from scheduler.guard_rule_loader import GuardRuleLoader
 from services.irrigation_service import IrrigationSimulator
+from services.isip_pressure_service import ISIPPressureService
 from services.moisture_service import MoistureDataService
 from services.planting_plan_service import PlantingPlanService
 from services.protection_plan_service import ProtectionPlanService
@@ -53,6 +54,7 @@ class CalendarDrivenRunner:
         skip_scheduling_event: bool = False,
         moisture_service_factory: MoistureServiceFactory | None = None,
         weather_service_factory: WeatherServiceFactory | None = None,
+        isip_service: ISIPPressureService | None = None,
     ) -> None:
         self.context = context
         self.event_logger = EventLogger()
@@ -80,6 +82,7 @@ class CalendarDrivenRunner:
         self.protection_plan_service: ProtectionPlanService = None
         self.irrigation_service: IrrigationSimulator = None
         self.weather_service: WeatherDataService | None = None
+        self.isip_service = isip_service  # P4: ISIP-Druck-Gating (optional)
         self._crop_cycle_state = CropCycleState.SCHEDULED
         # P2-5 C (Issue #71): Optionale Factory für den Moisture-Service.
         # Falls gesetzt, wird sie in _initialize_services() statt der
@@ -355,12 +358,14 @@ class CalendarDrivenRunner:
     def _initialize_services(self, current_date: datetime.date) -> None:
         # P2-3 (Befund B6): Protection-Termine am Pflanzdatum verankern
         # (nicht am Crop-Management-Start) und am Erntetermin beschneiden.
+        # P4: ISIP-Druck-Gating – isip_service wird injiziert (optional).
         self.protection_plan_service = ProtectionPlanService(
             context=self.context,
             start_date=self.planting_plan_service.planned_planting_date,
             planting_plan=self.planting_plan_service.planting_plan,
             harvest_date=self._compute_harvest_date(),
             event_bus=self.event_bus,
+            isip_service=self.isip_service,
         )
 
         # Extract year from current simulation date
