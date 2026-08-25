@@ -48,7 +48,7 @@ def test_disabled_client_ensure_sensor_is_noop(disabled_client):
 
 def test_disabled_client_send_data_is_noop(disabled_client):
     """When disabled, send_*_data should be no-ops."""
-    measurements = [SoilMoistureMeasurement(timestamp=datetime.datetime(2026, 1, 1), vwc=28.5)]
+    measurements = [SoilMoistureMeasurement(timestamp=datetime.datetime(2026, 1, 1), nfk_pct=28.5)]
     with patch("httpx.post") as mock_post:
         disabled_client.send_soil_moisture_data(42, 15, measurements)
         disabled_client.send_weather_data(42, [])
@@ -124,8 +124,8 @@ def test_ensure_sensor_handles_duplicate_400(enabled_client):
 def test_send_soil_moisture_data_posts_correct_bulk(enabled_client):
     """Test that send_soil_moisture_data posts correct bulk payload."""
     measurements = [
-        SoilMoistureMeasurement(timestamp=datetime.datetime(2026, 4, 1, 0, 0), vwc=28.5),
-        SoilMoistureMeasurement(timestamp=datetime.datetime(2026, 4, 2, 0, 0), vwc=27.8),
+        SoilMoistureMeasurement(timestamp=datetime.datetime(2026, 4, 1, 0, 0), nfk_pct=28.5),
+        SoilMoistureMeasurement(timestamp=datetime.datetime(2026, 4, 2, 0, 0), nfk_pct=27.8),
     ]
     with patch("httpx.post") as mock_post:
         mock_response = Mock()
@@ -141,7 +141,7 @@ def test_send_soil_moisture_data_posts_correct_bulk(enabled_client):
         assert payload["field"] == 42
         assert payload["depth"] == 15
         assert len(payload["measurements"]) == 2
-        assert payload["measurements"][0]["vwc"] == 28.5
+        assert payload["measurements"][0]["nfk_pct"] == 28.5
         assert "timestamp" in payload["measurements"][0]
 
 
@@ -188,7 +188,7 @@ def test_send_data_empty_measurements_is_noop(enabled_client):
 
 def test_send_data_logs_http_error_without_crashing(enabled_client):
     """Test that HTTP errors are logged but don't crash the bootstrap."""
-    measurements = [SoilMoistureMeasurement(timestamp=datetime.datetime(2026, 4, 1), vwc=28.5)]
+    measurements = [SoilMoistureMeasurement(timestamp=datetime.datetime(2026, 4, 1), nfk_pct=28.5)]
     with patch("httpx.post") as mock_post:
         mock_response = Mock()
         mock_response.status_code = 500
@@ -209,9 +209,9 @@ def test_send_data_logs_http_error_without_crashing(enabled_client):
 
 def test_soil_moisture_measurement_is_frozen():
     """SoilMoistureMeasurement should be immutable."""
-    m = SoilMoistureMeasurement(timestamp=datetime.datetime(2026, 4, 1), vwc=28.5)
+    m = SoilMoistureMeasurement(timestamp=datetime.datetime(2026, 4, 1), nfk_pct=28.5)
     with pytest.raises(AttributeError):
-        m.vwc = 30.0
+        m.nfk_pct = 30.0
 
 
 def test_weather_measurement_defaults_temperature_none():

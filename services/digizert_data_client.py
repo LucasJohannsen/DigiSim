@@ -38,11 +38,13 @@ class SoilMoistureMeasurement:
 
     Attributes:
         timestamp: Datum/Uhrzeit der Messung (UTC).
-        vwc: Volumetric Water Content in % (z. B. 28.5 für 28.5%).
+        nfk_pct: Nutzbare Feldkapazität in % (DWD/simuliert, z. B. 50.0).
+            Werte-Bereich: 0-100%. Keine Umrechnung nötig – DWD liefert
+            direkt nFK%.
     """
 
     timestamp: datetime.datetime
-    vwc: float
+    nfk_pct: float
 
 
 @dataclass(frozen=True)
@@ -150,7 +152,7 @@ class DigiZertDataClient:
             "measurements": [
                 {
                     "timestamp": m.timestamp.isoformat(),
-                    "vwc": round(m.vwc, 2),
+                    "nfk_pct": round(m.nfk_pct, 2),
                 }
                 for m in measurements
             ],

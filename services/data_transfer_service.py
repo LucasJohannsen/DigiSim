@@ -109,14 +109,14 @@ class DataTransferService:
                 result[15].append(
                     SoilMoistureMeasurement(
                         timestamp=datetime.datetime.combine(date, datetime.time(0, 0)),
-                        vwc=depth_15[i],
+                        nfk_pct=depth_15[i],
                     )
                 )
             if i < len(depth_30):
                 result[30].append(
                     SoilMoistureMeasurement(
                         timestamp=datetime.datetime.combine(date, datetime.time(0, 0)),
-                        vwc=depth_30[i],
+                        nfk_pct=depth_30[i],
                     )
                 )
 
