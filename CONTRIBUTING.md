@@ -62,10 +62,12 @@ Dieses Projekt folgt einem freundlichen und respektvollen Umgang. Wir erwarten v
    ```
 
 ### Branch-Strategie
-- **`main`**: Stabile Releases (geschützt)
-- **`dev`**: Entwicklungs-Branch (Standard für PRs)
-- **Feature-Branches**: `feature/SIM-XX-beschreibung`
-- **Bug-Fix-Branches**: `fix/SIM-XX-beschreibung`
+- **`dev`**: Entwicklungs-Branch (Default, protected — CI muss grün)
+- **`test`**: Auslieferungs-Branch (protected — PR + CI erforderlich, auto-Deploy)
+- **Feature-Branches**: `feature/MSX-XX-beschreibung` (vom `dev`)
+- **Bug-Fix-Branches**: `fix/MSX-XX-beschreibung` (vom `dev`)
+
+**Deploy-Flow:** `dev` → PR → `test` → Docker-Build → SSH-Deploy auf Server
 
 ### Workflow
 1. **Erstelle einen Branch** vom `dev`-Branch:
@@ -107,23 +109,26 @@ Dieses Projekt folgt einem freundlichen und respektvollen Umgang. Wir erwarten v
 
 ### Vor dem PR
 1. **Verlinke das zugehörige Issue** (erstelle eins, falls keins existiert)
-2. **Teste deine Änderungen lokal**:
+2. **Lokale Checks ausführen**:
    ```bash
-   python main.py  # Manuelle Tests
-   pytest          # Falls Unit-Tests vorhanden
+   uv run ruff check .       # Linting
+   uv run ruff format --check .  # Format-Check
+   uv run pytest -q           # Test-Suite
    ```
 3. **Aktualisiere die Dokumentation** (README, Docstrings, etc.)
 4. **Prüfe Code-Style** (siehe unten)
 
 ### PR-Checkliste
 - [ ] Branch ist aktuell mit `dev`
-- [ ] Alle Tests laufen erfolgreich
+- [ ] `ruff check .` ist clean
+- [ ] `ruff format --check .` ist clean
+- [ ] Alle Tests laufen erfolgreich (`pytest`)
 - [ ] Dokumentation ist aktualisiert
 - [ ] Commit-Messages sind aussagekräftig
 - [ ] PR-Template ist vollständig ausgefüllt
 
 ### Review-Prozess
-1. **Automatische Checks** (falls CI/CD vorhanden)
+1. **Automatische CI-Checks**: ruff + format + mypy + pytest
 2. **Formale Prüfung** durch Maintainer:
    - Ist das Issue verlinkt?
    - Ist die Dokumentation aktuell?
@@ -132,9 +137,9 @@ Dieses Projekt folgt einem freundlichen und respektvollen Umgang. Wir erwarten v
 4. **Merge** nach Approval
 
 ### Nach dem Merge
-- Dein Branch wird automatisch gelöscht
+- Feature-Branch kann gelöscht werden
 - Das verlinkte Issue wird geschlossen
-- Du wirst in den Release Notes erwähnt! 🎉
+- Für Deploy: PR `dev` → `test` erstellen + mergen (triggert Docker-Build + Auto-Deploy)
 
 ---
 
