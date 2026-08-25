@@ -46,6 +46,7 @@ class DaemonConfig:
     field_filter_ids: list[int] | None = None
     data_transfer_enabled: bool = False
     data_api_base_url: str = ""
+    isip_pressure_gating_enabled: bool = False
 
     def __post_init__(self) -> None:
         if not self.api_base_url:
@@ -95,6 +96,8 @@ def load_and_validate_config() -> DaemonConfig:
         max_concurrent_fields=int(os.getenv("MAX_CONCURRENT_FIELDS", "10")),
         field_filter_ids=_parse_field_filter_ids(os.getenv("FIELD_FILTER_IDS")),
         data_transfer_enabled=os.getenv("DIGIZERT_DATA_TRANSFER_ENABLED", "false").lower()
+        in ("true", "1", "yes"),
+        isip_pressure_gating_enabled=os.getenv("ISIP_PRESSURE_GATING_ENABLED", "false").lower()
         in ("true", "1", "yes"),
     )
 

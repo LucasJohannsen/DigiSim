@@ -2,6 +2,7 @@ import asyncio
 import datetime
 import json
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
@@ -23,11 +24,13 @@ class TickScheduler:
         state_dir: str = "./state",
         event_dispatcher=None,
         max_concurrent_fields: int = 10,
+        isip_service_factory: Callable | None = None,
     ) -> None:
         self.contexts = contexts
         self.tick_time = tick_time
         self.state_dir = state_dir
         self.state_manager = StateManager(state_dir)
+        self.isip_service_factory = isip_service_factory  # P4: ISIP-Gating
         self.event_dispatcher = event_dispatcher
         self.max_concurrent_fields = max_concurrent_fields
 
@@ -40,7 +43,13 @@ class TickScheduler:
             # zweites CropCycleScheduled + neuer Legetermin gewürfelt wird.
             snapshot = self.state_manager.load(context.field_id)
             skip_scheduling = snapshot is not None
-            runner = CalendarDrivenRunner(context, skip_scheduling_event=skip_scheduling)
+            # P4: ISIP-Druck-Gating – pro Feld ein ISIPService
+            isip_service = self.isip_service_factory(context) if self.isip_service_factory else None
+            runner = CalendarDrivenRunner(
+                context,
+                skip_scheduling_event=skip_scheduling,
+                isip_service=isip_service,
+            )
             if snapshot:
                 runner.apply_state_snapshot(snapshot)
                 logger.info(
