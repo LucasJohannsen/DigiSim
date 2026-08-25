@@ -9,6 +9,7 @@ from scheduler.calendar_driven_runner import (
     MoistureServiceFactory,
     WeatherServiceFactory,
 )
+from services.isip_pressure_service import ISIPPressureService
 from utils.event_logger import EventLogger
 from utils.logger import get_logger
 
@@ -47,6 +48,7 @@ class FastForwardRunner:
         flush_interval: int = 30,
         moisture_service_factory: MoistureServiceFactory | None = None,
         weather_service_factory: WeatherServiceFactory | None = None,
+        isip_service: ISIPPressureService | None = None,
     ) -> None:
         """
         Initialize fast-forward runner.
@@ -79,6 +81,7 @@ class FastForwardRunner:
             event_bus=self.event_bus,
             moisture_service_factory=moisture_service_factory,
             weather_service_factory=weather_service_factory,
+            isip_service=isip_service,
         )
 
         self.all_events: list[FieldOperationEvent] = []

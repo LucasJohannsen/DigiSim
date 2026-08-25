@@ -5,13 +5,29 @@ import models.sim_context as sim_context
 from models.domain_events import create_protection_operations_pruned
 from models.planting_plan import FieldOperation, FieldOperationEvent, PlantingPlan
 from models.worktypes import WorkType
+from services.isip_pressure_service import ISIPPressureService
 from utils import sim_helper
+from utils.logger import get_logger
+
+logger = get_logger("protection_plan_service")
 
 # Sikkationsgaben (Kat. 26) muessen >= 14 Tage vor dem Roden liegen (KAR-020/KAR-024).
 SIKKATION_MIN_DAYS_BEFORE_HARVEST = 14  # KAR-020 / KAR-024
 
 # Application-Category fuer Sikkationsgaben (Herbizid, z. B. Quickdown/Shark).
 SIKKATION_CATEGORY = 26
+
+# Application-Category fuer Fungizide (DropdownData pk=27).
+FUNGIZID_CATEGORY = 27
+
+# Max. Verschiebung einer Fungizid-Spritzung bei ISIP-Druck-Gating (Tage).
+# Nach Ablauf: deterministische Ausführung (verhindert dass Spritzungen
+# komplett entfallen).
+ISIP_MAX_SHIFT_DAYS = 7
+
+# Falls die naechste geplante Fungizid-Maßnahme <= diesem Wert (Tage ab
+# aktuellem Tick) anliegt, wird die aktuelle verfallen lassen.
+ISIP_SKIP_THRESHOLD_DAYS = 2
 
 
 class ProtectionPlanService:
@@ -22,6 +38,7 @@ class ProtectionPlanService:
         planting_plan: PlantingPlan = None,
         harvest_date: datetime | None = None,
         event_bus: object | None = None,
+        isip_service: ISIPPressureService | None = None,
     ):
         self.context = context
 
@@ -31,6 +48,7 @@ class ProtectionPlanService:
         # deaktiviert die Beschneidung (Abwaertskompatibilitaet).
         self.harvest_date = harvest_date
         self.event_bus = event_bus
+        self.isip_service = isip_service  # P4: ISIP-Druck-Gating (optional)
 
         self.operations = []
 
@@ -169,20 +187,108 @@ class ProtectionPlanService:
     def get_next_operations(self, date: datetime) -> list[FieldOperation]:
         """
         Get the next operations for the protection plan based on the current date.
-        :param date: The current date in the simulation.
 
+        P4 (ISIP-Druck-Gating): Fungizid-Operationen (category=27) werden
+        nur ausgefuehrt, wenn ``is_justified_window=true`` fuer den aktuellen
+        Tag. Falls nicht justified:
+
+        1. Naechste geplante Fungizid-Maßnahme ≤ +2 Tage entfernt → aktuelle
+           verfallen lassen (skip).
+        2. Sonst → zurueckstellen (wird naechsten Tick erneut geprueft).
+        3. Fallback: geplantes Datum + 7 Tage ueberschritten → deterministisch.
+
+        Herbizide/Insektizide/Sikkationen bleiben deterministisch.
+
+        :param date: The current date in the simulation.
         """
         if not self.operations:
             print("No protection operations planned.")
             return []
+
+        current_date = date.date() if isinstance(date, datetime) else date
+
         next_operations = []
         for operation in self.operations:
             if operation.planned_date <= date and not operation.actual_date:
+                # ISIP-Druck-Gating nur fuer Fungizide
+                if (
+                    self._is_fungicide(operation)
+                    and self.isip_service
+                    and self.isip_service.enabled
+                ):
+                    # Fallback: geplantes Datum + 7 Tage → deterministisch
+                    planned_date = (
+                        operation.planned_date.date()
+                        if isinstance(operation.planned_date, datetime)
+                        else operation.planned_date
+                    )
+                    if planned_date + timedelta(days=ISIP_MAX_SHIFT_DAYS) <= current_date:
+                        logger.info(
+                            "Fungizid deterministisch (7-Tage-Fallback)",
+                            field_id=self.context.field_id,
+                            planned=str(planned_date),
+                            current=str(current_date),
+                        )
+                        next_operations.append(operation)
+                        continue
+
+                    # ISIP-Check
+                    if not self.isip_service.is_justified(current_date):
+                        # Nicht justified → pruefe Skip-Bedingung
+                        if self._should_skip_fungicide(operation, current_date):
+                            operation.actual_date = date  # Skip permanent
+                            logger.info(
+                                "Fungizid verfallen (naechste ≤ +2 Tage)",
+                                field_id=self.context.field_id,
+                                planned=str(planned_date),
+                                current=str(current_date),
+                            )
+                            continue
+                        else:
+                            # Zurueckstellen – naechster Tick versucht es erneut
+                            continue
+
                 next_operations.append(operation)
+
         if not next_operations:
             return []
 
         return next_operations
+
+    def _is_fungicide(self, operation: FieldOperation) -> bool:
+        """Prueft ob eine Operation ein Fungizid ist (category=27)."""
+        return operation.application_category == FUNGIZID_CATEGORY
+
+    def _should_skip_fungicide(
+        self, current_op: FieldOperation, current_date: datetime.date
+    ) -> bool:
+        """Prueft ob die naechste Fungizid-Maßnahme ≤ +2 Tage anliegt.
+
+        Falls ja → aktuelle verfallen lassen (skip).
+        Falls nein → zurueckstellen (wird naechsten Tick erneut geprueft).
+        """
+        next_fungicide = self._find_next_fungicide(current_op)
+        if next_fungicide is None:
+            return False
+
+        next_planned = (
+            next_fungicide.planned_date.date()
+            if isinstance(next_fungicide.planned_date, datetime)
+            else next_fungicide.planned_date
+        )
+        delta_days = (next_planned - current_date).days
+        return delta_days <= ISIP_SKIP_THRESHOLD_DAYS
+
+    def _find_next_fungicide(self, current_op: FieldOperation) -> FieldOperation | None:
+        """Findet die naechste geplante Fungizid-Operation nach current_op."""
+        found_current = False
+        for op in self.operations:
+            if op is current_op:
+                found_current = True
+                continue
+            if found_current and self._is_fungicide(op) and not op.actual_date:
+                return op
+        return None
 
     def get_events_for_ops(
         self, operations: list[FieldOperation], date: datetime
