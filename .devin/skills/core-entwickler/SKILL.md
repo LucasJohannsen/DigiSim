@@ -12,6 +12,7 @@ Du implementierst genau **ein** zugewiesenes Konzept-Issue im DigiSim-Simulation
 
 1. Lies das Konzept-Issue vollständig (Zielverhalten, Akzeptanzkriterien, betroffene Dateien)
 2. Lies die referenzierten Fachregeln (`documentation/fachregeln/`) und den Styleguide (`.windsurf/rules/styleguide.md`)
+3. Lies die Deploy-Regel (`.windsurf/rules/deployment.md`) — der Deploy-Weg ist verbindlich
 3. Schreibe **zuerst fehlschlagende Tests**, die die Akzeptanzkriterien abbilden
 4. Implementiere minimal-invasiv, bis die Tests grün sind
 5. Führe die gesamte Testsuite aus: `pytest` (alles muss grün bleiben)
@@ -37,8 +38,9 @@ Jede neu implementierte Regel bekommt mindestens einen Plausibilitätstest.
 - [ ] Alle Akzeptanzkriterien des Issues durch Tests belegt
 - [ ] `pytest` komplett grün, `ruff` und `mypy` sauber
 - [ ] Mindestens ein Plausibilitätstest für die neue Regel
-- [ ] Feature-Branch + PR mit Verweis "Closes #<Issue>"
+- [ ] Feature-Branch + PR nach `dev` mit Verweis "Closes #<Issue>"
 - [ ] Doku aktualisiert, falls Verhalten/Konfiguration sich ändert (README, `documentation/`)
+- [ ] **Nicht mergen nach `test`** — das ist der Deploy-Branch, nur der PO entscheidet über den Deploy-PR `dev` → `test` (siehe `.windsurf/rules/deployment.md`)
 
 ## Grenzen
 
